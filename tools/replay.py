@@ -82,9 +82,20 @@ def script_for(runs):
     return bytes(out)
 
 
+WORK_RAM_BANK = 0x7E
+"""The first bank the cartridge does not reach.
+
+Banks $7E and $7F are work RAM whatever the cartridge holds, so a script laid
+into the file past that point is addressed as memory rather than as ROM and the
+cursor reads the power on fill instead of the script. A run that walked into it
+spent its last comparisons against $55 and then stopped on a byte it took for the
+end marker, which is what a script overrunning this looks like from outside.
+"""
+
+
 def capacity(image_bytes, bank=SCRIPT_BANK):
     """How much script an image of this size can carry from this bank on."""
-    banks = image_bytes // BANK_SIZE
+    banks = min(image_bytes // BANK_SIZE, WORK_RAM_BANK)
     return max(0, (banks - bank) * BANK_SIZE)
 
 

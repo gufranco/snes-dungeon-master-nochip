@@ -97,6 +97,15 @@ class LayoutTest(unittest.TestCase):
     def test_the_capacity_counts_only_the_half_of_each_bank_that_exists(self):
         self.assertEqual(replay.capacity(0x100000, 0x02), (32 - 2) * 0x8000)
 
+    def test_the_capacity_stops_where_work_RAM_takes_over(self):
+        self.assertEqual(replay.capacity(0x400000, 0x02), (replay.WORK_RAM_BANK - 2) * 0x8000)
+
+    def test_a_script_reaching_into_work_RAM_is_refused(self):
+        room = replay.capacity(0x400000, 0x02)
+
+        with self.assertRaises(replay.ScriptTooLong):
+            replay.place_script(bytes(0x400000), b"\xaa" * (room + 1), 0x02)
+
 
 class BatchTest(unittest.TestCase):
     def test_runs_are_grouped_until_the_room_is_used(self):
