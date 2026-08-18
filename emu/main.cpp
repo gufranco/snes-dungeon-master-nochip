@@ -176,11 +176,13 @@ extern "C" void dm_note_read(unsigned long address)
 
 extern "C" void dm_note_write(unsigned long address)
 {
-    if (watch_address != 0xFFFFFFFF && (address & 0xFFFFFF) == watch_address && watch_hits < 40) {
+    if (watch_address != 0xFFFFFFFF && (address & 0xFFFFFF) == watch_address) {
         watch_hits++;
-        printf("WATCH write $%06lX from $%06lX frame %lu\n",
-               (unsigned long)(address & 0xFFFFFF),
-               (unsigned long)Registers.PBPC, frames_seen);
+        if (watch_hits <= 8) {
+            printf("WATCH write $%06lX from $%06lX frame %lu\n",
+                   (unsigned long)(address & 0xFFFFFF),
+                   (unsigned long)Registers.PBPC, frames_seen);
+        }
     }
     if (wram_touched) {
         const long at = wram_offset(address);
@@ -598,6 +600,9 @@ int main(int argc, char **argv)
     }
     if (rom_touched) {
         report_rom(getenv("DMROM"));
+    }
+    if (watch_address != 0xFFFFFFFF) {
+        printf("WATCH total=%lu\n", watch_hits);
     }
     if (getenv("DMDUMP")) {
         dump_wram(getenv("DMDUMP"));
