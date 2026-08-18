@@ -17,7 +17,7 @@ RUN git -C /src/snes9x apply --check /src/windowed-lorom-map.patch \
     && git -C /src/snes9x apply /src/windowed-lorom-map.patch
 
 RUN grep -q "Map_WindowedLoROMMap" /src/snes9x/memmap.h \
-    && grep -q "DUNGEON MASTER" /src/snes9x/memmap.cpp \
+    && grep -q "is_expanded_conversion_size" /src/snes9x/memmap.cpp \
     && grep -q "map_LoROMSRAM" /src/snes9x/memmap.cpp \
     && ! grep -q "SDD1Decompressed" /src/snes9x/memmap.cpp
 

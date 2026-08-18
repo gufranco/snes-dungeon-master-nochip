@@ -89,49 +89,74 @@ index 6a0d5f0e..8e9a6609 100644
 2.55.0
 
 
-From b7d91b71695544016b9e49f741a9b8b348dfc748 Mon Sep 17 00:00:00 2001
+From 967bee523a2521c511b6d95823d4a2be83339528 Mon Sep 17 00:00:00 2001
 From: Gustavo Franco <gufranco@users.noreply.github.com>
-Date: Mon, 17 Aug 2026 23:01:47 -0300
-Subject: [PATCH 2/3] feat: recognise the Dungeon Master chip-free conversion
+Date: Tue, 18 Aug 2026 01:16:55 -0300
+Subject: [PATCH 2/3] feat: recognise an expanded conversion by its shape, not
+ by its name
 
-Dungeon Master is the only cartridge carrying a DSP-2. A conversion that
-computes the chip's output ahead of time outgrows the 1 MB address space and
-uses the same windowed layout the Star Ocean and Street Fighter conversions
-already use, so it needs the same map.
+The branch matched three ROM titles, so every new conversion needed a change
+here before any emulator could load it. What the layout actually requires is
+an image too large for any other LoROM layout to serve, and that is testable.
 
-Added to the title list with a comment saying which chip each entry removed,
-since the list now covers more than one.
+Plain LoROM starts mirroring above about 4 MB and the extended LoROM layouts
+reach 6 MB. No retail cartridge ever shipped larger than 6 MB either. So a
+LoROM image past 6 MB, in whole 64 KB banks and inside the 12 MB the window
+can address, is one of these conversions whatever coprocessor it dropped.
 
-The size test does the safety work here. Retail Dungeon Master is 1,048,576
-bytes, far below the 8 MB floor, so a stock dump cannot reach this branch and
-still gets its DSP-2 from the chipset detection in ParseSNESHeader.
+The title list stays as the fallback it always was. Those conversions kept
+the header of the cartridge they were made from, so nothing the header says
+identifies them, and one of them declares a map mode that scores as HiROM
+and so cannot reach the size test.
 ---
- memmap.cpp | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ memmap.cpp | 30 +++++++++++++++++++++++++-----
+ 1 file changed, 25 insertions(+), 5 deletions(-)
 
 diff --git a/memmap.cpp b/memmap.cpp
-index a49f743f..b2cdb58f 100644
+index a49f743f..3d542b2e 100644
 --- a/memmap.cpp
 +++ b/memmap.cpp
-@@ -2248,11 +2248,20 @@ void CMemory::InitROM (void)
+@@ -2049,6 +2049,20 @@ void CMemory::ParseSNESHeader (uint8 *RomHeader)
+ 	}
+ }
+ 
++// A conversion that expands a cartridge's graphics ahead of time outgrows every
++// layout a LoROM image can otherwise be served by. Plain LoROM starts mirroring
++// above about 4 MB and the extended LoROM layouts reach 6 MB, and no retail
++// cartridge ever shipped larger than 6 MB either. So a LoROM image past that, in
++// a whole number of 64 KB banks and within the 12 MB the window can address, is
++// one of these conversions, whichever coprocessor it was built to do without.
++//
++// Recognising them by shape rather than by name means a new conversion needs no
++// change here.
++static bool8 is_expanded_conversion_size (uint32 size)
++{
++	return (size > 0x600000) && (size <= 0xC00000) && ((size & 0xFFFF) == 0);
++}
++
+ void CMemory::InitROM (void)
+ {
+ 	Settings.SuperFX = FALSE;
+@@ -2248,11 +2262,17 @@ void CMemory::InitROM (void)
  	Map_Initialize();
  	CalculatedChecksum = 0;
  
-+	// Conversions whose graphics were expanded ahead of time and no longer need the
-+	// coprocessor they were built around. Which chip each one removed does not affect
-+	// the mapping: Star Ocean and the Street Fighter pair dropped an S-DD1, Dungeon
-+	// Master drops a DSP-2.
-+	//
-+	// Every one of them is far larger than the retail cartridge it came from, so the
-+	// size test keeps a stock dump from ever reaching this branch. Retail Dungeon
-+	// Master is 1 MB and still takes the ordinary DSP detection above.
- 	const bool8	WindowedLoROM = (CalculatedSize >= 0x800000) &&
- 			(Settings.SDD1 ||
- 			 strncmp(ROMName, "STREET FIGHTER ALPHA2", 21) == 0 ||
- 			 strncmp(ROMName, "STREET FIGHTER ZERO2", 20) == 0 ||
+-	const bool8	WindowedLoROM = (CalculatedSize >= 0x800000) &&
+-			(Settings.SDD1 ||
+-			 strncmp(ROMName, "STREET FIGHTER ALPHA2", 21) == 0 ||
+-			 strncmp(ROMName, "STREET FIGHTER ZERO2", 20) == 0 ||
 -			 strncmp(ROMName, "Star Ocean", 10) == 0);
-+			 strncmp(ROMName, "Star Ocean", 10) == 0 ||
-+			 strncmp(ROMName, "DUNGEON MASTER", 14) == 0);
++	// The title list is not a second opinion, it is the fallback for the
++	// conversions already in circulation. Those kept the header of the cartridge
++	// they were made from, so nothing the header says can identify them and the
++	// size test above cannot reach one whose map mode scores as HiROM.
++	const bool8	WindowedLoROM =
++			(!HiROM && is_expanded_conversion_size(CalculatedSize)) ||
++			((CalculatedSize >= 0x800000) &&
++			 (Settings.SDD1 ||
++			  strncmp(ROMName, "STREET FIGHTER ALPHA2", 21) == 0 ||
++			  strncmp(ROMName, "STREET FIGHTER ZERO2", 20) == 0 ||
++			  strncmp(ROMName, "Star Ocean", 10) == 0));
  
  	if (WindowedLoROM)
  	{
@@ -139,7 +164,7 @@ index a49f743f..b2cdb58f 100644
 2.55.0
 
 
-From 5d7e5406c62a13743f9b18d1775e5a4b39983fb6 Mon Sep 17 00:00:00 2001
+From 1aff9a0650f2a1ecc8716bffd6ae4c1ce2831ec1 Mon Sep 17 00:00:00 2001
 From: Gustavo Franco <gufranco@users.noreply.github.com>
 Date: Mon, 17 Aug 2026 23:02:59 -0300
 Subject: [PATCH 3/3] fix: map save RAM for windowed conversions that declare
@@ -163,10 +188,10 @@ has to keep its data out of them.
  1 file changed, 15 insertions(+)
 
 diff --git a/memmap.cpp b/memmap.cpp
-index b2cdb58f..87a4c4f9 100644
+index 3d542b2e..1d3b0207 100644
 --- a/memmap.cpp
 +++ b/memmap.cpp
-@@ -4132,6 +4132,21 @@ void CMemory::Map_WindowedLoROMMap (void)
+@@ -4143,6 +4143,21 @@ void CMemory::Map_WindowedLoROMMap (void)
  		}
  	}
  
