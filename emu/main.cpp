@@ -613,6 +613,17 @@ int main(int argc, char **argv)
         hash_out = fopen(hash_path, "w");
     }
 
+    unsigned long stop_address = 0xFFFFFFFF;
+    unsigned char stop_value = 0;
+    const char *stop = getenv("DMSTOP");
+    if (stop) {
+        const char *colon = strchr(stop, ':');
+        if (colon) {
+            stop_address = strtoul(stop, NULL, 16) & 0x1FFFF;
+            stop_value = (unsigned char)strtoul(colon + 1, NULL, 16);
+        }
+    }
+
     const char *ppm_prefix = getenv("DMPPM");
     const char *ppm_at = getenv("DMPPMAT");
 
@@ -621,6 +632,12 @@ int main(int argc, char **argv)
         apply_script(i);
         retro_run();
         note_wram_changes();
+
+        if (stop_address != 0xFFFFFFFF && Memory.RAM[stop_address] == stop_value) {
+            frames_seen = i + 1;
+            printf("STOP at frame %lu\n", frames_seen);
+            break;
+        }
 
         if (hash_out) {
             fprintf(hash_out, "%lu %016llx %.4f\n", i, frame_hash(), frame_brightness());
