@@ -1,0 +1,72 @@
+{
+  "canonical": {
+    "form": "one file, no copier header, exactly 1048576 bytes",
+    "note": "A 512 byte copier header describes the same bytes. Strip it first, then compare. Every digest below is of the bare file."
+  },
+  "decides": "sha256",
+  "artifacts": [
+    {
+      "name": "Dungeon Master, USA",
+      "release": "SNS-V2-USA",
+      "region": "USA",
+      "filename": "dungeon-master-usa.sfc",
+      "declares": {
+        "title": "DUNGEON MASTER",
+        "map": "0x20",
+        "chipset": "0x05",
+        "coprocessor": "DSP-2",
+        "rom_size": "0x0A",
+        "sram_size": "0x05"
+      },
+      "accepted": [
+        {
+          "size": 1048576,
+          "crc32": "0DFD9CEB",
+          "md5": "3d1b171d7486438af2d9ec3d98b155cd",
+          "sha1": "e65ae62ec9a1c48a3512db66f929c7b0055ae2c3",
+          "sha256": "2dfc2e037679a62a960dab9682bca6d1b2737f603edd336c8b2fdf05db10cc07"
+        }
+      ],
+      "provenance": "Measured on this machine from a bare file with no copier header. No-Intro names this dump Dungeon Master (USA)."
+    },
+    {
+      "name": "Dungeon Master, Japan",
+      "release": "SHVC-V2",
+      "region": "Japan",
+      "filename": "dungeon-master-jp.sfc",
+      "declares": {
+        "title": null,
+        "map": "0x20",
+        "chipset": "0x05",
+        "coprocessor": "DSP-2",
+        "rom_size": "0x0A",
+        "sram_size": "0x05"
+      },
+      "accepted": [],
+      "provenance": "No dump held. No-Intro lists a base release and a Rev 1. Digests are left empty rather than guessed, and the build refuses this entry until they are measured."
+    },
+    {
+      "name": "Dungeon Master, UK and Europe",
+      "release": "SNSP-V2-UKV",
+      "region": "Europe",
+      "filename": "dungeon-master-eur.sfc",
+      "declares": {
+        "title": null,
+        "map": "0x20",
+        "chipset": "0x05",
+        "coprocessor": "DSP-2",
+        "rom_size": "0x0A",
+        "sram_size": "0x05"
+      },
+      "accepted": [],
+      "provenance": "No dump held. Digests are left empty rather than guessed, and the build refuses this entry until they are measured."
+    }
+  ],
+  "known_bad": [],
+  "not_this": [
+    {
+      "name": "An image this project already produced",
+      "why": "A build output declares chipset 0x02 and is larger than the retail dump. Feeding one back in is a mistake, not a dump, and the build says so rather than patching it twice."
+    }
+  ]
+}

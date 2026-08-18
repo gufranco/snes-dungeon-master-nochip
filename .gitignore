@@ -1,0 +1,14 @@
+# No ROM data, ever. Not the retail dump, not anything built from it.
+roms/
+build/
+dist/
+*.sfc
+*.smc
+*.bin
+*.srm
+*.ppm
+
+# Local scratch
+__pycache__/
+.ruff_cache/
+.DS_Store
