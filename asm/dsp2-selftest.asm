@@ -26,9 +26,13 @@ lorom
 
 !ROUTINES   = $018000           ; the software chip, in its own bank
 !SCRIPT     = $028000           ; the script, in the next one
-!RESULTS    = $001000           ; work RAM, clear of the state block at $0900
-!RESULT_LEN = $000FFC
-!DONE       = $000FFE
+; Results live in bank $7E rather than in the low mirror. The mirror reaches
+; only $0000 to $1FFF, and the stack grows down from $1FFF, so results written
+; upward from $1000 ran into it after about two hundred and fifty requests and
+; took the return addresses with them.
+!RESULTS    = $7E4000
+!RESULT_LEN = $7E3FFC
+!DONE       = $7E3FFE
 
 ; The cartridge's own working variables. They live in work RAM because a store
 ; to ROM does nothing: an earlier version declared them as words in the code
