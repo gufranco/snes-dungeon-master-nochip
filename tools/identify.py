@@ -1,8 +1,6 @@
-import hashlib
 import importlib.util
 import json
 import sys
-import zlib
 from collections import namedtuple
 from pathlib import Path
 
@@ -18,7 +16,8 @@ def _load(name):
     return module
 
 
-romtools = _load("romtools")
+hardware = _load("hardware")
+romimage = hardware.load("romimage")
 
 Identity = namedtuple("Identity", "size crc32 md5 sha1 sha256")
 Finding = namedtuple("Finding", "name filename state detail identity form")
@@ -43,13 +42,7 @@ DIGEST_COMMANDS = (
 
 
 def digests(data):
-    return Identity(
-        size=len(data),
-        crc32=f"{zlib.crc32(data) & 0xFFFFFFFF:08X}",
-        md5=hashlib.md5(data).hexdigest(),
-        sha1=hashlib.sha1(data).hexdigest(),
-        sha256=hashlib.sha256(data).hexdigest(),
-    )
+    return Identity(**romimage.identity.measure(data))
 
 
 def read_manifest(path=MANIFEST_PATH):
@@ -69,7 +62,7 @@ def known_bad_digests(manifest):
 
 
 def source_form(raw):
-    return "copier header, stripped" if romtools.has_copier_header(raw) else "bare"
+    return "copier header, stripped" if romimage.dump.has_copier_stub(raw) else "bare"
 
 
 def diagnose(artifact, manifest, roms=ROMS):
@@ -85,7 +78,7 @@ def diagnose(artifact, manifest, roms=ROMS):
 
     raw = path.read_bytes()
     form = source_form(raw)
-    identity = digests(romtools.strip_header(raw))
+    identity = digests(romimage.dump.strip_copier_stub(raw))
 
     if any(identity.sha256 == accepted["sha256"] for accepted in artifact["accepted"]):
         return Finding(name, filename, STATE_OK, "", identity, form)

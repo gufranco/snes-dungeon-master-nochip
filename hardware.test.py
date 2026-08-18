@@ -36,6 +36,20 @@ class PathTest(unittest.TestCase):
         self.assertEqual(sys.path, before)
 
 
+class LoadTest(unittest.TestCase):
+    def test_a_model_comes_back_by_the_name_it_is_published_under(self):
+        found = hardware.load("mapper")
+
+        self.assertTrue(hasattr(found, "resolve"))
+
+    def test_loading_a_model_it_does_not_carry_is_refused_before_importing(self):
+        with self.assertRaises(hardware.UnknownPackage):
+            hardware.load("nonsense")
+
+    def test_loading_the_same_model_twice_gives_the_same_module(self):
+        self.assertIs(hardware.load("mapper"), hardware.load("mapper"))
+
+
 class ModelTest(unittest.TestCase):
     def setUp(self):
         hardware.install()
@@ -58,8 +72,20 @@ class ModelTest(unittest.TestCase):
         self.assertTrue(hasattr(found, "resolve"))
         self.assertEqual(found.ENABLE, 0x420B)
 
+    def test_the_image_handling_is_the_one_that_was_vendored(self):
+        found = importlib.import_module("romimage")
+
+        self.assertTrue(hasattr(found.dump, "read"))
+        self.assertTrue(hasattr(found.rewrite, "declare_rom_only"))
+
+    def test_the_image_package_reads_the_map_this_project_pinned(self):
+        found = importlib.import_module("romimage")
+        used = importlib.import_module("mapper")
+
+        self.assertIs(found.rewrite.mapper, used)
+
     def test_every_model_reports_a_released_version(self):
-        for module in ("mos65xx", "dsp2", "mapper"):
+        for module in hardware.PACKAGES:
             found = importlib.import_module(module)
 
             self.assertRegex(found.__version__, r"^\d+\.\d+\.\d+$")

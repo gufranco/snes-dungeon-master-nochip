@@ -7,3 +7,6 @@
 [submodule "emulators/snes-mapper"]
 	path = emulators/snes-mapper
 	url = https://github.com/gufranco/snes-mapper-python.git
+[submodule "emulators/snes-rom-image"]
+	path = emulators/snes-rom-image
+	url = https://github.com/gufranco/snes-rom-image-python.git

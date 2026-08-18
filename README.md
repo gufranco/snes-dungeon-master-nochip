@@ -90,11 +90,12 @@ rather than to its author's confidence.
 |---|---|
 | [65816](https://github.com/gufranco/mos65xx-python) | a per-opcode suite, 5,120,000 cases |
 | [DSP-2](https://github.com/gufranco/snes-dsp2-python) | the chip's own reference implementation |
-| [cartridge map](https://github.com/gufranco/snes-mapper-python) | every header combination in a 5,145-cartridge library |
+| [cartridge map](https://github.com/gufranco/snes-mapper-python) | every header combination in a real cartridge library |
+| [ROM image](https://github.com/gufranco/snes-rom-image-python) | the whole of that same library, rewritten and checked |
 
 A model that has never disagreed with something is not a model that is right, it is one that has
-never been asked. Two of the three above were wrong when first measured, and both bugs were in the
-part that looked obviously correct.
+never been asked. Three of the four above were wrong the first time they were measured that way, and
+every one of those defects sat in the part that looked obviously correct.
 
 They also start dirty. Memory and registers hold arbitrary but reproducible values rather than
 zeroes, because real hardware does, and anything here that wants a cleared machine has to ask for
@@ -106,7 +107,6 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 
 | file | role |
 |------|------|
-| [`romtools.py`](romtools.py) | copier headers, digests, joining split sets |
 | [`hardware.py`](hardware.py) | puts the pinned hardware models on the import path |
 | [`emulators/`](emulators/) | those models, each its own repository, each held to its own oracle |
 | [`build.py`](build.py) | Docker wrapper around a pinned asar |
