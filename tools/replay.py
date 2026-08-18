@@ -109,6 +109,15 @@ def place_script(image, script, bank=SCRIPT_BANK):
 SYNC = 0x0F
 SET_TRANSPARENT = 0x03
 
+MAX_OVERSHOOT = 2048
+"""How far a batch may run past the room it was given.
+
+A break is only taken where the chip is idle, because a break anywhere else
+splits a command from its result. When the room runs out mid command the batch
+carries on to the next safe point, and the longest command is a merge of 255,
+which is 512 bytes fed and 255 read. The caller leaves this much spare.
+"""
+
 
 def stream_batches(runs, room, chip):
     """Batches a fresh cartridge can each start from, with what it carries.
@@ -123,7 +132,7 @@ def stream_batches(runs, room, chip):
     that are the harness's own.
     """
     current = []
-    used = 0
+    used = 1  # the stop marker every script carries
     prelude = b""
 
     for kind, payload in runs:
@@ -132,7 +141,8 @@ def stream_batches(runs, room, chip):
         if used + cost > room and idle and current:
             yield ([(KIND_WRITE, prelude)] if prelude else []) + current
             prelude = bytes([SYNC, SET_TRANSPARENT, chip.state.transparent])
-            current, used = [], 0
+            current = []
+            used = 3 + len(prelude) + 1  # the prelude run and the stop marker
 
         current.append((kind, payload))
         used += cost
@@ -271,7 +281,7 @@ def main(argv):
         stream = (item for index, item in enumerate(stream) if index < limit)
 
     dsp2 = _load_model(root)
-    room = capacity(IMAGE_BYTES) - 16
+    room = capacity(IMAGE_BYTES) - MAX_OVERSHOOT
     walked = compared = wrong = written = returned = 0
     failures = []
 

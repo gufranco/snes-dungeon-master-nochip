@@ -138,6 +138,10 @@ _FIXED_INPUT = {
     COMMAND_MULTIPLY: MULTIPLY_BYTES,
 }
 
+_PRODUCES_OUTPUT = frozenset(
+    {COMMAND_TILE, COMMAND_MERGE, COMMAND_MIRROR, COMMAND_MULTIPLY, COMMAND_SCALE}
+)
+
 _LENGTH_COUNT = {
     COMMAND_MERGE: 1,
     COMMAND_MIRROR: 1,
@@ -157,6 +161,7 @@ class Chip:
         self.in_index = 0
         self.payload_length = 0
         self.output = b""
+        self.output_count = 0
         self.output_index = 0
         self._wanted_lengths = 0
         self._wanted_parameters = 0
@@ -167,7 +172,7 @@ class Chip:
 
     @property
     def pending_output(self):
-        return len(self.output) - self.output_index
+        return max(0, self.output_count - self.output_index)
 
     def write(self, value):
         value &= 0xFF
@@ -177,12 +182,10 @@ class Chip:
             self.lengths = []
             self.in_index = 0
             self.payload_length = 0
-            self.output = b""
-            self.output_index = 0
             self._wanted_lengths = _LENGTH_COUNT.get(value, 0)
             self._wanted_parameters = _FIXED_INPUT.get(value, 0)
             if self._wanted_lengths == 0 and self._wanted_parameters == 0:
-                self.command = None
+                self._run()
             return
 
         if self._wanted_lengths > 0:
@@ -218,11 +221,12 @@ class Chip:
         command = self.command
         self.command = None
 
+        self.output_index = 0
+
         if command == COMMAND_TILE:
             self.output = tile(payload)
         elif command == COMMAND_TRANSPARENT:
             self.state.set_transparent(payload[0])
-            self.output = b""
         elif command == COMMAND_MERGE:
             self.output = merge(self.state, payload, self.lengths[0])
         elif command == COMMAND_MIRROR:
@@ -231,13 +235,23 @@ class Chip:
             self.output = multiply(payload)
         elif command == COMMAND_SCALE:
             self.output = scale(self.parameter_ram, self.lengths[0], self.lengths[1])
-        else:
-            self.output = b""
-        self.output_index = 0
+        if command in _PRODUCES_OUTPUT:
+            self.output_count = len(self.output)
 
     def read(self):
-        if self.output_index >= len(self.output):
+        """The next byte of the finished result, or the idle byte.
+
+        A result is spent once it has been read out, and only then. A command
+        that produces nothing, which is the transparent colour, a sync, and
+        anything the chip does not recognise, rewinds the cursor without
+        clearing the count, so a result read only in part can be read again from
+        its start. That is what the reference does and it is visible behaviour,
+        not an accident of it.
+        """
+        if self.output_count == 0:
             return IDLE_BYTE
         value = self.output[self.output_index]
         self.output_index += 1
+        if self.output_index == self.output_count:
+            self.output_count = 0
         return value

@@ -215,6 +215,59 @@ class ScaleTest(unittest.TestCase):
         self.assertEqual(bytes(chip.parameter_ram[1:4]), bytes([0x22, 0x33, 0x44]))
 
 
+class OutputCursorTest(unittest.TestCase):
+    def multiply(self, chip):
+        for byte in [dsp2.COMMAND_MULTIPLY, 0x02, 0x00, 0x03, 0x00]:
+            chip.write(byte)
+
+    def test_a_sync_rewinds_a_partly_read_result(self):
+        chip = dsp2.Chip()
+        self.multiply(chip)
+        first = chip.read()
+        chip.read()
+
+        chip.write(dsp2.COMMAND_SYNC)
+
+        self.assertEqual(chip.read(), first)
+
+    def test_a_sync_after_a_fully_read_result_gives_the_idle_byte(self):
+        chip = dsp2.Chip()
+        self.multiply(chip)
+        for _ in range(4):
+            chip.read()
+
+        chip.write(dsp2.COMMAND_SYNC)
+
+        self.assertEqual(chip.read(), dsp2.IDLE_BYTE)
+
+    def test_setting_the_transparent_colour_rewinds_the_same_way(self):
+        chip = dsp2.Chip()
+        self.multiply(chip)
+        first = chip.read()
+
+        chip.write(dsp2.COMMAND_TRANSPARENT)
+        chip.write(0x0A)
+
+        self.assertEqual(chip.read(), first)
+
+    def test_a_command_the_chip_does_not_know_behaves_as_a_sync(self):
+        chip = dsp2.Chip()
+        self.multiply(chip)
+        first = chip.read()
+
+        chip.write(0x42)
+
+        self.assertEqual(chip.read(), first)
+
+    def test_a_result_is_spent_once_it_has_been_read_out(self):
+        chip = dsp2.Chip()
+        self.multiply(chip)
+
+        read = [chip.read() for _ in range(5)]
+
+        self.assertEqual(read[4], dsp2.IDLE_BYTE)
+
+
 class ChipTest(unittest.TestCase):
     def setUp(self):
         self.chip = dsp2.Chip()

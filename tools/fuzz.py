@@ -137,7 +137,7 @@ def main(argv):
     expected = sum(len(case.expected) for case in cases)
     print(f"  seed {seed}, {len(cases)} cases, {expected} bytes the model expects back")
 
-    room = replay.capacity(replay.IMAGE_BYTES) - 16
+    room = replay.capacity(replay.IMAGE_BYTES) - replay.MAX_OVERSHOOT
     walked = compared = wrong = 0
     failures = []
     for number, batch in enumerate(replay.batches_of(runs, room)):

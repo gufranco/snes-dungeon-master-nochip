@@ -167,6 +167,10 @@ class StatefulBatchTest(unittest.TestCase):
 
         self.assertEqual(flat, runs)
 
+    def test_every_batch_fits_the_room_it_was_given(self):
+        for batch in replay.stream_batches(self.merge_runs(200), 300, self.chip()):
+            self.assertLessEqual(len(replay.script_for(batch)), 300 + replay.MAX_OVERSHOOT)
+
     def test_a_command_is_never_split_across_batches(self):
         runs = self.merge_runs(40)
 
