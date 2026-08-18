@@ -20,8 +20,11 @@ RUN perl -0pi -e 's/(\tt = 0x80;\n\n)(\treturn \(t\);)/$1\tdm_note_dsp(1, t, add
 RUN perl -0pi -e 's/(inline uint8 S9xGetByte \(uint32 Address\)\n\{)/extern "C" void dm_note_read(unsigned long);\n$1\n\tdm_note_read(Address);/' /src/snes9x/getset.h \
     && test "$(grep -c 'dm_note_read(Address)' /src/snes9x/getset.h)" = "1"
 
-RUN perl -0pi -e 's/(inline void S9xSetByte \(uint8 Byte, uint32 Address\)\n\{)/extern "C" void dm_note_write(unsigned long);\n$1\n\tdm_note_write(Address);/' /src/snes9x/getset.h \
-    && test "$(grep -c 'dm_note_write(Address)' /src/snes9x/getset.h)" = "1"
+RUN perl -0pi -e 's/(inline void S9xSetByte \(uint8 Byte, uint32 Address\)\n\{)/extern "C" void dm_note_write(unsigned char, unsigned long);\n$1\n\tdm_note_write(Byte, Address);/' /src/snes9x/getset.h \
+    && test "$(grep -c 'dm_note_write(Byte, Address)' /src/snes9x/getset.h)" = "1"
+
+RUN perl -0pi -e 's/(void S9xSetCPU \(uint8 Byte, uint16 Address\)\n\{)/extern "C" void dm_note_register(unsigned char, unsigned short);\n$1\n\tdm_note_register(Byte, Address);/' /src/snes9x/ppu.cpp \
+    && test "$(grep -c 'dm_note_register(Byte, Address)' /src/snes9x/ppu.cpp)" = "1"
 
 WORKDIR /src/snes9x/libretro
 RUN make STATIC_LINKING=1 -j"$(nproc)" \

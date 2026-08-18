@@ -174,8 +174,63 @@ extern "C" void dm_note_read(unsigned long address)
     }
 }
 
-extern "C" void dm_note_write(unsigned long address)
+static unsigned char dma_registers[8][16];
+static unsigned long dma_transfers = 0;
+static unsigned long dma_bytes = 0;
+static unsigned long dma_reports = 0;
+static unsigned char dma_configured[8];
+
+static void note_dma_sources(unsigned char enabled)
 {
+    if (!rom_touched) {
+        return;
+    }
+    for (unsigned channel = 0; channel < 8; channel++) {
+        if (!(enabled & (1u << channel))) {
+            continue;
+        }
+        if (!dma_configured[channel]) {
+            continue;
+        }
+        const unsigned char *reg = dma_registers[channel];
+        if (reg[0] & 0x80) {
+            continue;
+        }
+        const unsigned long bank = reg[4];
+        unsigned long offset = (unsigned long)reg[2] | ((unsigned long)reg[3] << 8);
+        unsigned long size = (unsigned long)reg[5] | ((unsigned long)reg[6] << 8);
+        if (size == 0) {
+            size = 0x10000;
+        }
+        dma_transfers++;
+        dma_bytes += size;
+        if (dma_reports < 12 && (bank == 0x00 || bank == 0x1C)) {
+            dma_reports++;
+            printf("DMA channel %u from $%02lX:%04lX size %lu control $%02X\n",
+                   channel, bank, offset, size, reg[0]);
+        }
+        for (unsigned long step = 0; step < size; step++) {
+            const long at = rom_offset((bank << 16) | ((offset + step) & 0xFFFF));
+            if (at >= 0) {
+                rom_touched[at] |= 1;
+            }
+        }
+    }
+}
+
+extern "C" void dm_note_register(unsigned char value, unsigned short address)
+{
+    if (address >= 0x4300 && address <= 0x437F) {
+        dma_registers[(address >> 4) & 7][address & 0x0F] = value;
+        dma_configured[(address >> 4) & 7] = 1;
+    } else if (address == 0x420B) {
+        note_dma_sources(value);
+    }
+}
+
+extern "C" void dm_note_write(unsigned char value, unsigned long address)
+{
+
     if (watch_address != 0xFFFFFFFF && (address & 0xFFFFFF) == watch_address) {
         watch_hits++;
         if (watch_hits <= 8) {
@@ -603,6 +658,9 @@ int main(int argc, char **argv)
     }
     if (watch_address != 0xFFFFFFFF) {
         printf("WATCH total=%lu\n", watch_hits);
+    }
+    if (getenv("DMROM")) {
+        printf("DMA transfers=%lu bytes=%lu\n", dma_transfers, dma_bytes);
     }
     if (getenv("DMDUMP")) {
         dump_wram(getenv("DMDUMP"));
