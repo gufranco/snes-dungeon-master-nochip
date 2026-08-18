@@ -1,4 +1,3 @@
-import importlib.util
 import random
 import subprocess
 import sys
@@ -35,15 +34,14 @@ FRAMES_PER_CASE = 1
 EXAMPLE_LIMIT = 12
 
 
-def _load(name):
-    spec = importlib.util.spec_from_file_location(name, ROOT / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+sys.path.insert(0, str(ROOT))
+import hardware  # noqa: E402
 
+hardware.install()
 
-emu65816 = _load("emu65816")
-wdc65816 = _load("wdc65816")
+import mos65xx as emu65816  # noqa: E402
+from mos65xx import opcodes65816 as wdc65816  # noqa: E402
+from mos65xx.wdc65816 import IMMEDIATE_MODES, INDEX_WIDTH_OPS  # noqa: E402, F401
 
 
 class LoRomMemory:
@@ -156,7 +154,7 @@ def build_cases(seed, count):
         status &= ~emu65816.FLAG_D
         wide = (
             not (status & emu65816.FLAG_X)
-            if mnemonic in emu65816.INDEX_WIDTH_OPS
+            if mnemonic in INDEX_WIDTH_OPS
             else not (status & emu65816.FLAG_M)
         )
         size = operand_size(mode, wide)
@@ -378,7 +376,7 @@ def run_in_python(cases, rom):
 
     found = []
     for case in cases:
-        cpu = emu65816.Cpu(memory)
+        cpu = emu65816.Cpu(memory, reset=False)
         cpu.d = case["d"]
         cpu.db = case["db"]
         cpu.x = case["x"]

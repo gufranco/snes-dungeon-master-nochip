@@ -16,7 +16,7 @@ def load_module(name, path):
 
 
 verify = load_module("verify_trace", MODULE_PATH)
-dsp2 = load_module("dsp2", ROOT / "dsp2.py")
+dsp2 = verify.dsp2
 dt = load_module("dsptrace", ROOT / "dsptrace.py")
 
 

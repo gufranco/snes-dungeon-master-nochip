@@ -14,7 +14,7 @@ def load_module(name, path):
 
 
 verify = load_module("verify_cpu", MODULE_PATH)
-wdc = load_module("wdc65816", ROOT / "wdc65816.py")
+wdc = verify.wdc65816
 
 
 class CatalogueTest(unittest.TestCase):

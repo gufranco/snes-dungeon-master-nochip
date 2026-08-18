@@ -16,7 +16,13 @@ def _load(name):
 
 
 dsptrace = _load("dsptrace")
-dsp2 = _load("dsp2")
+
+sys.path.insert(0, str(ROOT))
+import hardware  # noqa: E402
+
+hardware.install()
+
+import dsp2  # noqa: E402
 
 Result = namedtuple("Result", "path writes reads mismatches examples")
 

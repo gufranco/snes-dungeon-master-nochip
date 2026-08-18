@@ -148,10 +148,10 @@ def stream_batches(runs, room, chip):
 
     for kind, payload in runs:
         cost = 3 + len(payload)
-        idle = kind == KIND_WRITE and chip.command is None and chip.pending_output == 0
+        idle = kind == KIND_WRITE and chip.waiting_for_command and chip.pending_output == 0
         if used + cost > room and idle and current:
             yield ([(KIND_WRITE, prelude)] if prelude else []) + current
-            prelude = bytes([SYNC, SET_TRANSPARENT, chip.state.transparent])
+            prelude = bytes([SYNC, SET_TRANSPARENT, chip.transparent])
             current = []
             used = 3 + len(prelude) + 1  # the prelude run and the stop marker
 
@@ -336,12 +336,16 @@ def main(argv):
 
 
 def _load_model(root):
-    import importlib.util
+    """The vendored coprocessor model, imported rather than read off disk."""
+    import sys
 
-    spec = importlib.util.spec_from_file_location("dsp2", root / "dsp2.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    sys.path.insert(0, str(root))
+    import hardware
+
+    hardware.install()
+    import dsp2
+
+    return dsp2
 
 
 def load_dsptrace(root):

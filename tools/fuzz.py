@@ -19,17 +19,11 @@ shape of a command while agreeing about the contents.
 
 import importlib.util
 import random
+import sys
 from collections import namedtuple
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-
-
-def _load(name):
-    spec = importlib.util.spec_from_file_location(name, ROOT / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def _load_tool(name):
@@ -39,7 +33,13 @@ def _load_tool(name):
     return module
 
 
-dsp2 = _load("dsp2")
+sys.path.insert(0, str(ROOT))
+import hardware  # noqa: E402
+
+hardware.install()
+
+import dsp2  # noqa: E402
+
 replay = _load_tool("replay")
 
 TILE = 0x01
@@ -120,7 +120,7 @@ def build_cases(seed, count, only=None):
         for byte in written:
             chip.write(byte)
 
-        while chip.command is not None:
+        while not chip.waiting_for_command:
             byte = rng.randrange(256)
             written.append(byte)
             chip.write(byte)

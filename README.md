@@ -32,8 +32,9 @@ section says what runs, and it will say more as more does.
 | part | state |
 |------|-------|
 | dump identification | works |
-| 65816 disassembly and interpretation | works |
-| address arithmetic for the expanded image | works |
+| 65816 disassembly and interpretation | works, against a per-opcode suite |
+| the DSP-2's own behaviour | works, against the chip's reference implementation |
+| address arithmetic for the expanded image | works, against a library of real cartridges |
 | pinned assembler container | builds |
 | the conversion itself | not started |
 
@@ -75,6 +76,30 @@ Windows.
 Nothing is installed from a package index at build time. The build containers pin their toolchains,
 run with no network access, and run as a non-root user.
 
+## The hardware this is checked against
+
+```bash
+git clone --recurse-submodules https://github.com/gufranco/dungeon-master-nochip.git
+```
+
+The models this project measures itself against are not written here. Each is its own repository,
+pinned as a submodule under [`emulators/`](emulators/), and each is held to something outside itself
+rather than to its author's confidence.
+
+| model | what proves it |
+|---|---|
+| [65816](https://github.com/gufranco/mos65xx-python) | a per-opcode suite, 5,120,000 cases |
+| [DSP-2](https://github.com/gufranco/snes-dsp2-python) | the chip's own reference implementation |
+| [cartridge map](https://github.com/gufranco/snes-mapper-python) | every header combination in a 5,145-cartridge library |
+
+A model that has never disagreed with something is not a model that is right, it is one that has
+never been asked. Two of the three above were wrong when first measured, and both bugs were in the
+part that looked obviously correct.
+
+They also start dirty. Memory and registers hold arbitrary but reproducible values rather than
+zeroes, because real hardware does, and anything here that wants a cleared machine has to ask for
+one. That turns a read of something never written from an accident into a question.
+
 ## Repository guide
 
 Analysis modules in Python, each with its tests beside it, and a pinned container per toolchain.
@@ -82,9 +107,8 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | file | role |
 |------|------|
 | [`romtools.py`](romtools.py) | copier headers, digests, joining split sets |
-| [`wdc65816.py`](wdc65816.py) | 65816 disassembler with M and X width tracking |
-| [`emu65816.py`](emu65816.py) | minimal 65816 interpreter |
-| [`layout.py`](layout.py) | address arithmetic for the expanded image |
+| [`hardware.py`](hardware.py) | puts the pinned hardware models on the import path |
+| [`emulators/`](emulators/) | those models, each its own repository, each held to its own oracle |
 | [`build.py`](build.py) | Docker wrapper around a pinned asar |
 | [`version.py`](version.py) | the release number, rewritten by [`scripts/set-version.sh`](scripts/set-version.sh) |
 | [`artifacts.manifest.json`](artifacts.manifest.json) | every dump this project reads, and what makes each one itself |

@@ -133,8 +133,7 @@ class BatchTest(unittest.TestCase):
 
 class StatefulBatchTest(unittest.TestCase):
     def chip(self):
-        dsp2 = load_module("dsp2", ROOT / "dsp2.py")
-        return dsp2.Chip()
+        return replay._load_model(ROOT).Chip(fill=0)
 
     def merge_runs(self, count):
         runs = []

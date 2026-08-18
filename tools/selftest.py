@@ -18,7 +18,6 @@ The script is a byte stream the cartridge at asm/dsp2-selftest.asm walks:
     $00                   the script is finished
 """
 
-import importlib.util
 from collections import namedtuple
 from pathlib import Path
 
@@ -46,10 +45,16 @@ class ScriptTooLong(Exception):
 
 
 def _model():
-    spec = importlib.util.spec_from_file_location("dsp2", ROOT / "dsp2.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    """The vendored coprocessor model, imported rather than read off disk."""
+    import sys
+
+    sys.path.insert(0, str(ROOT))
+    import hardware
+
+    hardware.install()
+    import dsp2
+
+    return dsp2
 
 
 def output_size(command, lengths):

@@ -1,0 +1,9 @@
+[submodule "emulators/mos65xx"]
+	path = emulators/mos65xx
+	url = https://github.com/gufranco/mos65xx-python.git
+[submodule "emulators/snes-dsp2"]
+	path = emulators/snes-dsp2
+	url = https://github.com/gufranco/snes-dsp2-python.git
+[submodule "emulators/snes-mapper"]
+	path = emulators/snes-mapper
+	url = https://github.com/gufranco/snes-mapper-python.git
