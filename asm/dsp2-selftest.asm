@@ -26,9 +26,18 @@ lorom
 
 !ROUTINES   = $018000           ; the software chip, in its own bank
 !SCRIPT     = $028000           ; the script, in the next one
-!RESULTS    = $001000           ; work RAM, clear of the state block at $0600
+!RESULTS    = $001000           ; work RAM, clear of the state block at $0900
 !RESULT_LEN = $000FFC
 !DONE       = $000FFE
+
+; The cartridge's own working variables. They live in work RAM because a store
+; to ROM does nothing: an earlier version declared them as words in the code
+; bank, so the script cursor never advanced and the run read the first byte of
+; the script forever.
+script_cursor = $000FF0
+script_temp   = $000FF2
+feed_left     = $000FF4
+drain_left    = $000FF6
 
 org $008000
 reset:
@@ -36,27 +45,32 @@ reset:
     clc
     xce                         ; native mode
     rep #$38                    ; A and index 16 bit, decimal clear
-    ldx #$1FFF
+    ldx.w #$1FFF
     txs
-    lda #$0000
+    lda.w #$0000
     tcd
 
     sep #$20
-    lda #$8F
+    lda.b #$8F
     sta $2100                   ; screen off, the run needs no picture
     rep #$20
 
-    lda #$0000                  ; STZ has no long addressing mode
+    lda.w #$0000                ; STZ has no long addressing mode
     sta.l !RESULT_LEN
     sep #$20
-    lda #$00
+    lda.b #$00
     sta.l !DONE
     rep #$20
+
+    jsl dsp_init                ; work RAM holds nothing in particular at power
+                                ;   on, so the state block is put in order before
+                                ;   the first byte reaches it
+    rep #$30
 
     jsr run_script
 
     sep #$20
-    lda #$A5
+    lda.b #$A5
     sta.l !DONE
     rep #$20
 
@@ -75,14 +89,14 @@ reset:
 ; ---------------------------------------------------------------------------
 run_script:
     rep #$30
-    lda #$0000
+    lda.w #$0000
     sta.l script_cursor
 
 .next:
     jsr script_byte
-    cmp #$0001
+    cmp.w #$0001
     beq .feed
-    cmp #$0002
+    cmp.w #$0002
     beq .drain
     rts
 
@@ -112,7 +126,7 @@ run_script:
     sep #$20
     jsl dsp_read
     rep #$30
-    and #$00FF
+    and.w #$00FF
     pha
     lda.l !RESULT_LEN
     tax
@@ -137,7 +151,7 @@ script_byte:
     sep #$20
     lda.l !SCRIPT,x
     rep #$20
-    and #$00FF
+    and.w #$00FF
     rts
 
 ; Reads one little endian script word and advances the cursor by two.
@@ -152,14 +166,6 @@ script_word:
     ora.l script_temp
     rts
 
-script_cursor:
-    dw $0000
-script_temp:
-    dw $0000
-feed_left:
-    dw $0000
-drain_left:
-    dw $0000
 
 org !ROUTINES
 incsrc "dsp2-soft.asm"

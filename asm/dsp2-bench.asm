@@ -99,8 +99,148 @@ reset:
     sta.l !RESULTS+3
     rep #$30
 
+    jsr bench_short
+    sep #$20
+    lda.b #$A5
+    sta.l !RESULTS+4
+    rep #$30
+
+    jsr bench_long
+    sep #$20
+    lda.b #$A5
+    sta.l !RESULTS+5
+    rep #$30
+
 .halt:
     bra .halt
+
+; ---------------------------------------------------------------------------
+; bench_short
+;
+; The same merge at the shortest length the cartridge asks for. Four bytes is
+; 13.9% of every merge in a tour, and at that length almost nothing of the cost
+; is arithmetic, so the difference against the longer runs separates what an
+; entry costs from what a byte costs.
+;
+; Entry: A and index registers 16 bit, DB and DP zero.
+; Exit:  a marker at !RESULTS+4.
+; ---------------------------------------------------------------------------
+bench_short:
+    ldx.w #!ROUNDS
+    stx.b $10
+
+.round:
+    sep #$20
+    lda.b #$05
+    jsl dsp_write               ; the merge command
+    lda.b #4
+    jsl dsp_write               ; and its declared length
+    lda.b #$7E
+    sta.l $000600+$0F           ; the bank both feeds read from
+    rep #$30
+
+    sep #$20
+    lda.b #$44
+    sta.l !RESULTS+11
+    rep #$30
+    lda.w #4-1
+    ldx.w #$1000
+    ldy.w #$8000
+    jsl dsp_feed_bank           ; the background
+    sep #$20
+    lda.b #$55
+    sta.l !RESULTS+12
+    rep #$30
+
+    lda.w #4-1
+    ldx.w #$1100
+    ldy.w #$8000
+    jsl dsp_feed_bank           ; the overlay
+    sep #$20
+    lda.b #$66
+    sta.l !RESULTS+13
+    rep #$30
+
+    sep #$20
+    lda.b #$7E
+    sta.l $000600+$0F           ; the bank the drain writes to
+    rep #$30
+    lda.w #4-1
+    ldx.w #$8000
+    ldy.w #$1400
+    jsl dsp_drain_bank
+    sep #$20
+    lda.b #$77
+    sta.l !RESULTS+20
+    rep #$30
+
+    dec.b $10
+    bne .round
+    rts
+
+
+; ---------------------------------------------------------------------------
+; bench_long
+;
+; And at thirty bytes, which is 13.9% of calls and 23.0% of all the output the
+; merge produces.
+;
+; Entry: A and index registers 16 bit, DB and DP zero.
+; Exit:  a marker at !RESULTS+5.
+; ---------------------------------------------------------------------------
+bench_long:
+    ldx.w #!ROUNDS
+    stx.b $10
+
+.round:
+    sep #$20
+    lda.b #$05
+    jsl dsp_write               ; the merge command
+    lda.b #30
+    jsl dsp_write               ; and its declared length
+    lda.b #$7E
+    sta.l $000600+$0F           ; the bank both feeds read from
+    rep #$30
+
+    sep #$20
+    lda.b #$44
+    sta.l !RESULTS+11
+    rep #$30
+    lda.w #30-1
+    ldx.w #$1000
+    ldy.w #$8000
+    jsl dsp_feed_bank           ; the background
+    sep #$20
+    lda.b #$55
+    sta.l !RESULTS+12
+    rep #$30
+
+    lda.w #30-1
+    ldx.w #$1100
+    ldy.w #$8000
+    jsl dsp_feed_bank           ; the overlay
+    sep #$20
+    lda.b #$66
+    sta.l !RESULTS+13
+    rep #$30
+
+    sep #$20
+    lda.b #$7E
+    sta.l $000600+$0F           ; the bank the drain writes to
+    rep #$30
+    lda.w #30-1
+    ldx.w #$8000
+    ldy.w #$1400
+    jsl dsp_drain_bank
+    sep #$20
+    lda.b #$77
+    sta.l !RESULTS+21
+    rep #$30
+
+    dec.b $10
+    bne .round
+    rts
+
 
 ; ---------------------------------------------------------------------------
 ; bench_write

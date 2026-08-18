@@ -33,7 +33,18 @@
 ;        A, X clobbered.
 ; ---------------------------------------------------------------------------
 block_enter:
-    sta.l !STATE+!S_SAVE_A
+    sta.l !STATE+!S_SAVE_A      ; the count arrives in the accumulator, so it is
+                                ;   put away before anything else may touch it
+
+    sep #$20                    ; the block move stub is built here rather than
+    lda.b #$54                  ;   once at startup. It is code living in work
+    sta.l !STATE+!S_MVN         ;   RAM, and this game clears work RAM by DMA
+    lda.b #$6B                  ;   after the boot code has already sent its
+    sta.l !STATE+!S_MVN+3       ;   first commands, so anything written once and
+    rep #$20                    ;   trusted afterwards is a hostage to that. Four
+                                ;   stores on a path that costs several hundred
+                                ;   cycles is not worth saving. The two bank
+                                ;   operands are written by the caller anyway.
     phx                         ; only the accumulator has long addressing, so
     pla                         ;   the index registers go through it
     sta.l !STATE+!S_SAVE_X
@@ -65,6 +76,9 @@ block_enter:
 ;        entry point restores those.
 ; ---------------------------------------------------------------------------
 block_leave:
+    rep #$30                    ; an operation may have run in the middle of the
+                                ;   transfer and left the accumulator eight bits
+                                ;   wide, and everything below is sixteen
     lda !S_SAVE_X
     clc
     adc !S_XFER_TOTAL

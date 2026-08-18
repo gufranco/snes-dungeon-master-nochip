@@ -89,8 +89,25 @@ static inline bool is_lorom_sram_bank(unsigned bank)
 
 static const unsigned long WRAM_BYTES = 0x20000;
 static unsigned char *wram_touched = NULL;
+static unsigned char *wram_shadow = NULL;
 static const unsigned char WRAM_READ = 1;
 static const unsigned char WRAM_WRITE = 2;
+
+static unsigned long watch_address = 0xFFFFFFFF;
+static unsigned long watch_hits = 0;
+
+static void note_wram_changes(void)
+{
+    if (!wram_touched || !wram_shadow) {
+        return;
+    }
+    for (unsigned long at = 0; at < WRAM_BYTES; at++) {
+        if (Memory.RAM[at] != wram_shadow[at]) {
+            wram_touched[at] |= WRAM_WRITE;
+            wram_shadow[at] = Memory.RAM[at];
+        }
+    }
+}
 
 static unsigned long rom_bytes = 0;
 static unsigned char *rom_touched = NULL;
@@ -159,6 +176,12 @@ extern "C" void dm_note_read(unsigned long address)
 
 extern "C" void dm_note_write(unsigned long address)
 {
+    if (watch_address != 0xFFFFFFFF && (address & 0xFFFFFF) == watch_address && watch_hits < 40) {
+        watch_hits++;
+        printf("WATCH write $%06lX from $%06lX frame %lu\n",
+               (unsigned long)(address & 0xFFFFFF),
+               (unsigned long)Registers.PBPC, frames_seen);
+    }
     if (wram_touched) {
         const long at = wram_offset(address);
         if (at >= 0) {
@@ -468,9 +491,18 @@ int main(int argc, char **argv)
         }
     }
 
+    const char *watch = getenv("DMWATCH");
+    if (watch) {
+        watch_address = strtoul(watch, NULL, 16);
+    }
+
     const char *wram_path = getenv("DMWRAM");
     if (wram_path) {
         wram_touched = (unsigned char *)calloc(WRAM_BYTES, 1);
+        wram_shadow = (unsigned char *)malloc(WRAM_BYTES);
+        if (wram_shadow) {
+            memcpy(wram_shadow, Memory.RAM, WRAM_BYTES);
+        }
         if (!wram_touched) {
             fprintf(stderr, "cannot allocate the work RAM map\n");
             return 1;
@@ -531,6 +563,7 @@ int main(int argc, char **argv)
         frames_seen = i;
         apply_script(i);
         retro_run();
+        note_wram_changes();
 
         if (hash_out) {
             fprintf(hash_out, "%lu %016llx %.4f\n", i, frame_hash(), frame_brightness());
