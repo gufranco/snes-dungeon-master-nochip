@@ -106,6 +106,37 @@ dsp_feed_wram:
     rtl
 
 ; ---------------------------------------------------------------------------
+; dsp_drain_wram
+;
+; Stands in for MVN $7E,$3F, the fixed form in bank $00 that drains the chip
+; into work RAM. Sixteen of the block moves in that bank feed from work RAM and
+; two drain back into it, and both forms name their banks in the instruction, so
+; neither needs the caller to supply one.
+;
+; Entry: A 16 bit holding the count less one, X the source offset, which the
+;        port ignored, Y the destination offset. Widths 16 bit, as MVN needs.
+; Exit:  as MVN would leave them.
+; ---------------------------------------------------------------------------
+dsp_drain_wram:
+    php
+    rep #$30
+    phb
+    phd
+    jsr block_enter
+
+    sep #$20
+    lda.b #$7E
+    sta !S_XFER_BANK
+    rep #$20
+    jsr drain
+    jsr block_leave
+
+    pld
+    plb
+    plp
+    rtl
+
+; ---------------------------------------------------------------------------
 ; dsp_feed_bank
 ;
 ; Stands in for a trampoline pointed at the chip, where the source bank is

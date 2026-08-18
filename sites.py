@@ -47,7 +47,16 @@ EXPECTED = {
     }
 }
 
+TRAMPOLINES = (0x0080, 0x0084, 0x0088, 0x008C)
+
+TRAMPOLINE_BANK = 0x04
+
+EXPECTED_TRAMPOLINE_CALLS = {0x0080: 2, 0x0084: 5, 0x0088: 4, 0x008C: 1}
+
+JSR = 0x20
+
 Site = namedtuple("Site", "kind offset address bank")
+TrampolineCall = namedtuple("TrampolineCall", "offset address bank trampoline")
 
 
 class UnexpectedImage(Exception):
@@ -113,3 +122,41 @@ def verify(sites, region="USA"):
 def banks_touched(sites):
     """The banks the sites live in, without repeats."""
     return sorted({site.bank for site in sites})
+
+
+def call_to(address):
+    """The bytes of a JSR to an address in the current bank."""
+    return bytes([JSR, address & 0xFF, (address >> 8) & 0xFF])
+
+
+def find_trampoline_calls(image, bank=TRAMPOLINE_BANK):
+    """Calls to a work RAM trampoline from the bank that can reach the chip.
+
+    The four trampolines are called from ten banks and most of that traffic
+    moves memory that has nothing to do with the chip. Only bank $04 ever writes
+    $3F into a trampoline operand, measured across the whole image, so only its
+    calls can arrive at the port and only they are collected here.
+    """
+    found = []
+    start = (bank & 0x7F) * BANK_SIZE
+    for trampoline in TRAMPOLINES:
+        pattern = call_to(trampoline)
+        for offset in occurrences(image[start : start + BANK_SIZE], pattern):
+            at = start + offset
+            found.append(TrampolineCall(at, address_of(at)[1], bank, trampoline))
+    return sorted(found, key=lambda call: call.offset)
+
+
+def verify_trampoline_calls(calls):
+    """Refuse an image whose trampoline traffic is not the one measured."""
+    found = dict.fromkeys(TRAMPOLINES, 0)
+    for call in calls:
+        found[call.trampoline] += 1
+    if found != EXPECTED_TRAMPOLINE_CALLS:
+        detail = ", ".join(
+            f"${where:04X} expected {want} found {found[where]}"
+            for where, want in sorted(EXPECTED_TRAMPOLINE_CALLS.items())
+            if found[where] != want
+        )
+        raise UnexpectedImage(f"trampoline traffic does not match: {detail}")
+    return found

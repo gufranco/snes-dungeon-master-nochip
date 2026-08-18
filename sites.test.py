@@ -107,6 +107,47 @@ class FindTest(unittest.TestCase):
         self.assertEqual([site.kind for site in sites.find(image)], [sites.KIND_STATUS])
 
 
+class TrampolineTest(unittest.TestCase):
+    def test_a_call_to_each_trampoline_is_recognised(self):
+        image = image_with(
+            {0x20000 + 3 * n: sites.call_to(address) for n, address in enumerate(sites.TRAMPOLINES)}
+        )
+
+        found = sites.find_trampoline_calls(image)
+
+        self.assertEqual([site.trampoline for site in found], list(sites.TRAMPOLINES))
+
+    def test_a_call_outside_the_bank_that_reaches_the_chip_is_left_alone(self):
+        image = image_with({0x08000: sites.call_to(0x0080)})
+
+        self.assertEqual(sites.find_trampoline_calls(image), [])
+
+    def test_a_call_to_an_ordinary_address_is_not_a_trampoline_call(self):
+        image = image_with({0x20000: bytes([0x20, 0x00, 0x90])})
+
+        self.assertEqual(sites.find_trampoline_calls(image), [])
+
+    def test_the_measured_counts_are_held(self):
+        image = image_with(
+            {
+                **{0x20000 + 3 * n: sites.call_to(0x0080) for n in range(2)},
+                **{0x21000 + 3 * n: sites.call_to(0x0084) for n in range(5)},
+                **{0x22000 + 3 * n: sites.call_to(0x0088) for n in range(4)},
+                **{0x23000: sites.call_to(0x008C)},
+            }
+        )
+
+        counted = sites.verify_trampoline_calls(sites.find_trampoline_calls(image))
+
+        self.assertEqual(counted, {0x0080: 2, 0x0084: 5, 0x0088: 4, 0x008C: 1})
+
+    def test_a_missing_call_is_refused(self):
+        image = image_with({0x20000: sites.call_to(0x0080)})
+
+        with self.assertRaises(sites.UnexpectedImage):
+            sites.verify_trampoline_calls(sites.find_trampoline_calls(image))
+
+
 class VerifyTest(unittest.TestCase):
     def test_an_image_with_the_measured_surface_is_accepted(self):
         image = image_with(
@@ -180,6 +221,16 @@ class RetailTest(unittest.TestCase):
         found = sites.find(self.image, [sites.KIND_READ])
 
         self.assertEqual([site.address for site in found], [0x86D3, 0x86D8, 0x86DE, 0x86E2])
+
+    def test_the_dump_carries_the_measured_trampoline_calls(self):
+        counted = sites.verify_trampoline_calls(sites.find_trampoline_calls(self.image))
+
+        self.assertEqual(counted, {0x0080: 2, 0x0084: 5, 0x0088: 4, 0x008C: 1})
+
+    def test_every_trampoline_call_that_can_reach_the_chip_is_in_one_bank(self):
+        found = sites.find_trampoline_calls(self.image)
+
+        self.assertEqual({site.bank for site in found}, {0x04})
 
 
 if __name__ == "__main__":
