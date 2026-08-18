@@ -17,7 +17,9 @@ lorom
 
 !ROUTINES  = $018000
 !SOURCE    = $7E1000            ; a scratch payload, clear of the state block
-!DEST      = $7E1400
+!DEST      = $7E1400            ; where the merge drains
+!DEST2     = $7E1500            ; and the tile conversion, kept apart so each
+                                ;   can be compared against the model on its own
 !RESULTS   = $7F0000            ; out of reach of anything the routines touch
 
 !MERGE_LEN = 22                 ; the most common merge the cartridge asks for
@@ -66,16 +68,12 @@ reset:
     lda.b #$0F
     jsl dsp_write               ; the simplest command there is
     lda.b #$AA
-    sta.l !RESULTS+15           ; a sync survived
-    lda.b #$05
-    jsl dsp_write               ; a command that takes a length
-    lda.b #$BB
-    sta.l !RESULTS+16
-    lda.b #$16
-    jsl dsp_write               ; the length itself
-    lda.b #$CC
-    sta.l !RESULTS+17
-    rep #$30
+    sta.l !RESULTS+15           ; a sync survived, and the machine is idle again.
+    rep #$30                    ;   Nothing else is written here: a command that
+                                ;   declares a length would leave the machine
+                                ;   waiting for a payload, and the first round of
+                                ;   the workload would then be read as that
+                                ;   payload rather than as its own command
 
     jsr bench_merge
     sep #$20
@@ -89,8 +87,78 @@ reset:
     sta.l !RESULTS+1
     rep #$30
 
+    jsr bench_write
+    sep #$20
+    lda.b #$A5
+    sta.l !RESULTS+2
+    rep #$30
+
+    jsr bench_nodrain
+    sep #$20
+    lda.b #$A5
+    sta.l !RESULTS+3
+    rep #$30
+
 .halt:
     bra .halt
+
+; ---------------------------------------------------------------------------
+; bench_write
+;
+; A single byte through the write entry point, !ROUNDS times, with a command
+; that collects nothing and computes nothing. This is the cost of the entry
+; point itself, and subtracting it from the workloads above separates the
+; transport from the work.
+;
+; Entry: A and index registers 16 bit, DB and DP zero.
+; Exit:  a marker at !RESULTS+2.
+; ---------------------------------------------------------------------------
+bench_write:
+    ldx.w #!ROUNDS
+    stx.b $10
+.round:
+    sep #$20
+    lda.b #$0F
+    jsl dsp_write
+    rep #$30
+    dec.b $10
+    bne .round
+    rts
+
+; ---------------------------------------------------------------------------
+; bench_nodrain
+;
+; A merge without taking the result back, which leaves the command bytes, both
+; feeds and the operation itself. The difference against bench_merge is what the
+; drain costs.
+;
+; Entry: A and index registers 16 bit, DB and DP zero.
+; Exit:  a marker at !RESULTS+3.
+; ---------------------------------------------------------------------------
+bench_nodrain:
+    ldx.w #!ROUNDS
+    stx.b $10
+.round:
+    sep #$20
+    lda.b #$05
+    jsl dsp_write
+    lda.b #!MERGE_LEN
+    jsl dsp_write
+    lda.b #$7E
+    sta.l $000600+$0F
+    rep #$30
+    lda.w #!MERGE_LEN-1
+    ldx.w #$1000
+    ldy.w #$8000
+    jsl dsp_feed_bank
+    lda.w #!MERGE_LEN-1
+    ldx.w #$1100
+    ldy.w #$8000
+    jsl dsp_feed_bank
+    rep #$30
+    dec.b $10
+    bne .round
+    rts
 
 ; ---------------------------------------------------------------------------
 ; bench_merge
@@ -187,7 +255,7 @@ bench_tile:
     rep #$30
     lda.w #$001F
     ldx.w #$8000
-    ldy.w #$1400
+    ldy.w #(!DEST2&$FFFF)
     jsl dsp_drain_bank
     sep #$20
     lda.b #$77

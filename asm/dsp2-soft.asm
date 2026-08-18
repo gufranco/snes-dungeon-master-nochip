@@ -67,6 +67,15 @@ dsp_init:
     stz !S_SCRATCH+16           ; the transparent colour in its high nibble form,
                                 ;   which op_merge compares against directly
 
+    sep #$20                    ; build the block move stub: MVN dst,src : RTL.
+    lda.b #$54                  ;   The bank operands are written before each use
+    sta !S_MVN                  ;   and the opcode and the return never change
+    stz !S_MVN+1
+    stz !S_MVN+2
+    lda.b #$6B
+    sta !S_MVN+3
+    rep #$20
+
     ply
     plx
     pla

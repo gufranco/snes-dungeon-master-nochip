@@ -39,7 +39,19 @@
 !S_SAVE_A       = $17           ; the caller's registers, kept here rather than
 !S_SAVE_X       = $19           ;   on the stack so the transfer can add the
 !S_SAVE_Y       = $1B           ;   count to them before they go back
-!S_SCRATCH      = $20           ; working room for the operations, $0620 to $06FF
+!S_MVN          = $20           ; a four byte MVN stub, built by dsp_init and
+                                ;   patched with its banks before each use. Code
+                                ;   in ROM cannot modify itself, and a block move
+                                ;   names its banks in the instruction rather than
+                                ;   in a register, so the one instruction that can
+                                ;   move a payload without a loop has to live in
+                                ;   writable memory. The cartridge's own boot code
+                                ;   reaches the same conclusion and installs four
+                                ;   of these at $0080
+!S_CHUNK        = $24           ; bytes the current block move covers, 16 bit,
+                                ;   kept out of !S_SCRATCH because an operation
+                                ;   runs in the middle of a transfer and owns that
+!S_SCRATCH      = $28           ; working room for the operations, $0628 to $06FF
 
 ; Buffers, reached through DB = $00 by absolute addressing.
 !P_BUFFER       = $000800       ; parameters, 512 bytes. A merge of the longest
