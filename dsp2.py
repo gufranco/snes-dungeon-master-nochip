@@ -11,6 +11,7 @@ COMMAND_SCALE = 0x0D
 COMMAND_SYNC = 0x0F
 
 UNIT = 0x10000
+PARAMETER_BYTES = 512
 
 _LOW_PLANE_SHIFTS = (
     ((0x10, 3), (0x01, 6), (0x10, 1), (0x01, 4), (0x10, -1), (0x01, 2), (0x10, -3), (0x01, 0)),
@@ -99,10 +100,21 @@ def _ratio(in_length, out_length):
     return (in_length << 17) // ((out_length << 1) + 1)
 
 
-def scale(payload, in_length, out_length):
-    wanted = (in_length + 1) >> 1
-    if len(payload) < wanted:
-        raise ValueError(f"a scale from {in_length} takes {wanted} bytes, got {len(payload)}")
+def scale(parameters, in_length, out_length):
+    """Rescale a run of nibbles, reading the chip's parameter RAM.
+
+    The walk is not bounded by the payload. With the multiplier at one, which is
+    every case where the input is no longer than the output, it reads out_length
+    bytes while the payload is only half the input length, and the cartridge's
+    own calls read a hundred and twenty bytes from a sixty byte payload. What it
+    finds past the payload is whatever the last command left in the parameter
+    RAM, which the chip never clears, so the RAM is what gets passed here rather
+    than the payload alone. An earlier version padded with zeroes and happened to
+    agree with the recorded runs, because those reads landed on bytes that were
+    still zero, and disagreed everywhere else.
+    """
+    if len(parameters) < PARAMETER_BYTES:
+        raise ValueError(f"the parameter RAM is {PARAMETER_BYTES} bytes, got {len(parameters)}")
 
     multiplier = UNIT if in_length <= out_length else _ratio(in_length, out_length)
 
@@ -110,7 +122,7 @@ def scale(payload, in_length, out_length):
     position = 0
     for _ in range(out_length * 2):
         index = position >> 16
-        byte = payload[index >> 1] if (index >> 1) < len(payload) else 0
+        byte = parameters[(index >> 1) & (PARAMETER_BYTES - 1)]
         nibbles.append(byte & 0x0F if index & 1 else (byte & 0xF0) >> 4)
         position += multiplier
 
@@ -136,16 +148,22 @@ _LENGTH_COUNT = {
 class Chip:
     def __init__(self):
         self.state = State()
+        self.parameter_ram = bytearray(PARAMETER_BYTES)
         self._reset()
 
     def _reset(self):
         self.command = None
         self.lengths = []
-        self.parameters = bytearray()
+        self.in_index = 0
+        self.payload_length = 0
         self.output = b""
         self.output_index = 0
         self._wanted_lengths = 0
         self._wanted_parameters = 0
+
+    @property
+    def parameters(self):
+        return bytes(self.parameter_ram[: self.payload_length])
 
     @property
     def pending_output(self):
@@ -157,7 +175,8 @@ class Chip:
         if self.command is None:
             self.command = value
             self.lengths = []
-            self.parameters = bytearray()
+            self.in_index = 0
+            self.payload_length = 0
             self.output = b""
             self.output_index = 0
             self._wanted_lengths = _LENGTH_COUNT.get(value, 0)
@@ -171,11 +190,16 @@ class Chip:
             self._wanted_lengths -= 1
             if self._wanted_lengths == 0:
                 self._wanted_parameters = self._payload_size()
+                self.in_index = 0
+                self.payload_length = 0
                 if self._wanted_parameters == 0:
                     self._run()
             return
 
-        self.parameters.append(value)
+        if self.in_index < PARAMETER_BYTES:
+            self.parameter_ram[self.in_index] = value
+            self.in_index += 1
+            self.payload_length = self.in_index
         self._wanted_parameters -= 1
         if self._wanted_parameters == 0:
             self._run()
@@ -206,7 +230,7 @@ class Chip:
         elif command == COMMAND_MULTIPLY:
             self.output = multiply(payload)
         elif command == COMMAND_SCALE:
-            self.output = scale(payload, self.lengths[0], self.lengths[1])
+            self.output = scale(self.parameter_ram, self.lengths[0], self.lengths[1])
         else:
             self.output = b""
         self.output_index = 0

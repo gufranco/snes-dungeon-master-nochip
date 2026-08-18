@@ -67,6 +67,14 @@ dsp_init:
     stz !S_SCRATCH+16           ; the transparent colour in its high nibble form,
                                 ;   which op_merge compares against directly
 
+    ldx.w #$0000                ; the parameter buffer is cleared as well. A
+.clear:                         ;   scale reads past the payload it was handed,
+    stz.w !P_BUFFER,x           ;   by design, and takes whatever the last
+    inx                         ;   command left there, so what it finds has to
+    inx                         ;   be decided rather than inherited from work
+    cpx.w #$0200                ;   RAM. The chip's own parameter RAM is equally
+    bne .clear                  ;   undefined at power on; this makes ours not.
+
     rep #$30                    ; the widths are put back before the pulls. The
                                 ;   pushes were made with both sixteen bit, and
                                 ;   an operation leaves the accumulator eight, so

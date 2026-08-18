@@ -122,6 +122,59 @@ class BatchTest(unittest.TestCase):
         self.assertEqual(flat, runs)
 
 
+class StatefulBatchTest(unittest.TestCase):
+    def chip(self):
+        dsp2 = load_module("dsp2", ROOT / "dsp2.py")
+        return dsp2.Chip()
+
+    def merge_runs(self, count):
+        runs = []
+        for _ in range(count):
+            runs.append((replay.KIND_WRITE, bytes([0x05, 0x04]) + bytes(8)))
+            runs.append((replay.KIND_READ, bytes(4)))
+        return runs
+
+    def test_a_batch_never_begins_with_a_read(self):
+        batches = list(replay.stream_batches(self.merge_runs(40), 200, self.chip()))
+
+        self.assertGreater(len(batches), 1)
+        for batch in batches:
+            self.assertEqual(batch[0][0], replay.KIND_WRITE)
+
+    def test_a_later_batch_restores_the_transparent_colour(self):
+        runs = [(replay.KIND_WRITE, bytes([0x03, 0x0A])), *self.merge_runs(40)]
+
+        batches = list(replay.stream_batches(runs, 200, self.chip()))
+
+        self.assertEqual(batches[1][0], (replay.KIND_WRITE, bytes([0x0F, 0x03, 0x0A])))
+
+    def test_the_first_batch_carries_no_prelude(self):
+        runs = self.merge_runs(40)
+
+        batches = list(replay.stream_batches(runs, 200, self.chip()))
+
+        self.assertEqual(batches[0][0], runs[0])
+
+    def test_every_run_survives_exactly_once(self):
+        runs = self.merge_runs(40)
+
+        flat = [
+            run
+            for batch in replay.stream_batches(runs, 200, self.chip())
+            for run in batch
+            if run[1][:1] != b"\x0f"
+        ]
+
+        self.assertEqual(flat, runs)
+
+    def test_a_command_is_never_split_across_batches(self):
+        runs = self.merge_runs(40)
+
+        for batch in replay.stream_batches(runs, 200, self.chip()):
+            body = [run for run in batch if run[1][:1] != b"\x0f"]
+            self.assertEqual(body[0][1][0], 0x05)
+
+
 class ResultTest(unittest.TestCase):
     def test_counters_are_read_from_the_dump(self):
         dump = bytearray(0x20000)

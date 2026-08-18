@@ -106,6 +106,48 @@ def place_script(image, script, bank=SCRIPT_BANK):
     return bytes(out)
 
 
+SYNC = 0x0F
+SET_TRANSPARENT = 0x03
+
+
+def stream_batches(runs, room, chip):
+    """Batches a fresh cartridge can each start from, with what it carries.
+
+    A batch is a separate run of the cartridge, so anything the chip holds is
+    lost at the boundary. Two things follow. A break may only happen where the
+    chip is idle and the next run is a feed, or a command's payload lands in one
+    batch and its drain in the next, and the routines then return the idle byte
+    where the cartridge returned a result. And every batch after the first opens
+    with a sync and the transparent colour in force, because that colour decides
+    what a merge returns and a batch that starts without it reports failures
+    that are the harness's own.
+    """
+    current = []
+    used = 0
+    prelude = b""
+
+    for kind, payload in runs:
+        cost = 3 + len(payload)
+        idle = kind == KIND_WRITE and chip.command is None and chip.pending_output == 0
+        if used + cost > room and idle and current:
+            yield ([(KIND_WRITE, prelude)] if prelude else []) + current
+            prelude = bytes([SYNC, SET_TRANSPARENT, chip.state.transparent])
+            current, used = [], 0
+
+        current.append((kind, payload))
+        used += cost
+
+        if kind == KIND_WRITE:
+            for byte in payload:
+                chip.write(byte)
+        else:
+            for _ in payload:
+                chip.read()
+
+    if current:
+        yield ([(KIND_WRITE, prelude)] if prelude else []) + current
+
+
 def batches_of(runs, room):
     """Runs grouped so each group's script fits the room, never splitting one."""
     batches = []
@@ -147,7 +189,7 @@ def read_counters(dump):
     }
 
 
-def _assemble(root, build):
+def assemble(root, build):
     import subprocess
 
     (build / "replay.sfc").write_bytes(bytes(IMAGE_BYTES))
@@ -176,7 +218,7 @@ def _assemble(root, build):
     return (build / "replay.sfc").read_bytes()
 
 
-def _run_batch(build, skeleton, batch):
+def run_batch(build, skeleton, batch):
     import subprocess
 
     script = script_for(batch)
@@ -220,54 +262,37 @@ def main(argv):
         print(f"  no trace at {trace}; the builder records their own")
         return 0
 
-    dsptrace = _dsptrace(root)
-    skeleton = _assemble(root, build)
+    dsptrace = load_dsptrace(root)
+    skeleton = assemble(root, build)
     print(f"  cartridge built, {len(skeleton)} bytes")
 
     stream = ((record.kind, record.byte) for record in dsptrace.records(str(trace)))
     if limit:
         stream = (item for index, item in enumerate(stream) if index < limit)
 
+    dsp2 = _load_model(root)
     room = capacity(IMAGE_BYTES) - 16
     walked = compared = wrong = written = returned = 0
     failures = []
-    number = 0
-    batch = []
-    used = 0
 
-    def finish(batch, number):
+    def counted(source):
+        nonlocal written, returned
+        for kind, payload in source:
+            if kind == KIND_WRITE:
+                written += len(payload)
+            else:
+                returned += len(payload)
+            yield (kind, payload)
+
+    batches = stream_batches(counted(runs_from(stream)), room, dsp2.Chip())
+    for number, batch in enumerate(batches):
         started = time.time()
-        script, found = _run_batch(build, skeleton, batch)
+        script, found = run_batch(build, skeleton, batch)
         print(
             f"    batch {number:3d}: {len(script):8d} bytes of script, "
             f"{found['compared']:9d} checked, {found['wrong']:6d} wrong, "
             f"{time.time() - started:5.1f}s"
         )
-        return found
-
-    for kind, payload in runs_from(stream):
-        if kind == KIND_WRITE:
-            written += len(payload)
-        else:
-            returned += len(payload)
-        cost = 3 + len(payload)
-        if used + cost > room and batch:
-            found = finish(batch, number)
-            if not found["finished"]:
-                print(f"  batch {number} did not finish, {found['compared']} checked")
-                return 1
-            walked += found["transactions"]
-            compared += found["compared"]
-            wrong += found["wrong"]
-            if found["wrong"]:
-                failures.append((number, found))
-            number += 1
-            batch, used = [], 0
-        batch.append((kind, payload))
-        used += cost
-
-    if batch:
-        found = finish(batch, number)
         if not found["finished"]:
             print(f"  batch {number} did not finish, {found['compared']} checked")
             return 1
@@ -289,7 +314,16 @@ def main(argv):
     return 0 if wrong == 0 else 1
 
 
-def _dsptrace(root):
+def _load_model(root):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("dsp2", root / "dsp2.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_dsptrace(root):
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("dsptrace", root / "dsptrace.py")

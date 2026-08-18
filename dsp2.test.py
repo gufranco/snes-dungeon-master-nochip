@@ -155,30 +155,42 @@ class MultiplyTest(unittest.TestCase):
         self.assertEqual(int.from_bytes(out, "little"), 0x100 * 0x100)
 
 
+def parameter_ram(payload, rest=0x00):
+    ram = bytearray([rest]) * dsp2.PARAMETER_BYTES
+    ram[: len(payload)] = payload
+    return bytes(ram)
+
+
 class ScaleTest(unittest.TestCase):
     def test_an_input_no_longer_than_the_output_copies_its_nibbles_in_order(self):
         payload = bytes([0x12, 0x34])
 
-        out = dsp2.scale(payload, 4, 4)
+        out = dsp2.scale(parameter_ram(payload), 4, 4)
 
         self.assertEqual(out[:2], payload)
 
-    def test_nibbles_past_the_payload_are_padded_rather_than_raising(self):
-        out = dsp2.scale(bytes([0x12, 0x34]), 4, 4)
+    def test_nibbles_past_the_payload_come_from_the_parameter_ram(self):
+        out = dsp2.scale(parameter_ram(bytes([0x12, 0x34]), rest=0xAB), 4, 4)
 
-        self.assertEqual(out[2:], bytes(2))
+        self.assertEqual(out[2:], bytes([0xAB, 0xAB]))
+
+    def test_what_an_earlier_command_left_behind_is_what_gets_read(self):
+        quiet = dsp2.scale(parameter_ram(bytes([0x12, 0x34]), rest=0x00), 4, 4)
+        noisy = dsp2.scale(parameter_ram(bytes([0x12, 0x34]), rest=0xFF), 4, 4)
+
+        self.assertNotEqual(quiet, noisy)
 
     def test_the_output_is_as_long_as_the_declared_output_length(self):
-        out = dsp2.scale(bytes([0x12, 0x34, 0x56, 0x78]), 8, 3)
+        out = dsp2.scale(parameter_ram(bytes([0x12, 0x34, 0x56, 0x78])), 8, 3)
 
         self.assertEqual(len(out), 3)
 
     def test_shrinking_keeps_the_first_nibble(self):
-        out = dsp2.scale(bytes([0xAB, 0xCD, 0xEF, 0x01]), 8, 2)
+        out = dsp2.scale(parameter_ram(bytes([0xAB, 0xCD, 0xEF, 0x01])), 8, 2)
 
         self.assertEqual(out[0] >> 4, 0xA)
 
-    def test_a_payload_shorter_than_half_the_input_length_is_refused(self):
+    def test_a_parameter_ram_smaller_than_the_chip_holds_is_refused(self):
         with self.assertRaises(ValueError):
             dsp2.scale(bytes(3), 8, 4)
 
@@ -186,9 +198,21 @@ class ScaleTest(unittest.TestCase):
         for in_len, out_len in ((0x48, 0x26), (0x48, 0x32), (0x78, 0x3A), (0x78, 0x50)):
             payload = bytes(range(256))[: (in_len + 1) >> 1]
 
-            out = dsp2.scale(payload, in_len, out_len)
+            out = dsp2.scale(parameter_ram(payload), in_len, out_len)
 
             self.assertEqual(len(out), out_len)
+
+    def test_the_parameter_ram_a_chip_carries_survives_a_command(self):
+        chip = dsp2.Chip()
+        for byte in [dsp2.COMMAND_MIRROR, 0x04, 0x11, 0x22, 0x33, 0x44]:
+            chip.write(byte)
+        for _ in range(4):
+            chip.read()
+
+        for byte in [dsp2.COMMAND_SCALE, 0x02, 0x04, 0x99]:
+            chip.write(byte)
+
+        self.assertEqual(bytes(chip.parameter_ram[1:4]), bytes([0x22, 0x33, 0x44]))
 
 
 class ChipTest(unittest.TestCase):
