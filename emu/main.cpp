@@ -384,6 +384,17 @@ static void report_wram(const char *path)
     printf("WRAM untouched=%lu of %lu\n", untouched, WRAM_BYTES);
 }
 
+static void dump_wram(const char *path)
+{
+    FILE *out = fopen(path, "wb");
+    if (!out) {
+        return;
+    }
+    fwrite(Memory.RAM, 1, 0x20000, out);
+    fclose(out);
+    printf("WRAM dumped to %s\n", path);
+}
+
 static void report_rom(const char *path)
 {
     FILE *out = fopen(path, "wb");
@@ -420,6 +431,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "  DMSRAM=1         report which save RAM banks are touched\n");
         fprintf(stderr, "  DMWRAM=<path>    write a read and write map of work RAM\n");
         fprintf(stderr, "  DMROM=<path>     write a read map of the cartridge\n");
+        fprintf(stderr, "  DMDUMP=<path>    dump work RAM when the run ends\n");
         fprintf(stderr, "  DMSCRIPT=<path>  input script, one 'frame button...' per line\n");
         fprintf(stderr, "  DMHASH=<path>    per-frame digests\n");
         fprintf(stderr, "  DMPPM=<prefix>   frame captures\n");
@@ -553,6 +565,9 @@ int main(int argc, char **argv)
     }
     if (rom_touched) {
         report_rom(getenv("DMROM"));
+    }
+    if (getenv("DMDUMP")) {
+        dump_wram(getenv("DMDUMP"));
     }
 
     printf("RESULT load=ok frames=%lu delivered=%lu dspevents=%lu brightness=%.4f\n",

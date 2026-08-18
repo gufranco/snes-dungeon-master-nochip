@@ -1,0 +1,471 @@
+import importlib.util
+import random
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+BUILD = ROOT / "build"
+
+CASES_ASM = BUILD / "cpu-cases.asm"
+CASES_ROM = BUILD / "cpu-cases.sfc"
+CASES_DUMP = BUILD / "cpu-cases-wram.bin"
+
+ASAR_IMAGE = "dungeon-master-nochip/asar:1.81"
+EMU_IMAGE = "dungeon-master-nochip/emu:dev"
+
+RESULT_BASE = 0x7F0000
+RESULT_STRIDE = 16
+SCRATCH_BASE = 0x7E2000
+SCRATCH_BYTES = 0x100
+DONE_FLAG = 0x7F8000
+PROGRESS = 0x7F8004
+CASE_PC = 0x7E8000
+DIRECT_PAGE = 0x0400
+STACK_TOP = 0x1F00
+STACK_WINDOW = (0x1EF0, 0x1F10)
+POINTER_WINDOW = (0x0400, 0x0540)
+POINTER_MASK = 0x3F
+
+ROM_BYTES = 0x80000
+CASES_PER_BANK = 180
+FIRST_CASE_BANK = 0x01
+FRAMES_BASE = 120
+FRAMES_PER_CASE = 1
+EXAMPLE_LIMIT = 12
+
+
+def _load(name):
+    spec = importlib.util.spec_from_file_location(name, ROOT / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+emu65816 = _load("emu65816")
+wdc65816 = _load("wdc65816")
+
+
+class LoRomMemory:
+    def __init__(self, rom):
+        self.rom = rom
+        self.wram = bytearray(0x20000)
+
+    def _wram_offset(self, address):
+        bank = (address >> 16) & 0xFF
+        offset = address & 0xFFFF
+        if bank == 0x7E:
+            return offset
+        if bank == 0x7F:
+            return 0x10000 + offset
+        if (bank < 0x40 or 0x80 <= bank < 0xC0) and offset < 0x2000:
+            return offset
+        return None
+
+    def _rom_offset(self, address):
+        bank = (address >> 16) & 0xFF
+        offset = address & 0xFFFF
+        if bank in (0x7E, 0x7F) or offset < 0x8000:
+            return None
+        linear = (bank & 0x7F) * 0x8000 + (offset - 0x8000)
+        return linear % len(self.rom)
+
+    def read8(self, address):
+        at = self._wram_offset(address)
+        if at is not None:
+            return self.wram[at]
+        at = self._rom_offset(address)
+        return self.rom[at] if at is not None else 0x00
+
+    def write8(self, address, value):
+        at = self._wram_offset(address)
+        if at is not None:
+            self.wram[at] = value & 0xFF
+
+
+SKIP_MNEMONICS = frozenset(
+    {
+        "brk",
+        "cop",
+        "rti",
+        "stp",
+        "wai",
+        "jmp",
+        "jml",
+        "jsr",
+        "jsl",
+        "rts",
+        "rtl",
+        "bra",
+        "brl",
+        "beq",
+        "bne",
+        "bcs",
+        "bcc",
+        "bmi",
+        "bpl",
+        "bvs",
+        "bvc",
+        "mvn",
+        "mvp",
+        "per",
+        "txs",
+        "tas",
+        "wdm",
+        "xce",
+    }
+)
+
+SKIP_MODES = frozenset(
+    {
+        "indirectPC",
+        "indirectLongPC",
+        "indirectX",
+        "absolutePC",
+        "move",
+        "absoluteLong",
+        "absoluteLongX",
+        "indirectLong",
+        "indirectLongY",
+        "stackIndirect",
+    }
+)
+
+
+def testable_opcodes():
+    return [
+        (opcode, mnemonic, mode)
+        for opcode, (mnemonic, mode) in enumerate(wdc65816.OPCODES)
+        if mnemonic not in SKIP_MNEMONICS and mode not in SKIP_MODES
+    ]
+
+
+def operand_size(mode, wide):
+    if mode in ("immediateA", "immediateX"):
+        return 2 if wide else 1
+    return wdc65816.MODE_SIZE[mode]
+
+
+def build_cases(seed, count):
+    rng = random.Random(seed)
+    catalogue = testable_opcodes()
+    cases = []
+    for index in range(count):
+        opcode, mnemonic, mode = catalogue[index % len(catalogue)]
+        status = rng.randrange(0x00, 0x100) | emu65816.FLAG_I
+        status &= ~emu65816.FLAG_D
+        wide = (
+            not (status & emu65816.FLAG_X)
+            if mnemonic in emu65816.INDEX_WIDTH_OPS
+            else not (status & emu65816.FLAG_M)
+        )
+        size = operand_size(mode, wide)
+        operand = bytes(rng.randrange(0x00, 0x40) for _ in range(size))
+        cases.append(
+            {
+                "opcode": opcode,
+                "mnemonic": mnemonic,
+                "mode": mode,
+                "bytes": bytes([opcode]) + operand,
+                "a": rng.randrange(0x0000, 0x10000),
+                "x": rng.randrange(0x0000, 0x0100),
+                "y": rng.randrange(0x0000, 0x0100),
+                "p": status,
+                "d": DIRECT_PAGE,
+                "db": 0x7E,
+            }
+        )
+    return cases
+
+
+def emit_asm(cases):
+    lines = [
+        "lorom",
+        "",
+        "org $008000",
+        "reset:",
+        "    sei",
+        "    clc",
+        "    xce",
+        "    rep #$38",
+        f"    ldx #${STACK_TOP:04X}",
+        "    txs",
+        "    lda #$0000",
+        "    tcd",
+        "    sep #$20",
+        "    lda #$8F",
+        "    sta $2100",
+        "    rep #$30",
+        "",
+        "    ldx #$0000",
+        "fill_work_ram:",
+        "    txa",
+        "    sep #$20",
+        "    sta.l $7E0000,x",
+        "    sta.l $7F0000,x",
+        "    rep #$30",
+        "    inx",
+        "    bne fill_work_ram",
+        "    jml case_0",
+        "",
+    ]
+
+    for index, case in enumerate(cases):
+        result = RESULT_BASE + index * RESULT_STRIDE
+        if index % CASES_PER_BANK == 0:
+            bank = FIRST_CASE_BANK + index // CASES_PER_BANK
+            lines += [f"org ${bank:02X}8000", ""]
+        lines += [
+            f"case_{index}:",
+            "    rep #$30",
+            f"    lda #${index:04X}",
+            f"    sta.l ${PROGRESS:06X}",
+            f"    ldx #${STACK_TOP:04X}",
+            "    txs",
+            f"    ldx #${STACK_WINDOW[0]:04X}",
+            f"restore_{index}:",
+            "    txa",
+            "    sep #$20",
+            "    sta.l $7E0000,x",
+            "    rep #$30",
+            "    inx",
+            f"    cpx #${STACK_WINDOW[1]:04X}",
+            f"    bne restore_{index}",
+            f"    ldx #${POINTER_WINDOW[0]:04X}",
+            f"pointers_{index}:",
+            "    txa",
+            f"    and #${POINTER_MASK:04X}",
+            "    sep #$20",
+            "    sta.l $7E0000,x",
+            "    rep #$30",
+            "    inx",
+            f"    cpx #${POINTER_WINDOW[1]:04X}",
+            f"    bne pointers_{index}",
+            "    sep #$20",
+            f"    lda #${case['p']:02X}",
+            "    pha",
+            "    rep #$30",
+            f"    lda #${case['d']:04X}",
+            "    tcd",
+            f"    pea ${case['db']:02X}{case['db']:02X}",
+            "    plb",
+            "    plb",
+            f"    ldx #${case['x']:04X}",
+            f"    ldy #${case['y']:04X}",
+            f"    lda #${case['a']:04X}",
+            "    plp",
+            "    db " + ",".join(f"${b:02X}" for b in case["bytes"]),
+            "    php",
+            "    rep #$30",
+            "    pha",
+            "    phx",
+            "    phy",
+            "    pla",
+            f"    sta.l ${result + 4:06X}",
+            "    pla",
+            f"    sta.l ${result + 2:06X}",
+            "    pla",
+            f"    sta.l ${result + 0:06X}",
+            "    sep #$20",
+            "    pla",
+            f"    sta.l ${result + 6:06X}",
+            "    rep #$30",
+            "    tsc",
+            f"    sta.l ${result + 8:06X}",
+            "    tdc",
+            f"    sta.l ${result + 10:06X}",
+            "    sep #$20",
+            "    phb",
+            "    pla",
+            f"    sta.l ${result + 12:06X}",
+            "    rep #$30",
+            "    lda #$0000",
+            "    tcd",
+        ]
+        if (index + 1) % CASES_PER_BANK == 0 and index + 1 < len(cases):
+            lines.append(f"    jml case_{index + 1}")
+        lines.append("")
+
+    lines += [
+        "    sep #$20",
+        "    lda #$A5",
+        f"    sta.l ${DONE_FLAG:06X}",
+        "    rep #$20",
+        "halt:",
+        "    bra halt",
+        "",
+        "org $00FFC0",
+        '    db "CPU DIFFERENTIAL TEST"',
+        "    db $20",
+        "    db $00",
+        "    db $0A",
+        "    db $00",
+        "    db $01",
+        "    db $00",
+        "    db $00",
+        "    dw $0000",
+        "    dw $0000",
+        "org $00FFFC",
+        "    dw reset",
+        "    dw $0000",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def assemble(text):
+    BUILD.mkdir(exist_ok=True)
+    CASES_ASM.write_text(text)
+    CASES_ROM.write_bytes(bytes(ROM_BYTES))
+    result = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--network=none",
+            "--volume",
+            f"{BUILD}:/work",
+            ASAR_IMAGE,
+            "--no-title-check",
+            CASES_ASM.name,
+            CASES_ROM.name,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(result.stdout)
+        print(result.stderr, file=sys.stderr)
+        return False
+    return True
+
+
+def frames_for(count):
+    return FRAMES_BASE + count * FRAMES_PER_CASE
+
+
+def run_in_snes9x(frames):
+    result = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--network=none",
+            "--env",
+            f"DMDUMP={CASES_DUMP.name}",
+            "--volume",
+            f"{BUILD}:/work",
+            EMU_IMAGE,
+            CASES_ROM.name,
+            str(frames),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(result.stdout)
+        print(result.stderr, file=sys.stderr)
+        return None
+    return CASES_DUMP.read_bytes()
+
+
+def run_in_python(cases, rom):
+    memory = LoRomMemory(rom)
+    for index in range(0x10000):
+        memory.wram[index] = index & 0xFF
+        memory.wram[0x10000 + index] = index & 0xFF
+
+    found = []
+    for case in cases:
+        cpu = emu65816.Cpu(memory)
+        cpu.d = case["d"]
+        cpu.db = case["db"]
+        cpu.x = case["x"]
+        cpu.y = case["y"]
+        cpu.a = case["a"]
+        for address in range(*STACK_WINDOW):
+            memory.wram[address] = address & 0xFF
+        for address in range(*POINTER_WINDOW):
+            memory.wram[address] = address & POINTER_MASK
+        memory.wram[STACK_TOP] = case["p"]
+        memory.wram[STACK_TOP - 1] = case["db"]
+        memory.wram[STACK_TOP - 2] = case["db"]
+        cpu.s = STACK_TOP
+        cpu.set_status(case["p"])
+        cpu.pb = (CASE_PC >> 16) & 0xFF
+        cpu.pc = CASE_PC & 0xFFFF
+        for offset, value in enumerate(case["bytes"]):
+            memory.write8(CASE_PC + offset, value)
+        cpu.step()
+        found.append(
+            {
+                "a": cpu.a & 0xFFFF,
+                "x": cpu.x & 0xFFFF,
+                "y": cpu.y & 0xFFFF,
+                "p": cpu.status(),
+                "d": cpu.d & 0xFFFF,
+                "db": cpu.db & 0xFF,
+            }
+        )
+    return found
+
+
+def read_results(dump, count):
+    found = []
+    for index in range(count):
+        at = 0x10000 + (RESULT_BASE & 0xFFFF) + index * RESULT_STRIDE
+        found.append(
+            {
+                "a": dump[at] | (dump[at + 1] << 8),
+                "x": dump[at + 2] | (dump[at + 3] << 8),
+                "y": dump[at + 4] | (dump[at + 5] << 8),
+                "p": dump[at + 6],
+                "d": dump[at + 10] | (dump[at + 11] << 8),
+                "db": dump[at + 12],
+            }
+        )
+    return found
+
+
+def compare(cases, wanted, found):
+    mismatches = []
+    for case, want, got in zip(cases, wanted, found, strict=True):
+        differences = [field for field in ("a", "x", "y", "p") if want[field] != got[field]]
+        if differences:
+            mismatches.append((case, want, got, differences))
+    return mismatches
+
+
+def main(argv):
+    seed = int(argv[1]) if len(argv) > 1 else 0
+    count = int(argv[2]) if len(argv) > 2 else 400
+
+    cases = build_cases(seed, count)
+    print(f"  {len(cases)} cases from seed {seed}")
+
+    if not assemble(emit_asm(cases)):
+        return 1
+
+    rom = CASES_ROM.read_bytes()
+    dump = run_in_snes9x(frames_for(len(cases)))
+    if dump is None:
+        return 1
+    if dump[0x10000 + (DONE_FLAG & 0xFFFF)] != 0xA5:
+        print("  the cartridge did not finish its cases")
+        return 1
+
+    from_snes9x = read_results(dump, len(cases))
+    from_python = run_in_python(cases, rom)
+    mismatches = compare(cases, from_snes9x, from_python)
+
+    for case, want, got, fields in mismatches[:EXAMPLE_LIMIT]:
+        detail = ", ".join(f"{f} snes9x {want[f]:#06x} python {got[f]:#06x}" for f in fields)
+        print(f"    ${case['opcode']:02X} {case['mnemonic']:<4s} {case['mode']:<18s} {detail}")
+
+    print(f"  {len(cases) - len(mismatches)} of {len(cases)} agree with snes9x")
+    return 1 if mismatches else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

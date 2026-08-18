@@ -21,6 +21,61 @@
 incsrc "dsp2-state.asm"
 
 ; ---------------------------------------------------------------------------
+; dsp_init
+;
+; Puts the state block into a known condition.
+;
+; Work RAM is not guaranteed to hold any particular value at power on, so every
+; field the state machine reads has to be written before it is read. Without
+; this the first byte the game sends could arrive with the stage byte holding
+; whatever was in that address, be taken for a parameter rather than a command,
+; and leave the chip out of step for the rest of the run.
+;
+; The boot code writes the sync command six times at $00:801E. Sync produces
+; nothing, so the first of the six becomes this call and the other five stay as
+; writes. A JSL is four bytes and so is the store it replaces, so nothing moves.
+;
+; Entry: any state.
+; Exit:  everything restored. The state block is idle with no output pending.
+; ---------------------------------------------------------------------------
+dsp_init:
+    php
+    rep #$30
+    phb
+    phd
+    pha
+    phx
+    phy
+
+    jsr enter
+    sep #$20
+    stz !S_STAGE
+    stz !S_COMMAND
+    stz !S_LEN1
+    stz !S_LEN2
+    stz !S_WANT_LEN
+    stz !S_TRANSPARENT
+    stz !S_INBYTE
+    stz !S_XFER_BANK
+    rep #$20
+    stz !S_WANT_PARAM
+    stz !S_PARAM_INDEX
+    stz !S_OUT_LEN
+    stz !S_OUT_INDEX
+    stz !S_XFER_LEFT
+    stz !S_XFER_TOTAL
+    stz !S_SCRATCH+16           ; the transparent colour in its high nibble form,
+                                ;   which op_merge compares against directly
+
+    ply
+    plx
+    pla
+    pld
+    plb
+    plp
+    rtl
+
+; ---------------------------------------------------------------------------
 ; dsp_write
 ;
 ; Stands in for a single byte written to the data port.
@@ -117,6 +172,10 @@ write_byte:
     beq .command
     cmp #!STAGE_LENGTH
     beq .length
+    cmp #!STAGE_PARAM
+    bne .command                ; a stage byte holding anything else is not a
+                                ;   state this machine ever wrote, so treat it
+                                ;   as idle rather than trusting it
 
 .parameter:
     rep #$30
