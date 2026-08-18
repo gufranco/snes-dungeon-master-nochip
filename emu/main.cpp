@@ -87,8 +87,63 @@ static inline bool is_lorom_sram_bank(unsigned bank)
     return (bank >= 0x70 && bank <= 0x7D) || bank >= 0xF0;
 }
 
+static const unsigned long WRAM_BYTES = 0x20000;
+static unsigned char *wram_touched = NULL;
+static const unsigned char WRAM_READ = 1;
+static const unsigned char WRAM_WRITE = 2;
+
+static unsigned long rom_bytes = 0;
+static unsigned char *rom_touched = NULL;
+
+static inline long rom_offset(unsigned long address)
+{
+    if (rom_bytes == 0) {
+        return -1;
+    }
+    const unsigned bank = (address >> 16) & 0xFF;
+    const unsigned offset = address & 0xFFFF;
+    if (bank == 0x7E || bank == 0x7F) {
+        return -1;
+    }
+    if (offset < 0x8000) {
+        return -1;
+    }
+    const unsigned long linear = (unsigned long)(bank & 0x7F) * 0x8000 + (offset - 0x8000);
+    return (long)(linear % rom_bytes);
+}
+
+static inline long wram_offset(unsigned long address)
+{
+    const unsigned bank = (address >> 16) & 0xFF;
+    const unsigned offset = address & 0xFFFF;
+    if (bank == 0x7E) {
+        return (long)offset;
+    }
+    if (bank == 0x7F) {
+        return (long)(0x10000 + offset);
+    }
+    if (bank < 0x40 || (bank >= 0x80 && bank < 0xC0)) {
+        if (offset < 0x2000) {
+            return (long)offset;
+        }
+    }
+    return -1;
+}
+
 extern "C" void dm_note_read(unsigned long address)
 {
+    if (rom_touched) {
+        const long at = rom_offset(address);
+        if (at >= 0) {
+            rom_touched[at] = 1;
+        }
+    }
+    if (wram_touched) {
+        const long at = wram_offset(address);
+        if (at >= 0) {
+            wram_touched[at] |= WRAM_READ;
+        }
+    }
     if (!watch_sram) {
         return;
     }
@@ -104,6 +159,12 @@ extern "C" void dm_note_read(unsigned long address)
 
 extern "C" void dm_note_write(unsigned long address)
 {
+    if (wram_touched) {
+        const long at = wram_offset(address);
+        if (at >= 0) {
+            wram_touched[at] |= WRAM_WRITE;
+        }
+    }
     if (!watch_sram) {
         return;
     }
@@ -307,6 +368,38 @@ static bool read_file(const char *path, std::vector<unsigned char> &out)
     return complete;
 }
 
+static void report_wram(const char *path)
+{
+    FILE *out = fopen(path, "wb");
+    if (!out) {
+        return;
+    }
+    fwrite(wram_touched, 1, WRAM_BYTES, out);
+    fclose(out);
+
+    unsigned long untouched = 0;
+    for (unsigned long i = 0; i < WRAM_BYTES; i++) {
+        untouched += wram_touched[i] == 0;
+    }
+    printf("WRAM untouched=%lu of %lu\n", untouched, WRAM_BYTES);
+}
+
+static void report_rom(const char *path)
+{
+    FILE *out = fopen(path, "wb");
+    if (!out) {
+        return;
+    }
+    fwrite(rom_touched, 1, rom_bytes, out);
+    fclose(out);
+
+    unsigned long untouched = 0;
+    for (unsigned long i = 0; i < rom_bytes; i++) {
+        untouched += rom_touched[i] == 0;
+    }
+    printf("ROM untouched=%lu of %lu\n", untouched, rom_bytes);
+}
+
 static void report_sram(void)
 {
     for (unsigned bank = 0; bank < 256; bank++) {
@@ -325,6 +418,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "usage: dmemu <rom> <frames>\n");
         fprintf(stderr, "  DMTRACE=<path>   binary DSP-2 transaction log\n");
         fprintf(stderr, "  DMSRAM=1         report which save RAM banks are touched\n");
+        fprintf(stderr, "  DMWRAM=<path>    write a read and write map of work RAM\n");
+        fprintf(stderr, "  DMROM=<path>     write a read map of the cartridge\n");
         fprintf(stderr, "  DMSCRIPT=<path>  input script, one 'frame button...' per line\n");
         fprintf(stderr, "  DMHASH=<path>    per-frame digests\n");
         fprintf(stderr, "  DMPPM=<prefix>   frame captures\n");
@@ -350,6 +445,25 @@ int main(int argc, char **argv)
         }
     }
     watch_sram = getenv("DMSRAM") != NULL;
+
+    const char *rom_path = getenv("DMROM");
+    if (rom_path) {
+        rom_bytes = (unsigned long)rom.size();
+        rom_touched = (unsigned char *)calloc(rom_bytes, 1);
+        if (!rom_touched) {
+            fprintf(stderr, "cannot allocate the rom map\n");
+            return 1;
+        }
+    }
+
+    const char *wram_path = getenv("DMWRAM");
+    if (wram_path) {
+        wram_touched = (unsigned char *)calloc(WRAM_BYTES, 1);
+        if (!wram_touched) {
+            fprintf(stderr, "cannot allocate the work RAM map\n");
+            return 1;
+        }
+    }
 
     const char *script_path = getenv("DMSCRIPT");
     if (script_path && !load_script(script_path)) {
@@ -433,6 +547,12 @@ int main(int argc, char **argv)
     }
     if (watch_sram) {
         report_sram();
+    }
+    if (wram_touched) {
+        report_wram(getenv("DMWRAM"));
+    }
+    if (rom_touched) {
+        report_rom(getenv("DMROM"));
     }
 
     printf("RESULT load=ok frames=%lu delivered=%lu dspevents=%lu brightness=%.4f\n",
