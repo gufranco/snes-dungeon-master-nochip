@@ -12,3 +12,8 @@ dist/
 __pycache__/
 .ruff_cache/
 .DS_Store
+
+# The emulator patch is source, not scratch. A machine-global ignore file
+# carrying *.patch would drop it and leave the container unbuildable in a
+# fresh clone, while local status stayed clean.
+!snes9x/*.patch

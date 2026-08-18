@@ -1,0 +1,193 @@
+From 27d0732fc3f251b64558026221cbd98d8e92d4fb Mon Sep 17 00:00:00 2001
+From: Gustavo Franco <gufranco@users.noreply.github.com>
+Date: Mon, 17 Aug 2026 23:01:20 -0300
+Subject: [PATCH 1/3] refactor: name the expanded-conversion map after its
+ layout
+
+Map_SDD1DecompressedMap and the SDD1Decompressed flag are named after the
+chip the first three conversions happened to remove, not after what the
+branch recognises. What it recognises is an image whose data outgrew the
+address space and which addresses the overflow in two planes with a window
+over banks $C0 and above. Nothing in the mapping reads a chipset byte.
+
+Renamed to Map_WindowedLoROMMap and WindowedLoROM, with the comment above
+the function rewritten to describe the layout. No behaviour change.
+---
+ memmap.cpp | 28 ++++++++++++++--------------
+ memmap.h   |  2 +-
+ 2 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/memmap.cpp b/memmap.cpp
+index 6d08e108..a49f743f 100644
+--- a/memmap.cpp
++++ b/memmap.cpp
+@@ -2248,16 +2248,16 @@ void CMemory::InitROM (void)
+ 	Map_Initialize();
+ 	CalculatedChecksum = 0;
+ 
+-	const bool8	SDD1Decompressed = (CalculatedSize >= 0x800000) &&
++	const bool8	WindowedLoROM = (CalculatedSize >= 0x800000) &&
+ 			(Settings.SDD1 ||
+ 			 strncmp(ROMName, "STREET FIGHTER ALPHA2", 21) == 0 ||
+ 			 strncmp(ROMName, "STREET FIGHTER ZERO2", 20) == 0 ||
+ 			 strncmp(ROMName, "Star Ocean", 10) == 0);
+ 
+-	if (SDD1Decompressed)
++	if (WindowedLoROM)
+ 	{
+ 		Settings.SDD1 = FALSE;
+-		Map_SDD1DecompressedMap();
++		Map_WindowedLoROMMap();
+ 	}
+ 	else if (HiROM)
+ 	{
+@@ -4064,19 +4064,19 @@ void CMemory::CheckForAnyPatch(const char *rom_filename, bool8 header, int32 &ro
+     if (try_patch_type_sequence(PATCH_DIR))
+         return;
+ }
+-// Street Fighter Alpha 2 and Star Ocean are the only two S-DD1 cartridges. Both
+-// have circulating conversions whose graphics were decompressed ahead of time so
+-// that the chip is no longer needed, which is what lets them run from flash
+-// cartridges. The decompressed data does not fit the original address space, so
+-// the conversions grow the image and address it in two halves: the upper half of
+-// each bank sits where LoROM would put it, and the lower half sits one whole
+-// image further into the file. Banks $C0 and above are a window composed from the
+-// lower halves of two other banks.
++// Several cartridges have circulating conversions whose graphics were expanded
++// ahead of time so that the coprocessor is no longer needed, which is what lets
++// them run from flash cartridges. The expanded data does not fit the original
++// address space, so the conversions grow the image and address it in two halves:
++// the upper half of each bank sits where LoROM would put it, and the lower half
++// sits one whole image further into the file. Banks $C0 and above are a window
++// composed from the lower halves of two other banks.
+ //
+-// No real S-DD1 cartridge is larger than Star Ocean's 48 Mbit, so an S-DD1 image
+-// at or above 64 Mbit is one of these conversions.
++// The layout is a property of the conversion rather than of the chip that was
++// removed to produce it. It comes from the Star Ocean conversion and has since
++// been reused for cartridges carrying other coprocessors.
+ 
+-void CMemory::Map_SDD1DecompressedMap (void)
++void CMemory::Map_WindowedLoROMMap (void)
+ {
+ 	const int	banks = (int) (CalculatedSize >> 16);
+ 
+diff --git a/memmap.h b/memmap.h
+index 6a0d5f0e..8e9a6609 100644
+--- a/memmap.h
++++ b/memmap.h
+@@ -156,7 +156,7 @@ struct CMemory
+ 	void	Map_SuperFXLoROMMap (void);
+ 	void	Map_SetaDSPLoROMMap (void);
+ 	void	Map_SDD1LoROMMap (void);
+-	void	Map_SDD1DecompressedMap (void);
++	void	Map_WindowedLoROMMap (void);
+ 	void	Map_SA1LoROMMap (void);
+ 	void	Map_BSSA1LoROMMap (void);
+ 	void	Map_HiROMMap (void);
+-- 
+2.55.0
+
+
+From b7d91b71695544016b9e49f741a9b8b348dfc748 Mon Sep 17 00:00:00 2001
+From: Gustavo Franco <gufranco@users.noreply.github.com>
+Date: Mon, 17 Aug 2026 23:01:47 -0300
+Subject: [PATCH 2/3] feat: recognise the Dungeon Master chip-free conversion
+
+Dungeon Master is the only cartridge carrying a DSP-2. A conversion that
+computes the chip's output ahead of time outgrows the 1 MB address space and
+uses the same windowed layout the Star Ocean and Street Fighter conversions
+already use, so it needs the same map.
+
+Added to the title list with a comment saying which chip each entry removed,
+since the list now covers more than one.
+
+The size test does the safety work here. Retail Dungeon Master is 1,048,576
+bytes, far below the 8 MB floor, so a stock dump cannot reach this branch and
+still gets its DSP-2 from the chipset detection in ParseSNESHeader.
+---
+ memmap.cpp | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/memmap.cpp b/memmap.cpp
+index a49f743f..b2cdb58f 100644
+--- a/memmap.cpp
++++ b/memmap.cpp
+@@ -2248,11 +2248,20 @@ void CMemory::InitROM (void)
+ 	Map_Initialize();
+ 	CalculatedChecksum = 0;
+ 
++	// Conversions whose graphics were expanded ahead of time and no longer need the
++	// coprocessor they were built around. Which chip each one removed does not affect
++	// the mapping: Star Ocean and the Street Fighter pair dropped an S-DD1, Dungeon
++	// Master drops a DSP-2.
++	//
++	// Every one of them is far larger than the retail cartridge it came from, so the
++	// size test keeps a stock dump from ever reaching this branch. Retail Dungeon
++	// Master is 1 MB and still takes the ordinary DSP detection above.
+ 	const bool8	WindowedLoROM = (CalculatedSize >= 0x800000) &&
+ 			(Settings.SDD1 ||
+ 			 strncmp(ROMName, "STREET FIGHTER ALPHA2", 21) == 0 ||
+ 			 strncmp(ROMName, "STREET FIGHTER ZERO2", 20) == 0 ||
+-			 strncmp(ROMName, "Star Ocean", 10) == 0);
++			 strncmp(ROMName, "Star Ocean", 10) == 0 ||
++			 strncmp(ROMName, "DUNGEON MASTER", 14) == 0);
+ 
+ 	if (WindowedLoROM)
+ 	{
+-- 
+2.55.0
+
+
+From 5d7e5406c62a13743f9b18d1775e5a4b39983fb6 Mon Sep 17 00:00:00 2001
+From: Gustavo Franco <gufranco@users.noreply.github.com>
+Date: Mon, 17 Aug 2026 23:02:59 -0300
+Subject: [PATCH 3/3] fix: map save RAM for windowed conversions that declare
+ it
+
+Map_WindowedLoROMMap gave every bank but $7E and $7F to ROM, which covers
+both LoROM save RAM windows, and never called map_LoROMSRAM. Neither S-DD1
+conversion carried save RAM so nothing had noticed. Dungeon Master carries
+32 KB of battery-backed save RAM and is a game people play for tens of
+hours.
+
+Guarded on the image being 0x80 banks or fewer so the conversions that came
+first are provably untouched: both are 0xC0 banks. At 0x80 banks or fewer
+the loop already skips window banks $F0 to $FF, because $F0 would need image
+bank 0x80 + 0x30 and that does not exist, so save RAM costs nothing there.
+
+Banks $70 to $7D stay ROM in the loop, so a conversion declaring save RAM
+has to keep its data out of them.
+---
+ memmap.cpp | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/memmap.cpp b/memmap.cpp
+index b2cdb58f..87a4c4f9 100644
+--- a/memmap.cpp
++++ b/memmap.cpp
+@@ -4132,6 +4132,21 @@ void CMemory::Map_WindowedLoROMMap (void)
+ 		}
+ 	}
+ 
++	// Neither S-DD1 conversion carried save RAM, so this map never provided any and
++	// every bank above became ROM, including the two LoROM save RAM windows. Dungeon
++	// Master has 32 KB of battery-backed save RAM and cannot do without it.
++	//
++	// The size guard is what keeps this from disturbing the conversions that came
++	// first. At 0x80 banks or fewer, window bank $F0 needs image bank 0x80 + 0x30,
++	// which does not exist, so the loop above already skipped $F0 to $FF and save RAM
++	// costs nothing there. Larger images do map those window banks, and they are the
++	// ones this leaves alone.
++	//
++	// Banks $70 to $7D are ROM in the loop above, so a conversion that declares save
++	// RAM has to keep its data out of them.
++	if (SRAMSize > 0 && banks <= 0x80)
++		map_LoROMSRAM();
++
+ 	map_WRAM();
+ 	map_WriteProtectROM();
+ }
+-- 
+2.55.0
+
