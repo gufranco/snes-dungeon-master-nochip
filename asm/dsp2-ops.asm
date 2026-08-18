@@ -43,8 +43,8 @@
 ; Exit:  !O_BUFFER holds 32 bytes, !S_OUT_LEN = 32.
 ; ---------------------------------------------------------------------------
 op_tile:
-    ldy #$0000                  ; Y walks the input, four bytes to a group
-    ldx #$0000                  ; X walks the output, two bytes to a group
+    ldy.w #$0000                  ; Y walks the input, four bytes to a group
+    ldx.w #$0000                  ; X walks the output, two bytes to a group
 
 .group:
     stz !S_SCRATCH+0            ; the four plane accumulators for this row
@@ -76,11 +76,11 @@ op_tile:
     iny
     iny
     iny
-    cpy #!TILE_BYTES
+    cpy.w #!TILE_BYTES
     bne .group
 
     rep #$20
-    lda #!TILE_BYTES
+    lda.w #!TILE_BYTES
     sta !S_OUT_LEN
     sep #$20
     rts
@@ -120,7 +120,7 @@ tile_row_byte:
 ; ---------------------------------------------------------------------------
 op_transparent:
     lda.w !P_BUFFER
-    and #$0F
+    and.b #$0F
     sta !S_TRANSPARENT
     asl                         ; the same colour in the high nibble, so a merge
     asl                         ;   can compare a whole byte at a time without
@@ -154,28 +154,28 @@ op_merge:
     beq .empty
 
     rep #$20
-    and #$00FF
+    and.w #$00FF
     sta !S_OUT_LEN
     tay                         ; Y indexes the overlay, which starts at !S_LEN1
-    ldx #$0000                  ; X indexes the background and the output
+    ldx.w #$0000                  ; X indexes the background and the output
     sep #$20
 
 .byte:
     lda.w !P_BUFFER,y           ; the overlay's high pixel
-    and #$F0
+    and.b #$F0
     cmp !S_SCRATCH+16
     bne .keep_high
     lda.w !P_BUFFER,x           ; transparent, so the background shows through
-    and #$F0
+    and.b #$F0
 .keep_high:
     sta !S_SCRATCH+17
 
     lda.w !P_BUFFER,y           ; and its low pixel
-    and #$0F
+    and.b #$0F
     cmp !S_TRANSPARENT
     bne .keep_low
     lda.w !P_BUFFER,x
-    and #$0F
+    and.b #$0F
 .keep_low:
     ora !S_SCRATCH+17
     sta.w !O_BUFFER,x
@@ -207,11 +207,11 @@ op_mirror:
     beq .empty
 
     rep #$20
-    and #$00FF
+    and.w #$00FF
     sta !S_OUT_LEN
     dec a
     tax                         ; X walks the output back from its last byte
-    ldy #$0000                  ; Y walks the input forward
+    ldy.w #$0000                  ; Y walks the input forward
     sep #$20
 
 .byte:
@@ -292,7 +292,7 @@ op_multiply:
     sta.w !O_BUFFER+0
     lda !S_SCRATCH+20
     sta.w !O_BUFFER+2
-    lda #!MULTIPLY_BYTES
+    lda.w #!MULTIPLY_BYTES
     sta !S_OUT_LEN
     sep #$20
     rts
@@ -321,17 +321,17 @@ multiply_pass:
 ;        X and Y preserved.
 multiply_add_shifted:
     pha
-    and #$00FF
+    and.w #$00FF
     xba                         ; the partial's low byte, moved up eight places
     clc
     adc !S_SCRATCH+18
     sta !S_SCRATCH+18
-    lda #$0000
-    adc #$0000                  ; carry out of the low word
+    lda.w #$0000
+    adc.w #$0000                  ; carry out of the low word
     sta !S_SCRATCH+22
     pla
     xba
-    and #$00FF                  ; the partial's high byte, moved down eight
+    and.w #$00FF                  ; the partial's high byte, moved down eight
     clc
     adc !S_SCRATCH+22
     adc !S_SCRATCH+20
@@ -361,19 +361,19 @@ multiply_add_shifted:
 op_scale:
     rep #$20
     lda !S_LEN2
-    and #$00FF
+    and.w #$00FF
     sta !S_OUT_LEN
     beq .done
 
     lda !S_LEN1
-    and #$00FF
+    and.w #$00FF
     sta !S_SCRATCH+24           ; the input length, in nibbles
     lda !S_OUT_LEN
     cmp !S_SCRATCH+24
     bcc .shrink                 ; input longer than output, so derive the step
 
     stz !S_SCRATCH+26           ; a step of exactly one, as 16.16 fixed point
-    lda #$0001
+    lda.w #$0001
     sta !S_SCRATCH+28
     bra .walk
 
@@ -383,7 +383,7 @@ op_scale:
 .walk:
     stz !S_SCRATCH+30           ; the cursor, fractional half
     stz !S_SCRATCH+32           ; and whole half, which is a nibble index
-    ldx #$0000                  ; X counts output bytes
+    ldx.w #$0000                  ; X counts output bytes
 
 .byte:
     jsr scale_nibble            ; the high pixel of this output byte
@@ -416,11 +416,11 @@ scale_nibble:
     sep #$20
     lda.w !P_BUFFER,y
     rep #$20
-    and #$00FF
+    and.w #$00FF
     sta !S_SCRATCH+36
 
     lda !S_SCRATCH+32
-    and #$0001
+    and.w #$0001
     bne .low
     lda !S_SCRATCH+36           ; an even index means the high nibble
     lsr
@@ -430,7 +430,7 @@ scale_nibble:
     bra .advance
 .low:
     lda !S_SCRATCH+36
-    and #$000F
+    and.w #$000F
 
 .advance:
     pha
@@ -466,7 +466,7 @@ scale_step:
     stz !S_SCRATCH+44           ; the remainder, low word
     stz !S_SCRATCH+46           ; and high word
 
-    ldy #$0020                  ; thirty two quotient bits, most significant first
+    ldy.w #$0020                  ; thirty two quotient bits, most significant first
 .bit:
     asl !S_SCRATCH+40           ; shift the dividend up into the remainder
     rol !S_SCRATCH+42
@@ -481,7 +481,7 @@ scale_step:
     sbc !S_SCRATCH+38
     pha
     lda !S_SCRATCH+46
-    sbc #$0000
+    sbc.w #$0000
     bcc .keep                   ; no, so the quotient bit stays clear
 
     sta !S_SCRATCH+46

@@ -150,7 +150,7 @@ enter:
     pea $0000
     plb
     plb
-    lda #!STATE
+    lda.w #!STATE
     tcd
     rts
 
@@ -166,26 +166,25 @@ enter:
 ; Exit:  A, X, Y clobbered. Widths left at A 16 bit, index 16 bit.
 ; ---------------------------------------------------------------------------
 write_byte:
-    sep #$20
+    sep #$20                    ; A 8 bit for every comparison in this routine,
+    rep #$10                    ;   and the index registers 16 bit for the buffer
     lda !S_STAGE
-    cmp #!STAGE_IDLE
+    cmp.b #!STAGE_IDLE
     beq .command
-    cmp #!STAGE_LENGTH
+    cmp.b #!STAGE_LENGTH
     beq .length
-    cmp #!STAGE_PARAM
+    cmp.b #!STAGE_PARAM
     bne .command                ; a stage byte holding anything else is not a
                                 ;   state this machine ever wrote, so treat it
                                 ;   as idle rather than trusting it
 
 .parameter:
-    rep #$30
     ldx !S_PARAM_INDEX
-    sep #$20
     lda !S_INBYTE
     sta.w !P_BUFFER,x
-    rep #$20
     inx
     stx !S_PARAM_INDEX
+    rep #$20
     lda !S_WANT_PARAM
     dec a
     sta !S_WANT_PARAM
@@ -195,35 +194,38 @@ write_byte:
     rts
 
 .length:
-    sep #$20
     lda !S_WANT_LEN
-    cmp #$02
+    cmp.b #$02
     bne .second_length
     lda !S_INBYTE               ; the scale command declares its input length
     sta !S_LEN1                 ;   first and its output length second
-    lda #$01
+    lda.b #$01
     sta !S_WANT_LEN
     rep #$20
     rts
 
 .second_length:
     lda !S_INBYTE
-    ldx !S_COMMAND
-    cpx #!CMD_SCALE
+    sta !S_SCRATCH              ; park the byte, because the command has to be
+    lda !S_COMMAND              ;   read into the same accumulator to test it
+    cmp.b #!CMD_SCALE
     beq .scale_length
+    lda !S_SCRATCH
     sta !S_LEN1
     bra .lengths_done
 .scale_length:
+    lda !S_SCRATCH
     sta !S_LEN2
+
 .lengths_done:
     stz !S_WANT_LEN
-    jsr payload_size            ; how many payload bytes this length implies
-    rep #$20
+    jsr payload_size            ; how many payload bytes this length implies,
+    rep #$20                    ;   returned 16 bit
     sta !S_WANT_PARAM
-    ora #$0000
+    ora.w #$0000
     beq .no_payload
-    lda #!STAGE_PARAM
     sep #$20
+    lda.b #!STAGE_PARAM
     sta !S_STAGE
     rep #$20
     rts
@@ -240,20 +242,20 @@ write_byte:
     sep #$20
 
     lda !S_COMMAND
-    cmp #!CMD_MERGE
+    cmp.b #!CMD_MERGE
     beq .takes_one_length
-    cmp #!CMD_MIRROR
+    cmp.b #!CMD_MIRROR
     beq .takes_one_length
-    cmp #!CMD_SCALE
+    cmp.b #!CMD_SCALE
     beq .takes_two_lengths
 
-    jsr fixed_input_size        ; the commands whose payload never varies
-    rep #$20
+    jsr fixed_input_size        ; the commands whose payload never varies,
+    rep #$20                    ;   returned 16 bit
     sta !S_WANT_PARAM
-    ora #$0000
+    ora.w #$0000
     beq .nothing_to_collect
-    lda #!STAGE_PARAM
     sep #$20
+    lda.b #!STAGE_PARAM
     sta !S_STAGE
     rep #$20
     rts
@@ -265,17 +267,17 @@ write_byte:
     rts
 
 .takes_one_length:
-    lda #$01
+    lda.b #$01
     sta !S_WANT_LEN
-    lda #!STAGE_LENGTH
+    lda.b #!STAGE_LENGTH
     sta !S_STAGE
     rep #$20
     rts
 
 .takes_two_lengths:
-    lda #$02
+    lda.b #$02
     sta !S_WANT_LEN
-    lda #!STAGE_LENGTH
+    lda.b #!STAGE_LENGTH
     sta !S_STAGE
     rep #$20
     rts
@@ -289,19 +291,23 @@ write_byte:
 ; Exit:  A 8 bit holding the size, zero when the command collects nothing.
 ; ---------------------------------------------------------------------------
 fixed_input_size:
-    cmp #!CMD_TILE
+    cmp.b #!CMD_TILE
     bne +
-    lda #!TILE_BYTES
-    rts
-+   cmp #!CMD_TRANSPARENT
+    lda.b #!TILE_BYTES
+    bra .as_word
++   cmp.b #!CMD_TRANSPARENT
     bne +
-    lda #$01
-    rts
-+   cmp #!CMD_MULTIPLY
+    lda.b #$01
+    bra .as_word
++   cmp.b #!CMD_MULTIPLY
     bne +
-    lda #!MULTIPLY_BYTES
-    rts
-+   lda #$00
+    lda.b #!MULTIPLY_BYTES
+    bra .as_word
++   lda.b #$00
+
+.as_word:
+    rep #$20
+    and.w #$00FF
     rts
 
 ; ---------------------------------------------------------------------------
@@ -318,23 +324,23 @@ fixed_input_size:
 payload_size:
     sep #$20
     lda !S_COMMAND
-    cmp #!CMD_MIRROR
+    cmp.b #!CMD_MIRROR
     bne +
     lda !S_LEN1
     rep #$20
-    and #$00FF
+    and.w #$00FF
     rts
-+   cmp #!CMD_SCALE
++   cmp.b #!CMD_SCALE
     bne +
     lda !S_LEN1
     rep #$20
-    and #$00FF
+    and.w #$00FF
     inc a
     lsr
     rts
 +   lda !S_LEN1                 ; a merge, which takes two bitmaps
     rep #$20
-    and #$00FF
+    and.w #$00FF
     asl
     rts
 
@@ -357,22 +363,22 @@ run:
     sep #$20
 
     lda !S_COMMAND
-    cmp #!CMD_TILE
+    cmp.b #!CMD_TILE
     bne +
     jmp op_tile
-+   cmp #!CMD_TRANSPARENT
++   cmp.b #!CMD_TRANSPARENT
     bne +
     jmp op_transparent
-+   cmp #!CMD_MERGE
++   cmp.b #!CMD_MERGE
     bne +
     jmp op_merge
-+   cmp #!CMD_MIRROR
++   cmp.b #!CMD_MIRROR
     bne +
     jmp op_mirror
-+   cmp #!CMD_MULTIPLY
++   cmp.b #!CMD_MULTIPLY
     bne +
     jmp op_multiply
-+   cmp #!CMD_SCALE
++   cmp.b #!CMD_SCALE
     bne +
     jmp op_scale
 +   rts                         ; a command this chip does not know produces
@@ -391,7 +397,7 @@ read_byte:
     lda !S_OUT_INDEX
     cmp !S_OUT_LEN
     bcc .have_one
-    lda #!IDLE_BYTE
+    lda.w #!IDLE_BYTE
     rts
 
 .have_one:

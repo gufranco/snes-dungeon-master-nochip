@@ -44,7 +44,7 @@ block_enter:
     pea $0000
     plb
     plb
-    ldx #!STATE
+    ldx.w #!STATE
     phx
     pld
 
@@ -73,7 +73,7 @@ block_leave:
     clc
     adc !S_XFER_TOTAL
     tay
-    lda #$FFFF
+    lda.w #$FFFF
     rts
 
 ; ---------------------------------------------------------------------------
@@ -94,7 +94,7 @@ dsp_feed_wram:
     jsr block_enter
 
     sep #$20
-    lda #$7E
+    lda.b #$7E
     sta !S_XFER_BANK
     rep #$20
     jsr feed
@@ -186,7 +186,7 @@ feed:
     lda !S_XFER_BANK
     sta !S_XFER_PTR+2
     rep #$20
-    ldy #$0000
+    ldy.w #$0000
 
 .byte:
     sep #$20
@@ -224,7 +224,7 @@ drain:
     lda !S_XFER_BANK
     sta !S_XFER_PTR+2
     rep #$20
-    ldy #$0000
+    ldy.w #$0000
 
 .byte:
     phy
