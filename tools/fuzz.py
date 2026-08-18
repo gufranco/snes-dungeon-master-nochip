@@ -52,6 +52,17 @@ SYNC = 0x0F
 
 COMMANDS = (TILE, TRANSPARENT, MERGE, MIRROR, MULTIPLY, SCALE, SYNC)
 
+UNKNOWN = 0x100
+"""Stands for any byte the chip does not recognise.
+
+The reference sends every one of them down the same path as a sync: nothing
+consumed, nothing produced, and the read cursor rewound. A generator that only
+sends the seven it knows never walks that path, and the cartridge sends nothing
+else, so nothing else would ever check it.
+"""
+
+UNRECOGNISED = tuple(value for value in range(256) if value not in COMMANDS)
+
 WEIGHTS = {
     TILE: 12,
     TRANSPARENT: 8,
@@ -60,6 +71,7 @@ WEIGHTS = {
     MULTIPLY: 10,
     SCALE: 10,
     SYNC: 4,
+    UNKNOWN: 4,
 }
 
 EDGE_LENGTHS = (1, 2, 3, 4, 15, 16, 17, 127, 128, 254, 255)
@@ -74,6 +86,8 @@ def _length(rng):
 
 
 def _lengths_for(command, rng):
+    if command == UNKNOWN:
+        return ()
     if command in (MERGE, MIRROR):
         return (_length(rng),)
     if command == SCALE:
@@ -93,13 +107,14 @@ def build_cases(seed, count, only=None):
     """
     rng = random.Random(seed)
     chip = dsp2.Chip()
-    wanted = COMMANDS if only is None else tuple(only)
+    wanted = (*COMMANDS, UNKNOWN) if only is None else tuple(only)
     population = [command for command in wanted for _ in range(WEIGHTS[command])]
 
     cases = []
     for _ in range(count):
-        command = rng.choice(population)
-        lengths = _lengths_for(command, rng)
+        chosen = rng.choice(population)
+        command = rng.choice(UNRECOGNISED) if chosen == UNKNOWN else chosen
+        lengths = _lengths_for(chosen, rng)
 
         written = bytearray([command, *lengths])
         for byte in written:
@@ -177,9 +192,13 @@ def main(argv):
         SCALE: "scale",
         SYNC: "sync",
     }
+    for command in sorted(per_command):
+        names.setdefault(command, f"unknown ${command:02X}")
     print("\n  cases by command:")
     for command in COMMANDS:
         print(f"    {names[command]:12s} {per_command.get(command, 0)}")
+    strange = sum(count for command, count in per_command.items() if command not in COMMANDS)
+    print(f"    {'unrecognised':12s} {strange}")
 
     print(f"\n  runs walked   {walked}")
     print(f"  bytes checked {compared}")
