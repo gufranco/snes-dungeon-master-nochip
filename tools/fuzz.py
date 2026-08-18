@@ -86,6 +86,10 @@ def build_cases(seed, count, only=None):
 
     `only` restricts the commands generated, which is how a disagreement gets
     narrowed to the command that causes it.
+
+    A result is sometimes read only in part, because the chip rewinds a partly
+    read result when the next command produces nothing and the cartridge never
+    does that, so no recording exercises it.
     """
     rng = random.Random(seed)
     chip = dsp2.Chip()
@@ -106,7 +110,11 @@ def build_cases(seed, count, only=None):
             written.append(byte)
             chip.write(byte)
 
-        expected = bytes(chip.read() for _ in range(chip.pending_output))
+        pending = chip.pending_output
+        wanted = pending
+        if pending and rng.random() < 0.25:
+            wanted = rng.randrange(0, pending)
+        expected = bytes(chip.read() for _ in range(wanted))
         cases.append(Case(command, lengths, bytes(written), expected))
     return cases
 

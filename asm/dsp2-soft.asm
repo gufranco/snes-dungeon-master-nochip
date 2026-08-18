@@ -255,10 +255,12 @@ write_byte:
     lda !S_INBYTE
     sta !S_COMMAND
     rep #$20
-    stz !S_PARAM_INDEX
-    stz !S_OUT_LEN
-    stz !S_OUT_INDEX
-    sep #$20
+    stz !S_PARAM_INDEX          ; the output is not touched here. A command byte
+    sep #$20                    ;   arriving does not spend the previous result,
+                                ;   and reads between the command and its last
+                                ;   parameter still drain what was already
+                                ;   waiting. The cursor rewinds when the command
+                                ;   runs, which is where the chip rewinds it.
 
     lda !S_COMMAND
     cmp.b #!CMD_MERGE
@@ -283,6 +285,8 @@ write_byte:
     sep #$20
     stz !S_STAGE                ; a sync, or a command this chip does not know
     rep #$20
+    stz !S_OUT_INDEX            ; which still rewinds the read cursor, so a
+                                ;   result read only in part can be read again
     rts
 
 .takes_one_length:
@@ -377,8 +381,13 @@ run:
     sep #$20
     stz !S_STAGE
     rep #$20
-    stz !S_OUT_INDEX
-    stz !S_OUT_LEN
+    stz !S_OUT_INDEX            ; the read cursor rewinds for every command, but
+                                ;   the count does not clear. A command that
+                                ;   produces nothing leaves the previous result
+                                ;   readable again from its start, which is what
+                                ;   the chip does. Only the five commands that
+                                ;   produce something set the count, each at its
+                                ;   own end.
     sep #$20
 
     lda !S_COMMAND

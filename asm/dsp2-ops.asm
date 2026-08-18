@@ -116,7 +116,8 @@ tile_row_byte:
 ; every later merge compares against it, so the value has to outlive this call.
 ;
 ; Entry: DB = $00, DP = !STATE, !P_BUFFER+0 holds the colour.
-; Exit:  !S_TRANSPARENT holds the low nibble, !S_OUT_LEN = 0.
+; Exit:  !S_TRANSPARENT holds the low nibble. !S_OUT_LEN is left alone,
+;        because this command produces nothing and so spends nothing.
 ; ---------------------------------------------------------------------------
 op_transparent:
     lda.w !P_BUFFER
@@ -126,10 +127,9 @@ op_transparent:
     asl                         ;   can compare a whole byte at a time without
     asl                         ;   shifting the overlay down first
     asl
-    sta !S_SCRATCH+16
-    rep #$20
-    stz !S_OUT_LEN
-    sep #$20
+    sta !S_SCRATCH+16           ; the count is deliberately left alone: setting
+    rep #$20                    ;   the transparent colour produces nothing and
+    sep #$20                    ;   does not spend a result already waiting
     rts
 
 ; ---------------------------------------------------------------------------

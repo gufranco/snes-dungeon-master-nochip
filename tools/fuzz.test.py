@@ -32,26 +32,31 @@ class CaseTest(unittest.TestCase):
         for case in fuzz.build_cases(5, 60):
             self.assertEqual(case.written[0], case.command)
 
-    def test_a_case_that_produces_nothing_expects_nothing(self):
-        cases = [case for case in fuzz.build_cases(11, 400) if case.command == fuzz.SYNC]
-
-        self.assertTrue(cases)
-        for case in cases:
-            self.assertEqual(case.expected, b"")
-
-    def test_a_tile_conversion_always_expects_thirty_two_bytes(self):
+    def test_a_tile_conversion_never_expects_more_than_it_makes(self):
         cases = [case for case in fuzz.build_cases(13, 400) if case.command == fuzz.TILE]
 
         self.assertTrue(cases)
         for case in cases:
-            self.assertEqual(len(case.expected), 32)
+            self.assertLessEqual(len(case.expected), 32)
 
-    def test_a_merge_expects_its_declared_length(self):
+    def test_a_merge_never_expects_more_than_its_declared_length(self):
         cases = [case for case in fuzz.build_cases(17, 400) if case.command == fuzz.MERGE]
 
         self.assertTrue(cases)
         for case in cases:
-            self.assertEqual(len(case.expected), case.lengths[0])
+            self.assertLessEqual(len(case.expected), case.lengths[0])
+
+    def test_some_results_are_read_only_in_part(self):
+        cases = fuzz.build_cases(37, 800)
+
+        partial = [case for case in cases if case.command == fuzz.TILE and len(case.expected) < 32]
+
+        self.assertTrue(partial)
+
+    def test_a_command_that_makes_nothing_can_still_carry_a_rewound_result(self):
+        cases = fuzz.build_cases(41, 800)
+
+        self.assertTrue(any(case.command == fuzz.SYNC and case.expected for case in cases))
 
 
 class EdgeTest(unittest.TestCase):
