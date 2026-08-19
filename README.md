@@ -89,7 +89,7 @@ rather than to its author's confidence.
 | model | what proves it |
 |---|---|
 | [65816](https://github.com/gufranco/mos65xx-python) | a per-opcode suite, 5,120,000 cases |
-| [DSP-2](https://github.com/gufranco/snes-dsp2-python) | the chip's own reference implementation |
+| [DSP-2](https://github.com/gufranco/snes-dsp-python) | the chip's own reference implementation |
 | [cartridge map](https://github.com/gufranco/snes-mapper-python) | every header combination in a real cartridge library |
 | [ROM image](https://github.com/gufranco/snes-rom-image-python) | the whole of that same library, rewritten and checked |
 

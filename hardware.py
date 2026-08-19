@@ -29,7 +29,7 @@ EMULATORS = ROOT / "emulators"
 
 PACKAGES = {
     "mos65xx": "mos65xx",
-    "dsp2": "snes-dsp2",
+    "snesdsp": "snes-dsp",
     "mapper": "snes-mapper",
     "romimage": "snes-rom-image",
 }

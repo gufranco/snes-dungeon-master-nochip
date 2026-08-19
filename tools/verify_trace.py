@@ -22,7 +22,7 @@ import hardware  # noqa: E402
 
 hardware.install()
 
-import dsp2  # noqa: E402
+import snesdsp  # noqa: E402
 
 Result = namedtuple("Result", "path writes reads mismatches examples")
 
@@ -39,7 +39,7 @@ def check(path):
     if not path.exists():
         return None
 
-    chip = dsp2.Chip()
+    chip = snesdsp.Chip()
     writes = reads = mismatches = 0
     examples = []
 

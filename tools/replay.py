@@ -291,7 +291,7 @@ def main(argv):
     if limit:
         stream = (item for index, item in enumerate(stream) if index < limit)
 
-    dsp2 = _load_model(root)
+    snesdsp = _load_model(root)
     room = capacity(IMAGE_BYTES) - MAX_OVERSHOOT
     walked = compared = wrong = written = returned = 0
     failures = []
@@ -305,7 +305,7 @@ def main(argv):
                 returned += len(payload)
             yield (kind, payload)
 
-    batches = stream_batches(counted(runs_from(stream)), room, dsp2.Chip())
+    batches = stream_batches(counted(runs_from(stream)), room, snesdsp.Chip())
     for number, batch in enumerate(batches):
         started = time.time()
         script, found = run_batch(build, skeleton, batch)
@@ -343,9 +343,9 @@ def _load_model(root):
     import hardware
 
     hardware.install()
-    import dsp2
+    import snesdsp
 
-    return dsp2
+    return snesdsp
 
 
 def load_dsptrace(root):

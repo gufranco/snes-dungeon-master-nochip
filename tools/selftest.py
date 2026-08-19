@@ -52,9 +52,9 @@ def _model():
     import hardware
 
     hardware.install()
-    import dsp2
+    import snesdsp
 
-    return dsp2
+    return snesdsp
 
 
 def output_size(command, lengths):

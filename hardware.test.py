@@ -61,7 +61,7 @@ class ModelTest(unittest.TestCase):
         self.assertIn("65816", cpu.MODELS)
 
     def test_the_coprocessor_is_the_one_that_was_vendored(self):
-        chip = importlib.import_module("dsp2")
+        chip = importlib.import_module("snesdsp")
 
         self.assertTrue(hasattr(chip, "Chip"))
         self.assertEqual(chip.COMMAND_MERGE, 0x05)

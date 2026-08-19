@@ -38,7 +38,7 @@ import hardware  # noqa: E402
 
 hardware.install()
 
-import dsp2  # noqa: E402
+import snesdsp  # noqa: E402
 
 replay = _load_tool("replay")
 
@@ -106,7 +106,7 @@ def build_cases(seed, count, only=None):
     does that, so no recording exercises it.
     """
     rng = random.Random(seed)
-    chip = dsp2.Chip()
+    chip = snesdsp.Chip()
     wanted = (*COMMANDS, UNKNOWN) if only is None else tuple(only)
     population = [command for command in wanted for _ in range(WEIGHTS[command])]
 
