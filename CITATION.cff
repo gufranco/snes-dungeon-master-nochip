@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+title: dungeon-master-nochip
+message: >-
+  If you use this work, or the measurements it publishes, please cite it.
+type: software
+authors:
+  - given-names: Gustavo
+    family-names: Franco
+    alias: gufranco
+repository-code: https://github.com/gufranco/dungeon-master-nochip
+url: https://github.com/gufranco/dungeon-master-nochip
+abstract: >-
+  Removes the DSP-2 from Dungeon Master for the Super Nintendo by replacing what
+  the coprocessor computed with 65816 routines that run on the console itself.
+  The retail cartridge is the only authority on what the game asks, and the
+  part's own microcode is the only authority on what the answer is: every
+  routine is checked byte for byte against recorded traffic replayed through the
+  real program.
+keywords:
+  - super-nintendo
+  - dungeon-master
+  - dsp2
+  - rom-hacking
+  - 65816
+  - conformance
+license: MIT
+version: 1.0.0

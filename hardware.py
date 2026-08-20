@@ -1,8 +1,8 @@
 """Put the hardware models this project is checked against on the import path.
 
 The models used to live in this repository as loose modules, each loaded by file
-path. They are now separate repositories, pinned here as submodules, so that the
-thing this project is measured against is measured itself: the processor against
+path. They are now separate repositories, pinned here as submodules at the
+root, so that the thing this project is measured against is measured itself: the processor against
 a per-opcode suite, the coprocessor against the chip's own reference, and the
 cartridge map and the image handling against a library of real cartridges.
 
@@ -20,20 +20,29 @@ statement to work.
 """
 
 import importlib
+import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 
-EMULATORS = ROOT / "emulators"
+FIRMWARE = ROOT / "firmware"
+
+FIRMWARE_VARIABLE = "UPD7725_FIRMWARE_DIR"
 
 PACKAGES = {
-    "mos65xx": "mos65xx",
-    "snesdsp": "snes-dsp",
-    "mapper": "snes-mapper",
-    "romimage": "snes-rom-image",
+    "mos65xx": "mos65xx-python",
+    "snesdsp": "snes-dsp-python",
+    "mapper": "snes-mapper-python",
+    "romimage": "snes-rom-image-python",
 }
-"""The package each submodule provides, and the directory it lives in."""
+"""The package each submodule provides, and the directory it lives in.
+
+The directories sit at the root of this repository under the names of the
+repositories they are, rather than under a folder that hides them. Anybody who
+opens this project sees what it is built on without going looking, which is the
+point: each of those is a project in its own right and is held to its own oracle.
+"""
 
 
 class UnknownPackage(Exception):
@@ -47,15 +56,34 @@ def root_of(package):
         raise UnknownPackage(
             f"{package} is not vendored here; this project carries {', '.join(sorted(PACKAGES))}"
         )
-    return EMULATORS / directory
+    return ROOT / directory
 
 
-def install():
-    """Make every vendored model importable, without stacking the path."""
+def install(environment=None):
+    """Make every vendored model importable, and say where the microcode is.
+
+    The coprocessor model runs the part's own microcode, which belongs to whoever
+    made the part and is never carried in any of these repositories. It looks in
+    the directories that variable names, then beside itself. Neither reaches a
+    project two levels up, so this points it at the one this project keeps, and
+    adds to whatever was already named rather than replacing it: somebody who set
+    the variable meant it.
+    """
     for package in PACKAGES:
         entry = str(root_of(package))
         if entry not in sys.path:
             sys.path.insert(0, entry)
+    return name_firmware(environment)
+
+
+def name_firmware(environment=None):
+    """Put this project's firmware directory in front of whatever was named."""
+    where = environment if environment is not None else os.environ
+    already = [one for one in where.get(FIRMWARE_VARIABLE, "").split(os.pathsep) if one]
+    if str(FIRMWARE) in already:
+        return where[FIRMWARE_VARIABLE]
+    where[FIRMWARE_VARIABLE] = os.pathsep.join([str(FIRMWARE), *already])
+    return where[FIRMWARE_VARIABLE]
 
 
 def load(package):

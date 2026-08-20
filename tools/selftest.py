@@ -77,21 +77,37 @@ def output_size(command, lengths):
     return 0
 
 
+PART = "dsp2"
+"""The part this cartridge carries, and the microcode a case is answered by."""
+
+
 def new_chip():
-    """A model in the state a cartridge is in before its first command."""
-    return _model().Chip()
+    """One DSP-2, running the part's own microcode rather than a description of it.
+
+    A case is only worth checking against what the hardware answers, so the
+    answers come from the program the part carries. Nothing here holds that
+    program: a copy somebody already owns goes in this project's firmware
+    directory, and without one this refuses rather than answering from somewhere
+    else.
+    """
+    return _model().Dsp(PART)
 
 
-def case_for(command, lengths, payload, chip=None):
-    """One case, with the answer taken from the model rather than assumed.
+def why_not():
+    """Why cases cannot be built here, or nothing when they can."""
+    return _model().why_not()
 
-    The chip carries state between commands: the transparent colour set by one
+
+def case_for(command, lengths, payload, chip=None, build=new_chip):
+    """One case, with the answer taken from the part rather than assumed.
+
+    The part carries state between commands: the transparent colour set by one
     command decides what a later merge returns. A case built against a fresh
-    model would therefore be answered differently from the same case in a run,
-    so the caller passes the model it is walking and the cases stay in step.
+    part would therefore be answered differently from the same case in a run, so
+    the caller passes the part it is walking and the cases stay in step.
     """
     if chip is None:
-        chip = new_chip()
+        chip = build()
     feed = bytes([command, *lengths, *payload])
     for byte in feed:
         chip.write(byte)
@@ -100,9 +116,9 @@ def case_for(command, lengths, payload, chip=None):
     return Case(feed, wanted, produced)
 
 
-def cases_for(transactions):
-    """A run of cases walked through one model, in the order given."""
-    chip = new_chip()
+def cases_for(transactions, build=new_chip):
+    """A run of cases walked through one part, in the order given."""
+    chip = build()
     return [case_for(command, lengths, payload, chip) for command, lengths, payload in transactions]
 
 

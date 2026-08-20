@@ -17,3 +17,4 @@ __pycache__/
 # carrying *.patch would drop it and leave the container unbuildable in a
 # fresh clone, while local status stayed clean.
 !snes9x/*.patch
+firmware/

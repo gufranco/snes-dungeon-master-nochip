@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Where do I get the game or the microcode?
+    url: https://github.com/gufranco/dungeon-master-nochip#faq
+    about: Not from here, and nobody here will tell you. Dump what you own.
+  - name: The coprocessor model
+    url: https://github.com/gufranco/snes-dsp-python
+    about: The part this cartridge carries, run from its own microcode.
+  - name: The processor model
+    url: https://github.com/gufranco/mos65xx-python
+    about: The 65816 the replacement routines run on, held to a per-opcode suite.

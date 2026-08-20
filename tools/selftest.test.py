@@ -98,46 +98,93 @@ class OutputSizeTest(unittest.TestCase):
         self.assertEqual(selftest.output_size(selftest.COMMAND_SYNC, ()), 0)
 
 
+class Puppet:
+    """A part that counts up, so what the case machinery did is visible.
+
+    What a real DSP-2 answers is settled by running the cartridge's own
+    microcode, which is a script rather than a test because that program is on
+    nobody's build machine. What these tests pin is the machinery around it: that
+    a case feeds the command, its lengths and its payload in that order, reads
+    back exactly as many bytes as the command declares, and carries one part
+    through a run so state set by one case reaches the next.
+    """
+
+    def __init__(self):
+        self.written = []
+        self.given = 0
+
+    def write(self, value):
+        self.written.append(value)
+
+    def read(self):
+        self.given += 1
+        return self.given & 0xFF
+
+
+def puppets():
+    held = []
+
+    def build():
+        held.append(Puppet())
+        return held[-1]
+
+    build.held = held
+    return build
+
+
 class CarriedStateTest(unittest.TestCase):
-    def test_the_transparent_colour_set_by_one_case_reaches_the_next(self):
-        alone = selftest.case_for(0x05, (4,), b"\x00\x00\x00\xcc\x00\xaa\xaa\xaa")
+    def test_a_run_walks_every_transaction_through_one_part(self):
+        build = puppets()
 
-        run = selftest.cases_for(
-            [
-                (0x03, (), b"\x0a"),
-                (0x05, (4,), b"\x00\x00\x00\xcc\x00\xaa\xaa\xaa"),
-            ]
-        )
+        selftest.cases_for([(0x0F, (), b""), (0x03, (), b"\x0a")], build)
 
-        self.assertNotEqual(alone.output, run[1].output)
+        self.assertEqual(len(build.held), 1)
+
+    def test_so_what_one_case_wrote_is_still_there_for_the_next(self):
+        build = puppets()
+
+        selftest.cases_for([(0x03, (), b"\x0a"), (0x0F, (), b"")], build)
+
+        self.assertEqual(build.held[0].written, [0x03, 0x0A, 0x0F])
 
     def test_a_run_keeps_one_case_per_transaction(self):
-        run = selftest.cases_for([(0x0F, (), b""), (0x03, (), b"\x0a")])
+        run = selftest.cases_for([(0x0F, (), b""), (0x03, (), b"\x0a")], puppets())
 
         self.assertEqual(len(run), 2)
 
 
-class ModelTest(unittest.TestCase):
-    def test_a_case_built_from_the_model_carries_the_model_s_answer(self):
-        case = selftest.case_for(0x03, (), b"\x0a")
+class CaseTest(unittest.TestCase):
+    def test_a_case_feeds_the_command_then_its_lengths_then_its_payload(self):
+        held = Puppet()
 
-        self.assertEqual(case.output, b"")
-
-    def test_a_multiply_case_carries_four_bytes_of_answer(self):
-        case = selftest.case_for(0x09, (), b"\x02\x00\x03\x00")
-
-        self.assertEqual(len(case.output), 4)
-
-    def test_a_tile_case_carries_thirty_two_bytes_of_answer(self):
-        case = selftest.case_for(0x01, (), bytes(range(32)))
-
-        self.assertEqual(len(case.output), 32)
-
-    def test_a_merge_case_declares_its_length_before_its_payload(self):
-        case = selftest.case_for(0x05, (4,), bytes(8))
+        case = selftest.case_for(0x05, (4,), bytes(8), held)
 
         self.assertEqual(case.feed[:2], b"\x05\x04")
-        self.assertEqual(len(case.output), 4)
+        self.assertEqual(held.written, list(case.feed))
+
+    def test_and_reads_back_exactly_what_the_command_declares(self):
+        multiply = selftest.case_for(0x09, (), b"\x02\x00\x03\x00", Puppet())
+        tile = selftest.case_for(0x01, (), bytes(range(32)), Puppet())
+        merge = selftest.case_for(0x05, (4,), bytes(8), Puppet())
+
+        self.assertEqual(len(multiply.output), 4)
+        self.assertEqual(len(tile.output), 32)
+        self.assertEqual(len(merge.output), 4)
+
+    def test_a_command_that_answers_nothing_reads_nothing_back(self):
+        held = Puppet()
+
+        case = selftest.case_for(0x03, (), b"\x0a", held)
+
+        self.assertEqual(case.output, b"")
+        self.assertEqual(held.given, 0)
+
+    def test_a_case_built_without_a_part_asks_for_one(self):
+        build = puppets()
+
+        selftest.case_for(0x0F, (), b"", build=build)
+
+        self.assertEqual(len(build.held), 1)
 
 
 if __name__ == "__main__":

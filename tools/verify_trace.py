@@ -24,7 +24,25 @@ hardware.install()
 
 import snesdsp  # noqa: E402
 
+PART = "dsp2"
+"""The part this cartridge carries, and the microcode a check runs against."""
+
 Result = namedtuple("Result", "path writes reads mismatches examples")
+
+
+def chip():
+    """One DSP-2, running the microcode of the part rather than a description of it.
+
+    A trace is what the cartridge's own chip answered, so the only thing worth
+    replaying it against is that chip's program. Nothing here carries it: a copy
+    somebody already owns goes in this project's firmware directory.
+    """
+    return snesdsp.Dsp(PART)
+
+
+def why_not():
+    """Why a check cannot run here, or nothing when it can."""
+    return snesdsp.why_not()
 
 
 def _ok(self):
@@ -34,22 +52,22 @@ def _ok(self):
 Result.ok = property(_ok)
 
 
-def check(path):
+def check(path, build=chip):
     path = Path(path)
     if not path.exists():
         return None
 
-    chip = snesdsp.Chip()
+    part = build()
     writes = reads = mismatches = 0
     examples = []
 
     for record in dsptrace.records(path):
         if record.kind == dsptrace.KIND_WRITE:
-            chip.write(record.byte)
+            part.write(record.byte)
             writes += 1
             continue
 
-        produced = chip.read()
+        produced = part.read()
         reads += 1
         if produced != record.byte:
             mismatches += 1
@@ -71,25 +89,30 @@ def explain(result):
     return "\n".join(lines)
 
 
-def main(argv):
+def main(argv, build=chip, refuses=why_not, say=print):
+    reason = refuses()
+    if reason:
+        say(f"  nothing to check: {reason}")
+        return 2
+
     wanted = argv[1:] or [str(ROOT / name) for name in DEFAULT_TRACES]
 
     results = []
     for path in wanted:
-        result = check(path)
+        result = check(path, build)
         if result is None:
-            print(f"  {Path(path).name}: no trace, skipped")
+            say(f"  {Path(path).name}: no trace, skipped")
             continue
         results.append(result)
-        print(explain(result))
+        say(explain(result))
 
     if not results:
-        print("\n  nothing to check. Record a trace with the harness in emu/ first.")
+        say("\n  nothing to check. Record a trace with the harness in emu/ first.")
         return 0
 
     reads = sum(result.reads for result in results)
     wrong = sum(result.mismatches for result in results)
-    print(f"\n  {reads:,} bytes the cartridge returned, {wrong:,} the model did not reproduce")
+    say(f"\n  {reads:,} bytes the cartridge returned, {wrong:,} the part did not reproduce")
     return 1 if wrong else 0
 
 

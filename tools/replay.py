@@ -18,6 +18,21 @@ which is the signature of a harness feeding something the chip was never fed.
 What the trace says, in the order it says it, is what gets fed.
 """
 
+
+def _load_beside(name):
+    """A module that sits next to this one, loaded the way the tools load each other."""
+    import importlib.util
+    from pathlib import Path
+
+    where = Path(__file__).resolve().parent / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, where)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+protocol = _load_beside("protocol")
+
 FEED = 0x01
 CHECK = 0x02
 END = 0x00
@@ -130,28 +145,34 @@ which is 512 bytes fed and 255 read. The caller leaves this much spare.
 """
 
 
-def stream_batches(runs, room, chip):
+def stream_batches(runs, room, shape=None):
     """Batches a fresh cartridge can each start from, with what it carries.
 
-    A batch is a separate run of the cartridge, so anything the chip holds is
+    A batch is a separate run of the cartridge, so anything the part holds is
     lost at the boundary. Two things follow. A break may only happen where the
-    chip is idle and the next run is a feed, or a command's payload lands in one
-    batch and its drain in the next, and the routines then return the idle byte
-    where the cartridge returned a result. And every batch after the first opens
-    with a sync and the transparent colour in force, because that colour decides
-    what a merge returns and a batch that starts without it reports failures
-    that are the harness's own.
+    part is between commands and owes nothing, or a command's payload lands in
+    one batch and its drain in the next, and the routines then return the idle
+    byte where the cartridge returned a result. And every batch after the first
+    opens with a sync and the transparent colour in force, because that colour
+    decides what a merge returns and a batch that starts without it reports
+    failures that are the harness's own.
+
+    Where the boundaries are is a question about the shape of the traffic rather
+    than about what the part computes, so it is answered by tracking the stream
+    rather than by asking a chip. Silicon cannot be asked: its status register
+    says the part wants attention and never how much it still owes.
     """
+    shape = protocol.Shape() if shape is None else shape
     current = []
     used = 1  # the stop marker every script carries
     prelude = b""
 
     for kind, payload in runs:
         cost = 3 + len(payload)
-        idle = kind == KIND_WRITE and chip.waiting_for_command and chip.pending_output == 0
+        idle = kind == KIND_WRITE and shape.at_boundary
         if used + cost > room and idle and current:
             yield ([(KIND_WRITE, prelude)] if prelude else []) + current
-            prelude = bytes([SYNC, SET_TRANSPARENT, chip.transparent])
+            prelude = bytes([SYNC, SET_TRANSPARENT, shape.transparent or 0x00])
             current = []
             used = 3 + len(prelude) + 1  # the prelude run and the stop marker
 
@@ -160,10 +181,10 @@ def stream_batches(runs, room, chip):
 
         if kind == KIND_WRITE:
             for byte in payload:
-                chip.write(byte)
+                shape.wrote(byte)
         else:
             for _ in payload:
-                chip.read()
+                shape.was_read()
 
     if current:
         yield ([(KIND_WRITE, prelude)] if prelude else []) + current
@@ -291,7 +312,6 @@ def main(argv):
     if limit:
         stream = (item for index, item in enumerate(stream) if index < limit)
 
-    snesdsp = _load_model(root)
     room = capacity(IMAGE_BYTES) - MAX_OVERSHOOT
     walked = compared = wrong = written = returned = 0
     failures = []
@@ -305,7 +325,7 @@ def main(argv):
                 returned += len(payload)
             yield (kind, payload)
 
-    batches = stream_batches(counted(runs_from(stream)), room, snesdsp.Chip())
+    batches = stream_batches(counted(runs_from(stream)), room)
     for number, batch in enumerate(batches):
         started = time.time()
         script, found = run_batch(build, skeleton, batch)
@@ -333,19 +353,6 @@ def main(argv):
             f"cartridge ${found['expected']:02X}, routines ${found['returned']:02X}"
         )
     return 0 if wrong == 0 else 1
-
-
-def _load_model(root):
-    """The vendored coprocessor model, imported rather than read off disk."""
-    import sys
-
-    sys.path.insert(0, str(root))
-    import hardware
-
-    hardware.install()
-    import snesdsp
-
-    return snesdsp
 
 
 def load_dsptrace(root):

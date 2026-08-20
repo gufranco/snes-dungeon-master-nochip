@@ -41,6 +41,21 @@ hardware.install()
 import snesdsp  # noqa: E402
 
 replay = _load_tool("replay")
+protocol = _load_tool("protocol")
+
+PART = "dsp2"
+"""The part this cartridge carries, and the microcode an expected answer comes from."""
+
+
+def chip():
+    """One DSP-2, running the part's own microcode rather than a description of it."""
+    return snesdsp.Dsp(PART)
+
+
+def why_not():
+    """Why cases cannot be built here, or nothing when they can."""
+    return snesdsp.why_not()
+
 
 TILE = 0x01
 TRANSPARENT = 0x03
@@ -95,7 +110,7 @@ def _lengths_for(command, rng):
     return ()
 
 
-def build_cases(seed, count, only=None):
+def build_cases(seed, count, only=None, build=chip):
     """Cases from a seed, with the model deciding every shape and every answer.
 
     `only` restricts the commands generated, which is how a disagreement gets
@@ -106,7 +121,8 @@ def build_cases(seed, count, only=None):
     does that, so no recording exercises it.
     """
     rng = random.Random(seed)
-    chip = snesdsp.Chip()
+    part = build()
+    shape = protocol.Shape()
     wanted = (*COMMANDS, UNKNOWN) if only is None else tuple(only)
     population = [command for command in wanted for _ in range(WEIGHTS[command])]
 
@@ -118,18 +134,24 @@ def build_cases(seed, count, only=None):
 
         written = bytearray([command, *lengths])
         for byte in written:
-            chip.write(byte)
+            part.write(byte)
+            shape.wrote(byte)
 
-        while not chip.waiting_for_command:
+        while shape.expecting_input:
             byte = rng.randrange(256)
             written.append(byte)
-            chip.write(byte)
+            part.write(byte)
+            shape.wrote(byte)
 
-        pending = chip.pending_output
+        pending = shape.produced
         wanted = pending
         if pending and rng.random() < 0.25:
             wanted = rng.randrange(0, pending)
-        expected = bytes(chip.read() for _ in range(wanted))
+        expected = bytearray()
+        for _ in range(wanted):
+            expected.append(part.read())
+            shape.was_read()
+        expected = bytes(expected)
         cases.append(Case(command, lengths, bytes(written), expected))
     return cases
 
@@ -154,6 +176,11 @@ def main(argv):
     build = ROOT / "build"
     skeleton = replay.assemble(ROOT, build)
     print(f"  cartridge built, {len(skeleton)} bytes")
+
+    reason = why_not()
+    if reason:
+        print(f"  nothing to build: {reason}")
+        return 2
 
     cases = build_cases(seed, count, only)
     runs = runs_for(cases)

@@ -1,0 +1,59 @@
+name: A routine answers the wrong thing
+description: The replacement routines return something the part does not
+labels: ["bug", "fidelity"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The part's own microcode is the authority here. A routine that disagrees
+        with it is wrong by definition, so what this asks for is the command, the
+        bytes that went in, and what both sides gave back.
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: What the doctor says
+      description: Run `python3 doctor.py` and paste all of it.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: command
+    attributes:
+      label: Which command, and the exact bytes you sent it
+      placeholder: "0x05 with length 4, then 00 00 00 cc 00 aa aa aa"
+    validations:
+      required: true
+
+  - type: input
+    id: got
+    attributes:
+      label: What the routines answered
+      placeholder: "00 aa aa cc"
+    validations:
+      required: true
+
+  - type: input
+    id: wanted
+    attributes:
+      label: What the part answers
+      description: |
+        Say how you know. `python3 tools/verify_trace.py` replays recorded
+        traffic against the part's own microcode and is the shortest way to get
+        an authoritative answer.
+      placeholder: "00 aa aa 0a, from verify_trace against the dsp2 image"
+    validations:
+      required: true
+
+  - type: input
+    id: state
+    attributes:
+      label: What had happened before it
+      description: |
+        The part carries state between commands, and the transparent colour set
+        by one decides what a later merge returns. A report that starts from a
+        fresh part is describing something the cartridge never does.
+      placeholder: "a transparent colour of 0x0a was set two commands earlier"
+    validations:
+      required: true

@@ -63,8 +63,14 @@ class ModelTest(unittest.TestCase):
     def test_the_coprocessor_is_the_one_that_was_vendored(self):
         chip = importlib.import_module("snesdsp")
 
-        self.assertTrue(hasattr(chip, "Chip"))
-        self.assertEqual(chip.COMMAND_MERGE, 0x05)
+        self.assertTrue(hasattr(chip, "Dsp"))
+        self.assertIn("dsp2", chip.MODELS)
+
+    def test_and_it_runs_the_part_rather_than_describing_it(self):
+        chip = importlib.import_module("snesdsp")
+
+        self.assertTrue(hasattr(chip, "why_not"))
+        self.assertTrue(hasattr(chip, "NoFirmware"))
 
     def test_the_cartridge_map_is_the_one_that_was_vendored(self):
         found = importlib.import_module("mapper")
@@ -89,6 +95,51 @@ class ModelTest(unittest.TestCase):
             found = importlib.import_module(module)
 
             self.assertRegex(found.__version__, r"^\d+\.\d+\.\d+$")
+
+
+class FirmwareTest(unittest.TestCase):
+    """That the part is told where this project keeps the microcode it runs.
+
+    The coprocessor model looks in what its variable names and then beside
+    itself, and neither of those reaches a project two levels up. Without this
+    the part would report that it has no image on a machine that has one.
+    """
+
+    def test_this_project_s_directory_is_named(self):
+        where = {}
+
+        hardware.name_firmware(where)
+
+        self.assertIn(str(hardware.FIRMWARE), where[hardware.FIRMWARE_VARIABLE])
+
+    def test_a_directory_somebody_already_named_is_kept(self):
+        where = {hardware.FIRMWARE_VARIABLE: "/somewhere/else"}
+
+        found = hardware.name_firmware(where)
+
+        self.assertIn("/somewhere/else", found)
+
+    def test_and_this_project_comes_first(self):
+        where = {hardware.FIRMWARE_VARIABLE: "/somewhere/else"}
+
+        found = hardware.name_firmware(where)
+
+        self.assertTrue(found.startswith(str(hardware.FIRMWARE)))
+
+    def test_naming_it_twice_does_not_name_it_twice(self):
+        where = {}
+
+        hardware.name_firmware(where)
+        found = hardware.name_firmware(where)
+
+        self.assertEqual(found.count(str(hardware.FIRMWARE)), 1)
+
+    def test_installing_names_it_too(self):
+        where = {}
+
+        hardware.install(where)
+
+        self.assertIn(hardware.FIRMWARE_VARIABLE, where)
 
 
 if __name__ == "__main__":

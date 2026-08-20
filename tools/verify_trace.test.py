@@ -16,8 +16,35 @@ def load_module(name, path):
 
 
 verify = load_module("verify_trace", MODULE_PATH)
-snesdsp = verify.snesdsp
 dt = load_module("dsptrace", ROOT / "dsptrace.py")
+
+
+class Puppet:
+    """A part that answers what it was told to answer.
+
+    The real check runs the cartridge's trace against the cartridge's own
+    microcode, which belongs to whoever made the part and is on nobody's build
+    machine. That check is a script, not a test. What the tests here pin is the
+    replaying: that a write goes to the part, that a read is compared, and that a
+    disagreement is counted and reported rather than passed over.
+    """
+
+    def __init__(self, answers=()):
+        self.answers = list(answers)
+        self.written = []
+
+    def write(self, value):
+        self.written.append(value)
+
+    def read(self):
+        return self.answers.pop(0) if self.answers else 0x00
+
+
+def puppets(answers=()):
+    def build():
+        return Puppet(answers)
+
+    return build
 
 
 def record(kind, byte):
@@ -31,81 +58,145 @@ def record(kind, byte):
     )
 
 
-def trace_bytes(*sequences):
-    chip = snesdsp.Chip()
-    blob = b""
-    for writes in sequences:
-        for value in writes:
-            chip.write(value)
-            blob += record(dt.KIND_WRITE, value)
-        while chip.pending_output:
-            blob += record(dt.KIND_READ, chip.read())
-    return blob
+def trace_bytes(writes=(), reads=()):
+    blob = b"".join(record(dt.KIND_WRITE, one) for one in writes)
+    return blob + b"".join(record(dt.KIND_READ, one) for one in reads)
 
 
-class VerifyTest(unittest.TestCase):
+class PartTest(unittest.TestCase):
+    def test_the_part_a_trace_is_replayed_against_is_the_one_the_cartridge_carries(self):
+        self.assertEqual(verify.PART, "dsp2")
+
+    def test_a_machine_with_no_microcode_says_why_rather_than_going_quiet(self):
+        self.assertTrue(verify.why_not() is None or isinstance(verify.why_not(), str))
+
+
+class CheckTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.path = Path(self.tmp.name) / "trace.bin"
         self.addCleanup(self.tmp.cleanup)
 
-    def test_a_faithful_trace_reports_no_mismatch(self):
-        self.path.write_bytes(trace_bytes([0x09, 0x10, 0x00, 0x03, 0x00], [0x01, *range(32)]))
+    def test_every_written_byte_reaches_the_part(self):
+        self.path.write_bytes(trace_bytes(writes=(0x09, 0x10)))
+        held = Puppet()
 
-        result = verify.check(self.path)
+        verify.check(self.path, lambda: held)
+
+        self.assertEqual(held.written, [0x09, 0x10])
+
+    def test_a_trace_the_part_reproduces_reports_no_mismatch(self):
+        self.path.write_bytes(trace_bytes(writes=(0x09,), reads=(0x11, 0x22)))
+
+        result = verify.check(self.path, puppets((0x11, 0x22)))
 
         self.assertEqual(result.mismatches, 0)
-        self.assertGreater(result.reads, 0)
+        self.assertEqual(result.reads, 2)
+        self.assertEqual(result.writes, 1)
         self.assertTrue(result.ok)
 
-    def test_a_single_altered_output_byte_is_caught(self):
-        blob = bytearray(trace_bytes([0x09, 0x10, 0x00, 0x03, 0x00]))
-        blob[-28 + 13] ^= 0xFF
-        self.path.write_bytes(bytes(blob))
+    def test_a_single_altered_byte_is_caught(self):
+        self.path.write_bytes(trace_bytes(writes=(0x09,), reads=(0x11, 0x22)))
 
-        result = verify.check(self.path)
+        result = verify.check(self.path, puppets((0x11, 0xFF)))
 
         self.assertEqual(result.mismatches, 1)
         self.assertFalse(result.ok)
 
-    def test_the_first_few_mismatches_are_reported_with_context(self):
-        blob = bytearray(trace_bytes([0x09, 0x10, 0x00, 0x03, 0x00]))
-        blob[-28 + 13] ^= 0xFF
-        self.path.write_bytes(bytes(blob))
+    def test_and_reported_with_what_both_sides_had(self):
+        self.path.write_bytes(trace_bytes(writes=(0x09,), reads=(0x11,)))
 
-        result = verify.check(self.path)
+        result = verify.check(self.path, puppets((0xFF,)))
 
-        self.assertTrue(result.examples)
-        self.assertEqual(len(result.examples[0]), 4)
+        self.assertEqual(result.examples[0][2], 0x11)
+        self.assertEqual(result.examples[0][3], 0xFF)
+
+    def test_no_more_than_a_handful_of_examples_are_kept(self):
+        self.path.write_bytes(trace_bytes(reads=tuple(range(20))))
+
+        result = verify.check(self.path, puppets((0xFF,) * 20))
+
+        self.assertEqual(len(result.examples), verify.EXAMPLE_LIMIT)
 
     def test_a_trace_with_no_reads_is_still_counted(self):
-        self.path.write_bytes(trace_bytes([0x0F]))
+        self.path.write_bytes(trace_bytes(writes=(0x0F,)))
 
-        result = verify.check(self.path)
+        result = verify.check(self.path, puppets())
 
         self.assertEqual(result.reads, 0)
         self.assertEqual(result.writes, 1)
 
-    def test_state_carries_between_transactions(self):
-        self.path.write_bytes(trace_bytes([0x03, 0x0F], [0x05, 1, 0x12, 0xFF]))
-
-        result = verify.check(self.path)
-
-        self.assertEqual(result.mismatches, 0)
-
     def test_a_missing_trace_is_reported_rather_than_raising(self):
-        result = verify.check(Path(self.tmp.name) / "absent.bin")
+        result = verify.check(Path(self.tmp.name) / "absent.bin", puppets())
 
         self.assertIsNone(result)
 
 
+class ExplainTest(unittest.TestCase):
+    def test_a_result_says_how_much_went_each_way(self):
+        found = verify.Result(Path("trace.bin"), writes=3, reads=2, mismatches=0, examples=[])
+
+        self.assertIn("3", verify.explain(found))
+        self.assertIn("2", verify.explain(found))
+
+    def test_and_lists_the_examples_it_kept(self):
+        found = verify.Result(
+            Path("trace.bin"), writes=1, reads=1, mismatches=1, examples=[(7, 0x048000, 1, 2)]
+        )
+
+        self.assertIn("frame 7", verify.explain(found))
+
+
 class MainTest(unittest.TestCase):
+    def test_a_machine_with_no_microcode_reports_that_it_had_nothing_to_run(self):
+        said = []
+
+        code = verify.main(["verify_trace.py"], refuses=lambda: "no image is here", say=said.append)
+
+        self.assertEqual(code, 2)
+        self.assertIn("nothing to check", " ".join(said))
+
     def test_no_trace_at_all_is_a_skip_rather_than_a_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
-            code = verify.main(["verify_trace.py", str(Path(tmp) / "nothing.bin")])
+            code = verify.main(
+                ["verify_trace.py", str(Path(tmp) / "nothing.bin")],
+                build=puppets(),
+                refuses=lambda: None,
+                say=lambda _line: None,
+            )
 
         self.assertEqual(code, 0)
 
+    def test_a_trace_the_part_reproduces_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp) / "trace.bin"
+            where.write_bytes(trace_bytes(writes=(0x09,), reads=(0x11,)))
+
+            code = verify.main(
+                ["verify_trace.py", str(where)],
+                build=puppets((0x11,)),
+                refuses=lambda: None,
+                say=lambda _line: None,
+            )
+
+        self.assertEqual(code, 0)
+
+    def test_and_one_it_does_not_fails(self):
+        said = []
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp) / "trace.bin"
+            where.write_bytes(trace_bytes(writes=(0x09,), reads=(0x11,)))
+
+            code = verify.main(
+                ["verify_trace.py", str(where)],
+                build=puppets((0xFF,)),
+                refuses=lambda: None,
+                say=said.append,
+            )
+
+        self.assertEqual(code, 1)
+        self.assertIn("did not reproduce", " ".join(said))
+
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    unittest.main()

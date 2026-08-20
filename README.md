@@ -83,8 +83,10 @@ git clone --recurse-submodules https://github.com/gufranco/dungeon-master-nochip
 ```
 
 The models this project measures itself against are not written here. Each is its own repository,
-pinned as a submodule under [`emulators/`](emulators/), and each is held to something outside itself
-rather than to its author's confidence.
+pinned as a submodule at the root of this one under the name of the repository it is, and each is
+held to something outside itself rather than to its author's confidence. They sit at the root rather
+than under a folder because anybody opening this should see what it is built on without going
+looking.
 
 | model | what proves it |
 |---|---|
@@ -101,14 +103,34 @@ They also start dirty. Memory and registers hold arbitrary but reproducible valu
 zeroes, because real hardware does, and anything here that wants a cleared machine has to ask for
 one. That turns a read of something never written from an accident into a question.
 
+## When something is wrong
+
+```bash
+python3 doctor.py
+```
+
+It looks at this machine and prints what is actually there: the Python, every model this project is
+pinned to and its version, whether the coprocessor can run at all, which cartridge dumps are present
+and the SHA-256 of each, and how much recorded traffic is here. It then asks every model for its own
+report and files what comes back under that model's name, so the whole chain is in one place rather
+than one layer of it.
+
+Nothing is inferred and nothing is hidden. A check that fails says what it saw, and a check that
+itself throws is reported as what it threw rather than taking the report down with it. Paste all of
+it into an issue.
+
 ## Repository guide
 
 Analysis modules in Python, each with its tests beside it, and a pinned container per toolchain.
 
 | file | role |
 |------|------|
-| [`hardware.py`](hardware.py) | puts the pinned hardware models on the import path |
-| [`emulators/`](emulators/) | those models, each its own repository, each held to its own oracle |
+| [`hardware.py`](hardware.py) | puts the pinned hardware models on the import path, and says where the microcode is |
+| [`doctor.py`](doctor.py) | what is actually on this machine, the whole chain, printed for a bug report |
+| [`mos65xx-python/`](mos65xx-python/) | the 65816, held to a per-opcode suite |
+| [`snes-dsp-python/`](snes-dsp-python/) | the DSP-2, running the chip's own microcode |
+| [`snes-mapper-python/`](snes-mapper-python/) | the cartridge map, held to a library of real cartridges |
+| [`snes-rom-image-python/`](snes-rom-image-python/) | image handling, held to that same library |
 | [`build.py`](build.py) | Docker wrapper around a pinned asar |
 | [`version.py`](version.py) | the release number, rewritten by [`scripts/set-version.sh`](scripts/set-version.sh) |
 | [`artifacts.manifest.json`](artifacts.manifest.json) | every dump this project reads, and what makes each one itself |
@@ -148,6 +170,20 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
   since any bitmap scales to something of exactly the size requested.
 - **The build depends on nothing outside this repository.** A fresh clone plus a dump is enough, with
   no network and no second checkout.
+
+## Contributing
+
+Measurements first. [CONTRIBUTING.md](CONTRIBUTING.md) has the gates a change is expected to pass,
+[SECURITY.md](SECURITY.md) says what belongs in a private report, and the
+[Code of Conduct](CODE_OF_CONDUCT.md) applies wherever this project is discussed.
+
+Never attach a cartridge or a microcode image, and never link to somewhere either can be downloaded.
+A digest identifies a file without carrying it.
+
+## Citing this
+
+[CITATION.cff](CITATION.cff) is kept in step with the released version by the same script that
+stamps the release, so the version it names is the version that shipped.
 
 ## Acknowledgements
 

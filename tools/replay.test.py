@@ -132,8 +132,15 @@ class BatchTest(unittest.TestCase):
 
 
 class StatefulBatchTest(unittest.TestCase):
+    """Where a batch may break, which is a question about shape rather than values.
+
+    Nothing here asks a part what it computes. It asks the stream where a fresh
+    cartridge could take over, which is the one thing a batch boundary has to get
+    right, and that is tracked from the bytes themselves.
+    """
+
     def chip(self):
-        return replay._load_model(ROOT).Chip(fill=0)
+        return replay.protocol.Shape()
 
     def merge_runs(self, count):
         runs = []
