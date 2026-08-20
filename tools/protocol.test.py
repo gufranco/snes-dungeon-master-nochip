@@ -154,5 +154,16 @@ class ArmingTest(unittest.TestCase):
         self.assertEqual(shape.produced, 2)
 
 
+class PrintingTest(unittest.TestCase):
+    def test_a_fresh_stream_prints_as_being_between_commands(self):
+        self.assertIn("between commands", repr(protocol.Shape()))
+
+    def test_and_one_mid_command_prints_which_command_it_is_in(self):
+        self.assertIn("0x09", repr(feed(protocol.Shape(), protocol.MULTIPLY)))
+
+    def test_and_what_the_part_still_owes(self):
+        self.assertIn("4 owed", repr(feed(protocol.Shape(), protocol.MULTIPLY, 1, 0, 2, 0)))
+
+
 if __name__ == "__main__":
     unittest.main()

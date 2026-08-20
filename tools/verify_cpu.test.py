@@ -1,4 +1,5 @@
 import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -167,6 +168,178 @@ class ResultsTest(unittest.TestCase):
         self.assertEqual(found["p"], 0x30)
         self.assertEqual(found["d"], 0x2000)
         self.assertEqual(found["db"], 0x7E)
+
+
+class MemoryMapTest(unittest.TestCase):
+    """Where an address lands, which decides what a case reads and writes."""
+
+    def _memory(self):
+        return verify.LoRomMemory(bytes(verify.ROM_BYTES))
+
+    def test_the_second_work_ram_bank_is_the_upper_half(self):
+        memory = self._memory()
+        memory.write8(0x7F0001, 0xAB)
+
+        self.assertEqual(memory.wram[0x10001], 0xAB)
+
+    def test_the_first_work_ram_bank_is_the_lower_half(self):
+        memory = self._memory()
+        memory.write8(0x7E0001, 0xCD)
+
+        self.assertEqual(memory.wram[0x0001], 0xCD)
+
+    def test_the_mirror_in_a_low_bank_reaches_the_same_bytes(self):
+        memory = self._memory()
+        memory.write8(0x000001, 0xEF)
+
+        self.assertEqual(memory.wram[0x0001], 0xEF)
+
+    def test_an_address_in_neither_reads_from_the_cartridge(self):
+        memory = self._memory()
+
+        self.assertEqual(memory.read8(0x018000), 0x00)
+
+    def test_and_a_work_ram_bank_is_never_read_as_cartridge(self):
+        self.assertIsNone(self._memory()._rom_offset(0x7E0000))
+
+
+class BankCrossingTest(unittest.TestCase):
+    def test_a_run_longer_than_a_bank_jumps_to_the_next(self):
+        text = verify.emit_asm(verify.build_cases(0, verify.CASES_PER_BANK + 2))
+
+        self.assertIn("jml case_", text)
+
+
+class ShellingOutTest(unittest.TestCase):
+    """The two Docker commands, checked without Docker."""
+
+    def test_assembling_names_the_pinned_assembler(self):
+        self.assertIn(verify.ASAR_IMAGE, verify.assemble_command())
+
+    def test_running_names_the_pinned_emulator_and_how_many_frames(self):
+        self.assertIn(verify.EMU_IMAGE, verify.emulator_command(600))
+        self.assertIn("600", verify.emulator_command(600))
+
+    def test_an_assembler_that_fails_says_what_it_said_and_stops(self):
+        said = []
+        failed = type("Done", (), {"returncode": 1, "stdout": "out", "stderr": "asar said no"})
+
+        found = verify.assemble("; nothing", execute=lambda _a: failed, say=said.append)
+
+        self.assertFalse(found)
+        self.assertIn("asar said no", " ".join(said))
+
+    def test_one_that_succeeds_reports_that_it_did(self):
+        done = type("Done", (), {"returncode": 0, "stdout": "", "stderr": ""})
+
+        self.assertTrue(verify.assemble("; nothing", execute=lambda _a: done, say=lambda _l: None))
+
+    def test_an_emulator_that_finishes_hands_back_what_it_dumped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp) / "wram.bin"
+            where.write_bytes(b"\xab" * 16)
+            original, verify.CASES_DUMP = verify.CASES_DUMP, where
+            done = type("Done", (), {"returncode": 0, "stdout": "", "stderr": ""})
+            try:
+                found = verify.run_in_snes9x(600, execute=lambda _a: done, say=lambda _l: None)
+            finally:
+                verify.CASES_DUMP = original
+
+        self.assertEqual(found, b"\xab" * 16)
+
+    def test_an_emulator_that_fails_hands_back_nothing(self):
+        failed = type("Done", (), {"returncode": 1, "stdout": "out", "stderr": "no emulator"})
+
+        found = verify.run_in_snes9x(600, execute=lambda _a: failed, say=lambda _l: None)
+
+        self.assertIsNone(found)
+
+    def test_the_real_path_runs_the_command_it_was_given(self):
+        self.assertEqual(verify._shell_out(["true"]).returncode, 0)
+
+
+class LinesTest(unittest.TestCase):
+    def test_a_run_where_everything_agrees_says_how_many_did(self):
+        cases = verify.build_cases(0, 4)
+
+        lines = verify.lines_for(cases, [])
+
+        self.assertIn("4 of 4 agree", lines[-1])
+
+    def test_a_disagreement_names_the_opcode_and_both_values(self):
+        cases = verify.build_cases(0, 1)
+        mismatch = (cases[0], {"a": 1}, {"a": 2}, ["a"])
+
+        lines = verify.lines_for(cases, [mismatch])
+
+        self.assertIn("snes9x 0x0001", lines[0])
+        self.assertIn("python 0x0002", lines[0])
+
+    def test_no_more_than_a_handful_of_disagreements_are_listed(self):
+        cases = verify.build_cases(0, 40)
+        mismatches = [(case, {"a": 1}, {"a": 2}, ["a"]) for case in cases]
+
+        lines = verify.lines_for(cases, mismatches)
+
+        self.assertEqual(len(lines) - 1, verify.EXAMPLE_LIMIT)
+
+
+class EntryTest(unittest.TestCase):
+    def _dump(self, finished=True):
+        dump = bytearray(0x20000)
+        if finished:
+            dump[0x10000 + (verify.DONE_FLAG & 0xFFFF)] = 0xA5
+        return bytes(dump)
+
+    def test_an_assembler_that_fails_ends_the_run(self):
+        code = verify.main(
+            ["verify_cpu.py", "0", "2"], build=lambda _text: False, say=lambda _l: None
+        )
+
+        self.assertEqual(code, 1)
+
+    def test_an_emulator_that_gives_nothing_back_ends_it_too(self):
+        code = verify.main(
+            ["verify_cpu.py", "0", "2"],
+            build=lambda _text: True,
+            walk=lambda _frames: None,
+            say=lambda _l: None,
+        )
+
+        self.assertEqual(code, 1)
+
+    def test_a_whole_run_compares_both_and_says_how_many_agree(self):
+        said = []
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp) / "cases.sfc"
+            where.write_bytes(bytes(verify.ROM_BYTES))
+            original, verify.CASES_ROM = verify.CASES_ROM, where
+            try:
+                code = verify.main(
+                    ["verify_cpu.py", "0", "2"],
+                    build=lambda _text: True,
+                    walk=lambda _frames: self._dump(),
+                    say=said.append,
+                )
+            finally:
+                verify.CASES_ROM = original
+
+        self.assertIn(code, (0, 1))
+        self.assertIn("agree with snes9x", said[-1])
+
+    def test_a_cartridge_that_did_not_finish_is_reported(self):
+        complained = []
+
+        code = verify.main(
+            ["verify_cpu.py", "0", "2"],
+            build=lambda _text: True,
+            walk=lambda _frames: self._dump(finished=False),
+            say=lambda _l: None,
+            complain=complained.append,
+        )
+
+        self.assertEqual(code, 1)
+        self.assertIn("did not finish", complained[0])
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -97,6 +98,71 @@ class ShapeTest(unittest.TestCase):
         long = parse(tour.build(frames=20000, seed=4))
 
         self.assertGreater(len(long), len(short))
+
+
+class StreamTest(unittest.TestCase):
+    def test_a_complaint_goes_to_the_error_stream_by_default(self):
+        import io
+        from contextlib import redirect_stderr
+
+        caught = io.StringIO()
+        with redirect_stderr(caught):
+            tour._to_stderr("something went wrong")
+
+        self.assertIn("something went wrong", caught.getvalue())
+
+    def test_and_a_tour_goes_to_the_output_stream(self):
+        import io
+        from contextlib import redirect_stdout
+
+        caught = io.StringIO()
+        with redirect_stdout(caught):
+            tour.main(["tour.py", "--frames", "600"])
+
+        self.assertIn("start", caught.getvalue())
+
+    def test_a_line_with_nothing_on_it_is_passed_over(self):
+        self.assertEqual(parse("\n# only a comment\n"), [])
+
+
+class EntryTest(unittest.TestCase):
+    """The command line, which is how a tour is actually produced."""
+
+    def test_a_run_with_no_arguments_writes_a_tour_to_the_output(self):
+        said = []
+
+        code = tour.main(["tour.py", "--frames", "600"], say=said.append)
+
+        self.assertEqual(code, 0)
+        self.assertTrue(said)
+
+    def test_a_seed_is_taken_from_the_command_line(self):
+        first = []
+        second = []
+
+        tour.main(["tour.py", "--frames", "4000", "--seed", "1"], say=first.append)
+        tour.main(["tour.py", "--frames", "4000", "--seed", "2"], say=second.append)
+
+        self.assertNotEqual(first, second)
+
+    def test_an_out_path_is_written_rather_than_printed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp) / "tour.txt"
+            said = []
+
+            code = tour.main(["tour.py", "--frames", "600", "--out", str(where)], say=said.append)
+
+            self.assertEqual(code, 0)
+            self.assertTrue(where.read_text())
+            self.assertIn("wrote", " ".join(said))
+
+    def test_an_argument_nobody_recognises_is_refused_with_the_usage(self):
+        complained = []
+
+        code = tour.main(["tour.py", "--nonsense"], complain=complained.append)
+
+        self.assertEqual(code, 2)
+        self.assertIn("usage", complained[0])
 
 
 if __name__ == "__main__":

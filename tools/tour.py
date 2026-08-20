@@ -57,7 +57,15 @@ def build(frames, seed=0):
     return "\n".join(lines) + "\n"
 
 
-def main(argv):
+def _to_stderr(line):
+    print(line, file=sys.stderr)
+
+
+def main(argv, say=None, complain=None):
+    """The command line, with both streams passed in so a run can be checked."""
+    say = sys.stdout.write if say is None else say
+    complain = _to_stderr if complain is None else complain
+
     frames = 24000
     seed = 0
     out = None
@@ -72,17 +80,15 @@ def main(argv):
         elif token == "--out" and rest:
             out = rest.pop(0)
         else:
-            print(
-                f"usage: tour.py [--frames N] [--seed S] [--out PATH], got {token}", file=sys.stderr
-            )
+            complain(f"usage: tour.py [--frames N] [--seed S] [--out PATH], got {token}")
             return 2
 
     text = build(frames, seed)
     if out:
         Path(out).write_text(text)
-        print(f"  wrote {out}, {len(text.splitlines())} steps over {frames:,} frames, seed {seed}")
+        say(f"  wrote {out}, {len(text.splitlines())} steps over {frames:,} frames, seed {seed}")
     else:
-        sys.stdout.write(text)
+        say(text)
     return 0
 
 

@@ -30,14 +30,14 @@ PART = "dsp2"
 Result = namedtuple("Result", "path writes reads mismatches examples")
 
 
-def chip():
+def chip(build=None):
     """One DSP-2, running the microcode of the part rather than a description of it.
 
     A trace is what the cartridge's own chip answered, so the only thing worth
     replaying it against is that chip's program. Nothing here carries it: a copy
     somebody already owns goes in this project's firmware directory.
     """
-    return snesdsp.Dsp(PART)
+    return (build or snesdsp.Dsp)(PART)
 
 
 def why_not():

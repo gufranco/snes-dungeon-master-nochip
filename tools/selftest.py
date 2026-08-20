@@ -81,7 +81,7 @@ PART = "dsp2"
 """The part this cartridge carries, and the microcode a case is answered by."""
 
 
-def new_chip():
+def new_chip(model=None):
     """One DSP-2, running the part's own microcode rather than a description of it.
 
     A case is only worth checking against what the hardware answers, so the
@@ -90,12 +90,12 @@ def new_chip():
     directory, and without one this refuses rather than answering from somewhere
     else.
     """
-    return _model().Dsp(PART)
+    return (model or _model()).Dsp(PART)
 
 
-def why_not():
+def why_not(model=None):
     """Why cases cannot be built here, or nothing when they can."""
-    return _model().why_not()
+    return (model or _model()).why_not()
 
 
 def case_for(command, lengths, payload, chip=None, build=new_chip):

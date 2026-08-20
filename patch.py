@@ -64,6 +64,10 @@ class MissingSymbol(Exception):
     pass
 
 
+class UnknownSite(Exception):
+    pass
+
+
 def read_symbols(text):
     """The labels asar emitted, as name to bank and address."""
     found = {}
@@ -109,6 +113,11 @@ def rewrite_site(image, site, symbols, boot=False):
         image[site.offset : site.offset + 3] = sites.call_to(symbols["b00_feed"][1])
     elif site.kind == sites.KIND_DRAIN:
         image[site.offset : site.offset + 3] = sites.call_to(symbols["b00_drain"][1])
+    else:
+        raise UnknownSite(
+            f"{site.kind} is not a site this knows how to rewrite, so the image would"
+            " have been returned with that access still going to the chip"
+        )
     return image
 
 

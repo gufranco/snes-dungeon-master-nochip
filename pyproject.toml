@@ -44,3 +44,40 @@ ignore = [
 # narrower catch would let an unforeseen failure escape as a traceback and take
 # the rest of the report with it, which is the one outcome it must avoid.
 "doctor.py" = ["BLE001"]
+
+[tool.coverage.run]
+branch = true
+source = ["."]
+# The models are measured in their own repositories, where each is held to its
+# own oracle and its own gate. Measuring them again from here would report the
+# fraction of somebody else's project this one happens to reach, which is a
+# number with no meaning and no way to move.
+# The checks that need the cartridge are kept apart and measured out of the gate.
+# A machine that has the dump runs one set of paths and a machine that does not
+# runs the other, so no single build can exercise both, and a gate that demands
+# the impossible gets switched off rather than met. Those files report every
+# check they could not run as skipped, out loud.
+omit = [
+  "*.retail.test.py",
+  "mos65xx-python/*",
+  "snes-dsp-python/*",
+  "snes-mapper-python/*",
+  "snes-rom-image-python/*",
+  "build/*",
+  "emu/*",
+  "snes9x/*",
+  "validated/*",
+  "validated-v2/*",
+  "validated-v3/*",
+]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+skip_covered = true
+exclude_also = [
+  # The command line guard hands argv to a function that is itself tested, so
+  # there is nothing behind it left to exercise. Importing the module to cover
+  # the guard would run the tool rather than test it.
+  'if __name__ == "__main__":',
+]

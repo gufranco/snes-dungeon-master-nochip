@@ -187,5 +187,51 @@ class CaseTest(unittest.TestCase):
         self.assertEqual(len(build.held), 1)
 
 
+class MirrorSizeTest(unittest.TestCase):
+    def test_a_mirror_hands_back_as_many_bytes_as_its_length(self):
+        self.assertEqual(selftest.output_size(selftest.COMMAND_MIRROR, (7,)), 7)
+
+
+class ModelTest(unittest.TestCase):
+    """That the part a case is answered by is the one the cartridge carries."""
+
+    def test_it_asks_the_model_for_that_part(self):
+        asked = []
+        made_up = type("Model", (), {"Dsp": staticmethod(asked.append)})
+
+        selftest.new_chip(made_up)
+
+        self.assertEqual(asked, [selftest.PART])
+
+    def test_and_a_refusal_comes_from_the_model_rather_than_from_here(self):
+        made_up = type("Model", (), {"why_not": staticmethod(lambda: "no image is here")})
+
+        self.assertEqual(selftest.why_not(made_up), "no image is here")
+
+    def test_the_model_it_uses_by_default_is_the_vendored_one(self):
+        self.assertTrue(hasattr(selftest._model(), "Dsp"))
+
+
+class ScriptTailTest(unittest.TestCase):
+    def test_a_case_that_reads_nothing_writes_no_drain(self):
+        script = selftest.build_script([selftest.Case(b"\x0f", 0, b"")])
+
+        self.assertNotIn(selftest.DRAIN, script)
+
+    def test_a_case_that_feeds_nothing_writes_no_feed(self):
+        script = selftest.build_script([selftest.Case(b"", 2, b"\x00\x00")])
+
+        self.assertNotIn(selftest.FEED, script)
+
+
+class ComparisonTailTest(unittest.TestCase):
+    def test_more_bytes_than_the_cases_asked_for_is_itself_a_disagreement(self):
+        cases = [selftest.Case(b"\x09", 1, b"\x11")]
+
+        found = selftest.compare(cases, b"\x11\x22")
+
+        self.assertEqual(found[-1][3], 0x22)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

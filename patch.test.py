@@ -170,47 +170,48 @@ class ResidueTest(unittest.TestCase):
         self.assertEqual(patch.residue(bytes(0x10000)), {})
 
 
-@unittest.skipUnless(RETAIL.exists(), "the retail dump is supplied by the builder")
-class RetailTest(unittest.TestCase):
-    def setUp(self):
-        self.image = RETAIL.read_bytes()
-        self.symbols = patch.resolve(patch.read_symbols(SYMBOLS))
+class SyntheticImageTest(unittest.TestCase):
+    """The whole pass over an image, on one built here rather than on a cartridge."""
 
-    def test_the_first_port_write_is_the_one_the_boot_code_makes(self):
-        first = sites.find(self.image, [sites.KIND_WRITE])[0]
+    def _image(self):
+        image = bytearray(0x10000)
+        image[0x1000 : 0x1000 + len(sites.STA_PORT)] = sites.STA_PORT
+        image[0x2000 : 0x2000 + len(sites.LDA_PORT)] = sites.LDA_PORT
+        return bytes(image)
 
-        self.assertEqual((first.bank, first.address), (0x00, 0x801E))
+    def _symbols(self):
+        return patch.resolve(patch.read_symbols(SYMBOLS))
 
-    def test_no_retail_access_survives_the_patch(self):
-        result = patch.apply(self.image, self.symbols)
+    def test_the_first_write_is_taken_as_the_boot_write_when_none_is_named(self):
+        patched = patch.apply(self._image(), self._symbols())
 
-        self.assertEqual(patch.residue(bytes(result)), {})
+        self.assertNotEqual(patched[0x1000:0x1004], sites.STA_PORT)
 
-    def test_the_patched_image_is_the_same_size(self):
-        result = patch.apply(self.image, self.symbols)
+    def test_every_byte_the_patch_may_touch_is_declared(self):
+        found = patch.regions(self._image())
 
-        self.assertEqual(len(result), len(self.image))
+        self.assertIn(0x1000, found)
+        self.assertIn(0x2000, found)
 
-    def test_the_patch_changes_nothing_outside_the_bytes_it_declares(self):
-        result = patch.apply(self.image, self.symbols)
-        allowed = patch.regions(self.image)
-        changed = {
-            offset
-            for offset, (before, after) in enumerate(zip(self.image, result, strict=True))
-            if before != after
-        }
+    def test_a_call_to_a_trampoline_is_declared_too(self):
+        image = bytearray(0x100000)
+        at = (sites.TRAMPOLINE_BANK & 0x7F) * sites.BANK_SIZE + 0x40
+        image[at : at + 3] = sites.call_to(next(iter(sites.TRAMPOLINES)))
 
-        self.assertEqual(changed - allowed, set())
+        found = patch.regions(bytes(image))
 
-    def test_the_patch_changes_a_byte_of_every_site(self):
-        result = patch.apply(self.image, self.symbols)
-        found = sites.find(self.image)
-        for site in found:
-            width = patch.WIDTHS[site.kind]
-            before = self.image[site.offset : site.offset + width]
-            after = result[site.offset : site.offset + width]
+        self.assertIn(at, found)
 
-            self.assertNotEqual(before, after, f"site at {site.offset:#x} untouched")
+    def test_and_nothing_outside_a_site_is_declared(self):
+        self.assertNotIn(0x3000, patch.regions(self._image()))
+
+    def test_an_image_with_no_write_at_all_still_patches(self):
+        image = bytearray(0x10000)
+        image[0x2000 : 0x2000 + len(sites.LDA_PORT)] = sites.LDA_PORT
+
+        patched = patch.apply(bytes(image), self._symbols())
+
+        self.assertNotEqual(patched[0x2000:0x2004], sites.LDA_PORT)
 
 
 if __name__ == "__main__":

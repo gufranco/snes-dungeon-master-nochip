@@ -47,14 +47,14 @@ PART = "dsp2"
 """The part this cartridge carries, and the microcode an expected answer comes from."""
 
 
-def chip():
+def chip(build=None):
     """One DSP-2, running the part's own microcode rather than a description of it."""
-    return snesdsp.Dsp(PART)
+    return (build or snesdsp.Dsp)(PART)
 
 
-def why_not():
+def why_not(model=None):
     """Why cases cannot be built here, or nothing when they can."""
-    return snesdsp.why_not()
+    return (model or snesdsp).why_not()
 
 
 TILE = 0x01
@@ -166,79 +166,113 @@ def runs_for(cases):
     return runs
 
 
-def main(argv):
-    import time
+NAMES = {
+    TILE: "tile",
+    TRANSPARENT: "transparent",
+    MERGE: "merge",
+    MIRROR: "mirror",
+    MULTIPLY: "multiply",
+    SCALE: "scale",
+    SYNC: "sync",
+}
 
-    seed = int(argv[0]) if argv else 1
-    count = int(argv[1]) if len(argv) > 1 else 20000
-    only = [int(name, 0) for name in argv[2:]] or None
 
-    build = ROOT / "build"
-    skeleton = replay.assemble(ROOT, build)
-    print(f"  cartridge built, {len(skeleton)} bytes")
+def walk(build, skeleton, batches, run_batch, say, clock):
+    """Every batch through the cartridge, or nothing when one does not finish.
 
-    reason = why_not()
-    if reason:
-        print(f"  nothing to build: {reason}")
-        return 2
-
-    cases = build_cases(seed, count, only)
-    runs = runs_for(cases)
-    expected = sum(len(case.expected) for case in cases)
-    print(f"  seed {seed}, {len(cases)} cases, {expected} bytes the model expects back")
-
-    room = replay.capacity(replay.IMAGE_BYTES) - replay.MAX_OVERSHOOT
+    A batch that stops early has left the routines somewhere nobody can describe,
+    so the numbers after it would be measured against a machine in an unknown
+    state. The run ends there rather than reporting them.
+    """
     walked = compared = wrong = 0
     failures = []
-    for number, batch in enumerate(replay.batches_of(runs, room)):
-        started = time.time()
-        script, found = replay.run_batch(build, skeleton, batch)
+    for number, batch in enumerate(batches):
+        started = clock()
+        script, found = run_batch(build, skeleton, batch)
         if not found["finished"]:
-            print(f"  batch {number} did not finish, {found['compared']} checked")
-            return 1
+            say(f"  batch {number} did not finish, {found['compared']} checked")
+            return None
         walked += found["transactions"]
         compared += found["compared"]
         wrong += found["wrong"]
         if found["wrong"]:
             failures.append((number, found))
-        print(
+        say(
             f"    batch {number:3d}: {len(script):8d} bytes of script, "
             f"{found['compared']:9d} checked, {found['wrong']:6d} wrong, "
-            f"{time.time() - started:5.1f}s"
+            f"{clock() - started:5.1f}s"
         )
+    return walked, compared, wrong, failures
 
+
+def summary_lines(cases, walked, compared, wrong, failures):
+    """What a run found, in the order somebody reading it wants it."""
     per_command = {}
     for case in cases:
         per_command[case.command] = per_command.get(case.command, 0) + 1
-    names = {
-        TILE: "tile",
-        TRANSPARENT: "transparent",
-        MERGE: "merge",
-        MIRROR: "mirror",
-        MULTIPLY: "multiply",
-        SCALE: "scale",
-        SYNC: "sync",
-    }
+
+    names = dict(NAMES)
     for command in sorted(per_command):
         names.setdefault(command, f"unknown ${command:02X}")
-    print("\n  cases by command:")
-    for command in COMMANDS:
-        print(f"    {names[command]:12s} {per_command.get(command, 0)}")
-    strange = sum(count for command, count in per_command.items() if command not in COMMANDS)
-    print(f"    {'unrecognised':12s} {strange}")
 
-    print(f"\n  runs walked   {walked}")
-    print(f"  bytes checked {compared}")
-    print(f"  bytes wrong   {wrong}")
-    for number, found in failures[:5]:
-        print(
-            f"    batch {number}: first at byte {found['first']}, "
-            f"model ${found['expected']:02X}, routines ${found['returned']:02X}"
-        )
+    lines = ["", "  cases by command:"]
+    lines.extend(f"    {names[command]:12s} {per_command.get(command, 0)}" for command in COMMANDS)
+    strange = sum(count for command, count in per_command.items() if command not in COMMANDS)
+    lines.append(f"    {'unrecognised':12s} {strange}")
+    lines.append("")
+    lines.append(f"  runs walked   {walked}")
+    lines.append(f"  bytes checked {compared}")
+    lines.append(f"  bytes wrong   {wrong}")
+    lines.extend(
+        f"    batch {number}: first at byte {found['first']}, "
+        f"part ${found['expected']:02X}, routines ${found['returned']:02X}"
+        for number, found in failures[:5]
+    )
+    return lines
+
+
+def main(
+    argv,
+    refuses=why_not,
+    assemble=replay.assemble,
+    run_batch=replay.run_batch,
+    generate=build_cases,
+    say=print,
+    clock=None,
+):
+    """Cases from a seed, driven through the cartridge and checked on the processor."""
+    import time
+
+    clock = time.time if clock is None else clock
+
+    seed = int(argv[0]) if argv else 1
+    count = int(argv[1]) if len(argv) > 1 else 20000
+    only = [int(name, 0) for name in argv[2:]] or None
+
+    reason = refuses()
+    if reason:
+        say(f"  nothing to build: {reason}")
+        return 2
+
+    build = ROOT / "build"
+    skeleton = assemble(ROOT, build)
+    say(f"  cartridge built, {len(skeleton)} bytes")
+
+    cases = generate(seed, count, only)
+    runs = runs_for(cases)
+    expected = sum(len(case.expected) for case in cases)
+    say(f"  seed {seed}, {len(cases)} cases, {expected} bytes the part gave back")
+
+    room = replay.capacity(replay.IMAGE_BYTES) - replay.MAX_OVERSHOOT
+    found = walk(build, skeleton, replay.batches_of(runs, room), run_batch, say, clock)
+    if found is None:
+        return 1
+
+    walked, compared, wrong, failures = found
+    for line in summary_lines(cases, walked, compared, wrong, failures):
+        say(line)
     return 0 if wrong == 0 else 1
 
 
 if __name__ == "__main__":
-    import sys
-
     raise SystemExit(main(sys.argv[1:]))

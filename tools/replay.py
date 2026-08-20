@@ -231,68 +231,123 @@ def read_counters(dump):
     }
 
 
-def assemble(root, build):
+def assemble_command(root, build):
+    """What assembling the replay cartridge shells out to."""
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "--network=none",
+        "--entrypoint",
+        "sh",
+        "-v",
+        f"{root / 'asm'}:/src:ro",
+        "-v",
+        f"{build}:/out",
+        ASSEMBLER,
+        "-c",
+        "cd /src && asar --no-title-check --fix-checksum=on dsp2-replay.asm /out/replay.sfc",
+    ]
+
+
+def _shell_out(args):
     import subprocess
 
+    return subprocess.run(args, capture_output=True, text=True, check=False)
+
+
+def assemble(root, build, execute=_shell_out):
+    """The replay cartridge, assembled by the pinned toolchain."""
     (build / "replay.sfc").write_bytes(bytes(IMAGE_BYTES))
-    built = subprocess.run(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "--network=none",
-            "--entrypoint",
-            "sh",
-            "-v",
-            f"{root / 'asm'}:/src:ro",
-            "-v",
-            f"{build}:/out",
-            ASSEMBLER,
-            "-c",
-            "cd /src && asar --no-title-check --fix-checksum=on dsp2-replay.asm /out/replay.sfc",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    built = execute(assemble_command(root, build))
     if built.returncode:
         raise SystemExit(built.stderr or built.stdout)
     return (build / "replay.sfc").read_bytes()
 
 
-def run_batch(build, skeleton, batch):
-    import subprocess
+def run_command(build):
+    """What running one batch through the emulator shells out to."""
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "--network=none",
+        "-e",
+        "DMDUMP=replay-wram.bin",
+        "-e",
+        f"DMSTOP={STATE + DONE:X}:{FINISHED:X}",
+        "-v",
+        f"{build}:/work",
+        EMULATOR,
+        "replay.sfc",
+        str(FRAMES),
+    ]
 
+
+def run_batch(build, skeleton, batch, execute=_shell_out):
+    """One batch walked by the cartridge, and the counters it left behind."""
     script = script_for(batch)
     (build / "replay.sfc").write_bytes(place_script(skeleton, script))
-    subprocess.run(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "--network=none",
-            "-e",
-            "DMDUMP=replay-wram.bin",
-            "-e",
-            f"DMSTOP={STATE + DONE:X}:{FINISHED:X}",
-            "-v",
-            f"{build}:/work",
-            EMULATOR,
-            "replay.sfc",
-            str(FRAMES),
-        ],
-        capture_output=True,
-        check=False,
-    )
+    execute(run_command(build))
     return script, read_counters((build / "replay-wram.bin").read_bytes())
 
 
-def main(argv):
+def walk(build, skeleton, batches, run_batch, say, clock):
+    """Every batch through the cartridge, or nothing when one does not finish."""
+    walked = compared = wrong = 0
+    failures = []
+    for number, batch in enumerate(batches):
+        started = clock()
+        script, found = run_batch(build, skeleton, batch)
+        say(
+            f"    batch {number:3d}: {len(script):8d} bytes of script, "
+            f"{found['compared']:9d} checked, {found['wrong']:6d} wrong, "
+            f"{clock() - started:5.1f}s"
+        )
+        if not found["finished"]:
+            say(f"  batch {number} did not finish, {found['compared']} checked")
+            return None
+        walked += found["transactions"]
+        compared += found["compared"]
+        wrong += found["wrong"]
+        if found["wrong"]:
+            failures.append((number, found))
+    return walked, compared, wrong, failures
+
+
+def summary_lines(written, returned, walked, compared, wrong, failures):
+    """What a run found, in the order somebody reading it wants it."""
+    lines = [
+        "",
+        f"  written {written}, the chip returned {returned}",
+        f"  runs walked   {walked}",
+        f"  bytes checked {compared}",
+        f"  bytes wrong   {wrong}",
+    ]
+    lines.extend(
+        f"    batch {number}: first at byte {found['first']}, "
+        f"cartridge ${found['expected']:02X}, routines ${found['returned']:02X}"
+        for number, found in failures[:5]
+    )
+    return lines
+
+
+def main(
+    argv,
+    assemble=assemble,
+    run_batch=run_batch,
+    records=None,
+    say=print,
+    clock=None,
+):
+    """A recorded trace fed to the routines on the processor, and what disagreed."""
     import time
     from pathlib import Path
 
+    clock = time.time if clock is None else clock
+
     if not argv:
-        print("usage: replay.py <trace.bin> [record limit]")
+        say("usage: replay.py <trace.bin> [record limit]")
         return 2
 
     root = Path(__file__).resolve().parent.parent
@@ -301,20 +356,19 @@ def main(argv):
     limit = int(argv[1]) if len(argv) > 1 else 0
 
     if not trace.exists():
-        print(f"  no trace at {trace}; the builder records their own")
+        say(f"  no trace at {trace}; the builder records their own")
         return 0
 
-    dsptrace = load_dsptrace(root)
+    read_records = load_dsptrace(root).records if records is None else records
     skeleton = assemble(root, build)
-    print(f"  cartridge built, {len(skeleton)} bytes")
+    say(f"  cartridge built, {len(skeleton)} bytes")
 
-    stream = ((record.kind, record.byte) for record in dsptrace.records(str(trace)))
+    stream = ((record.kind, record.byte) for record in read_records(str(trace)))
     if limit:
         stream = (item for index, item in enumerate(stream) if index < limit)
 
     room = capacity(IMAGE_BYTES) - MAX_OVERSHOOT
-    walked = compared = wrong = written = returned = 0
-    failures = []
+    written = returned = 0
 
     def counted(source):
         nonlocal written, returned
@@ -326,32 +380,13 @@ def main(argv):
             yield (kind, payload)
 
     batches = stream_batches(counted(runs_from(stream)), room)
-    for number, batch in enumerate(batches):
-        started = time.time()
-        script, found = run_batch(build, skeleton, batch)
-        print(
-            f"    batch {number:3d}: {len(script):8d} bytes of script, "
-            f"{found['compared']:9d} checked, {found['wrong']:6d} wrong, "
-            f"{time.time() - started:5.1f}s"
-        )
-        if not found["finished"]:
-            print(f"  batch {number} did not finish, {found['compared']} checked")
-            return 1
-        walked += found["transactions"]
-        compared += found["compared"]
-        wrong += found["wrong"]
-        if found["wrong"]:
-            failures.append((number, found))
+    found = walk(build, skeleton, batches, run_batch, say, clock)
+    if found is None:
+        return 1
 
-    print(f"\n  written {written}, the chip returned {returned}")
-    print(f"  runs walked   {walked}")
-    print(f"  bytes checked {compared}")
-    print(f"  bytes wrong   {wrong}")
-    for number, found in failures[:5]:
-        print(
-            f"    batch {number}: first at byte {found['first']}, "
-            f"cartridge ${found['expected']:02X}, routines ${found['returned']:02X}"
-        )
+    walked, compared, wrong, failures = found
+    for line in summary_lines(written, returned, walked, compared, wrong, failures):
+        say(line)
     return 0 if wrong == 0 else 1
 
 

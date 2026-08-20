@@ -263,5 +263,154 @@ class SummaryTest(unittest.TestCase):
         self.assertIn(0x0487EC, found.sites)
 
 
+class ReportTest(unittest.TestCase):
+    """What a summary reads like, since a summary nobody can read is a number."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self.tmp.name) / "trace.bin"
+        self.addCleanup(self.tmp.cleanup)
+
+    def _summary(self, records):
+        write_trace(self.path, records)
+        return dt.summarise(dt.transactions(dt.records(self.path)))
+
+    def test_it_opens_with_how_many_transactions_there_were(self):
+        found = dt.report(self._summary(writes([0x0F])))
+
+        self.assertIn("transactions 1", found)
+
+    def test_and_names_every_command_it_saw(self):
+        found = dt.report(self._summary(writes([0x03, 0x0A])))
+
+        self.assertIn("transparent", found)
+
+    def test_and_lists_the_sites_that_issued_them(self):
+        found = dt.report(self._summary(writes([0x03, 0x0A], pc=0x0487EC)))
+
+        self.assertIn("$0487EC", found)
+
+    def test_a_source_in_work_ram_is_named_as_work_ram(self):
+        records = writes([0x05, 0x02], pc=0x048000) + writes([0, 0, 0, 0], feed_src=0x7E)
+
+        found = dt.report(self._summary(records))
+
+        self.assertIn("work RAM", found)
+
+    def test_and_one_outside_it_is_named_as_rom(self):
+        records = writes([0x05, 0x02], pc=0x048000) + writes([0, 0, 0, 0], feed_src=0x20)
+
+        found = dt.report(self._summary(records))
+
+        self.assertIn("ROM", found)
+
+    def test_a_command_with_no_name_is_printed_by_its_number(self):
+        found = dt.report(self._summary(writes([0x42])))
+
+        self.assertIn("op42", found)
+
+    def test_the_length_tuples_a_run_used_are_counted(self):
+        records = writes([0x05, 0x02]) + writes([0] * 4) + reads([0] * 2)
+
+        found = dt.report(self._summary(records))
+
+        self.assertIn("distinct length tuples", found)
+
+
+class TransactionPrintingTest(unittest.TestCase):
+    def test_a_transaction_prints_as_what_it_is(self):
+        one = dt.Transaction(frame=7, pc=0x048000, command=0x09)
+
+        self.assertIn("multiply", repr(one))
+        self.assertIn("frame=7", repr(one))
+
+    def test_and_says_where_its_input_came_from_when_it_knows(self):
+        one = dt.Transaction(frame=0, pc=0, command=0x05)
+        one.source = (0x7E, 0x1234)
+
+        self.assertIn("src=$7E:1234", repr(one))
+
+    def test_a_command_with_no_name_prints_by_its_number(self):
+        self.assertIn("op42", repr(dt.Transaction(frame=0, pc=0, command=0x42)))
+
+    def test_a_transaction_names_the_banks_its_input_came_from(self):
+        one = dt.Transaction(frame=0, pc=0, command=0x05)
+        one.source = (0x7E, 0x1234)
+        one.second_source = (0x20, 0x8000)
+
+        self.assertEqual(one.source_banks, (0x7E, 0x20))
+
+
+class WorkRamTest(unittest.TestCase):
+    def test_the_two_work_ram_banks_are_known_as_such(self):
+        self.assertTrue(dt.is_work_ram(0x7E))
+        self.assertTrue(dt.is_work_ram(0x7F))
+
+    def test_and_a_rom_bank_is_not(self):
+        self.assertFalse(dt.is_work_ram(0x20))
+
+
+class PayloadSizeTest(unittest.TestCase):
+    """Only three commands declare a length, and a fourth is refused."""
+
+    def test_a_merge_takes_twice_its_length_and_gives_its_length(self):
+        self.assertEqual(dt._payload_sizes(0x05, (4,)), (8, 4))
+
+    def test_a_mirror_takes_and_gives_its_length(self):
+        self.assertEqual(dt._payload_sizes(0x06, (4,)), (4, 4))
+
+    def test_a_scale_takes_half_its_first_length_rounded_up(self):
+        self.assertEqual(dt._payload_sizes(0x0D, (5, 9)), (3, 9))
+
+    def test_a_command_that_declares_no_length_is_refused(self):
+        with self.assertRaises(dt.UnknownLength):
+            dt._payload_sizes(0x09, (4,))
+
+
+class StreamEdgeTest(unittest.TestCase):
+    """Traces begin and end wherever the recorder was turned on and off."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self.tmp.name) / "trace.bin"
+        self.addCleanup(self.tmp.cleanup)
+
+    def _walk(self, records):
+        write_trace(self.path, records)
+        return list(dt.transactions(dt.records(self.path)))
+
+    def test_a_read_before_any_command_is_passed_over(self):
+        found = self._walk(reads([0xFF]) + writes([0x0F]))
+
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0].command, 0x0F)
+
+    def test_a_length_of_zero_finishes_the_command_where_it_stands(self):
+        found = self._walk(writes([0x05, 0x00]))
+
+        self.assertEqual(len(found), 1)
+        self.assertTrue(found[0].complete)
+        self.assertEqual(found[0].lengths, (0,))
+
+    def test_a_read_arriving_before_the_input_is_done_is_passed_over(self):
+        records = writes([0x09, 0x01, 0x02]) + reads([0xFF]) + writes([0x03, 0x04])
+
+        found = self._walk(records + reads([0] * 4))
+
+        self.assertEqual(len(found), 1)
+        self.assertEqual(len(found[0].parameters), 4)
+
+    def test_a_command_that_answers_without_taking_anything_is_complete(self):
+        found = self._walk(writes([0x0F]))
+
+        self.assertTrue(found[0].complete)
+
+    def test_a_command_nobody_recognises_takes_nothing_and_gives_nothing(self):
+        found = self._walk(writes([0x42]))
+
+        self.assertEqual(found[0].parameters, b"")
+        self.assertEqual(found[0].output, b"")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

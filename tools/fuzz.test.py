@@ -129,5 +129,164 @@ class RunTest(unittest.TestCase):
         self.assertEqual(written, b"".join(case.written for case in cases))
 
 
+def a_batch(finished=True, wrong=0, compared=4, transactions=2):
+    return {
+        "finished": finished,
+        "wrong": wrong,
+        "compared": compared,
+        "transactions": transactions,
+        "first": 0,
+        "expected": 0x11,
+        "returned": 0x22,
+    }
+
+
+class PartTest(unittest.TestCase):
+    def test_it_asks_for_the_part_this_cartridge_carries(self):
+        asked = []
+
+        fuzz.chip(build=asked.append)
+
+        self.assertEqual(asked, [fuzz.PART])
+
+    def test_and_a_refusal_comes_from_the_model_rather_than_from_here(self):
+        made_up = type("Model", (), {"why_not": staticmethod(lambda: "no image is here")})
+
+        self.assertEqual(fuzz.why_not(made_up), "no image is here")
+
+
+class WalkTest(unittest.TestCase):
+    """Every batch through the cartridge, and what a batch that stops means."""
+
+    def test_a_run_where_every_batch_finishes_reports_what_it_checked(self):
+        found = fuzz.walk(
+            None, b"", [["one"], ["two"]], lambda *_: (b"script", a_batch()), lambda _l: None, int
+        )
+
+        self.assertEqual(found[0], 4)
+        self.assertEqual(found[1], 8)
+        self.assertEqual(found[2], 0)
+
+    def test_a_batch_that_does_not_finish_ends_the_run(self):
+        said = []
+
+        found = fuzz.walk(
+            None,
+            b"",
+            [["one"]],
+            lambda *_: (b"script", a_batch(finished=False)),
+            said.append,
+            int,
+        )
+
+        self.assertIsNone(found)
+        self.assertIn("did not finish", said[0])
+
+    def test_a_batch_with_disagreements_is_kept_for_the_summary(self):
+        found = fuzz.walk(
+            None, b"", [["one"]], lambda *_: (b"script", a_batch(wrong=3)), lambda _l: None, int
+        )
+
+        self.assertEqual(found[2], 3)
+        self.assertEqual(len(found[3]), 1)
+
+
+class SummaryTest(unittest.TestCase):
+    def test_every_command_the_part_knows_is_named(self):
+        lines = "\n".join(fuzz.summary_lines(generated(3, 200), 1, 2, 0, []))
+
+        for name in ("tile", "merge", "sync"):
+            self.assertIn(name, lines)
+
+    def test_a_command_the_part_does_not_know_is_counted_apart(self):
+        cases = [case for case in generated(3, 400) if case.command not in fuzz.COMMANDS]
+        lines = "\n".join(fuzz.summary_lines(cases, 0, 0, 0, []))
+
+        self.assertIn("unrecognised", lines)
+
+    def test_what_was_walked_and_checked_is_reported(self):
+        lines = "\n".join(fuzz.summary_lines([], 7, 9, 0, []))
+
+        self.assertIn("runs walked   7", lines)
+        self.assertIn("bytes checked 9", lines)
+
+    def test_a_disagreement_names_what_both_sides_had(self):
+        lines = "\n".join(fuzz.summary_lines([], 1, 1, 1, [(0, a_batch(wrong=1))]))
+
+        self.assertIn("part $11", lines)
+        self.assertIn("routines $22", lines)
+
+    def test_no_more_than_a_handful_of_batches_are_listed(self):
+        failures = [(number, a_batch(wrong=1)) for number in range(20)]
+
+        lines = fuzz.summary_lines([], 1, 1, 20, failures)
+
+        self.assertEqual(sum(1 for line in lines if "first at byte" in line), 5)
+
+
+class EntryTest(unittest.TestCase):
+    def test_a_machine_with_no_microcode_says_so_rather_than_building_anything(self):
+        said = []
+
+        code = fuzz.main([], refuses=lambda: "no image is here", say=said.append)
+
+        self.assertEqual(code, 2)
+        self.assertIn("nothing to build", said[0])
+
+    def test_a_run_where_everything_agrees_passes(self):
+        code = fuzz.main(
+            ["1", "20"],
+            refuses=lambda: None,
+            assemble=lambda *_: b"skeleton",
+            run_batch=lambda *_: (b"script", a_batch()),
+            generate=lambda *_args: generated(1, 20),
+            say=lambda _l: None,
+            clock=int,
+        )
+
+        self.assertEqual(code, 0)
+
+    def test_a_run_with_a_disagreement_fails(self):
+        code = fuzz.main(
+            ["1", "20"],
+            refuses=lambda: None,
+            assemble=lambda *_: b"skeleton",
+            run_batch=lambda *_: (b"script", a_batch(wrong=1)),
+            generate=lambda *_args: generated(1, 20),
+            say=lambda _l: None,
+            clock=int,
+        )
+
+        self.assertEqual(code, 1)
+
+    def test_a_batch_that_does_not_finish_fails_too(self):
+        code = fuzz.main(
+            ["1", "20"],
+            refuses=lambda: None,
+            assemble=lambda *_: b"skeleton",
+            run_batch=lambda *_: (b"script", a_batch(finished=False)),
+            generate=lambda *_args: generated(1, 20),
+            say=lambda _l: None,
+            clock=int,
+        )
+
+        self.assertEqual(code, 1)
+
+    def test_the_commands_to_generate_are_taken_from_the_command_line(self):
+        asked = []
+
+        fuzz.main(
+            ["7", "10", "0x05"],
+            refuses=lambda: None,
+            assemble=lambda *_: b"skeleton",
+            run_batch=lambda *_: (b"script", a_batch()),
+            generate=lambda seed, count, only: asked.append((seed, count, only)) or generated(1, 5),
+            say=lambda _l: None,
+            clock=int,
+        )
+
+        self.assertEqual(asked, [(7, 10, [0x05])])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

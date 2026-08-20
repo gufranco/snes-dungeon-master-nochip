@@ -310,30 +310,36 @@ def emit_asm(cases):
     return "\n".join(lines) + "\n"
 
 
-def assemble(text):
+def assemble_command():
+    """What assembling the case cartridge shells out to."""
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "--network=none",
+        "--volume",
+        f"{BUILD}:/work",
+        ASAR_IMAGE,
+        "--no-title-check",
+        CASES_ASM.name,
+        CASES_ROM.name,
+    ]
+
+
+def _shell_out(args):
+    return subprocess.run(args, capture_output=True, text=True, check=False)
+
+
+def assemble(text, execute=_shell_out, say=print, complain=None):
+    """The case cartridge, assembled by the pinned toolchain."""
+    complain = say if complain is None else complain
     BUILD.mkdir(exist_ok=True)
     CASES_ASM.write_text(text)
     CASES_ROM.write_bytes(bytes(ROM_BYTES))
-    result = subprocess.run(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "--network=none",
-            "--volume",
-            f"{BUILD}:/work",
-            ASAR_IMAGE,
-            "--no-title-check",
-            CASES_ASM.name,
-            CASES_ROM.name,
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = execute(assemble_command())
     if result.returncode != 0:
-        print(result.stdout)
-        print(result.stderr, file=sys.stderr)
+        say(result.stdout)
+        complain(result.stderr)
         return False
     return True
 
@@ -342,28 +348,30 @@ def frames_for(count):
     return FRAMES_BASE + count * FRAMES_PER_CASE
 
 
-def run_in_snes9x(frames):
-    result = subprocess.run(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "--network=none",
-            "--env",
-            f"DMDUMP={CASES_DUMP.name}",
-            "--volume",
-            f"{BUILD}:/work",
-            EMU_IMAGE,
-            CASES_ROM.name,
-            str(frames),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+def emulator_command(frames):
+    """What running the case cartridge shells out to."""
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "--network=none",
+        "--env",
+        f"DMDUMP={CASES_DUMP.name}",
+        "--volume",
+        f"{BUILD}:/work",
+        EMU_IMAGE,
+        CASES_ROM.name,
+        str(frames),
+    ]
+
+
+def run_in_snes9x(frames, execute=_shell_out, say=print, complain=None):
+    """The cases walked by the emulator, and the memory it left behind."""
+    complain = say if complain is None else complain
+    result = execute(emulator_command(frames))
     if result.returncode != 0:
-        print(result.stdout)
-        print(result.stderr, file=sys.stderr)
+        say(result.stdout)
+        complain(result.stderr)
         return None
     return CASES_DUMP.read_bytes()
 
@@ -435,33 +443,46 @@ def compare(cases, wanted, found):
     return mismatches
 
 
-def main(argv):
+def lines_for(cases, mismatches):
+    """What disagreed, named by opcode so it can be looked up."""
+    lines = []
+    for case, want, got, fields in mismatches[:EXAMPLE_LIMIT]:
+        detail = ", ".join(
+            f"{one} snes9x {want[one]:#06x} python {got[one]:#06x}" for one in fields
+        )
+        lines.append(
+            f"    ${case['opcode']:02X} {case['mnemonic']:<4s} {case['mode']:<18s} {detail}"
+        )
+    lines.append(f"  {len(cases) - len(mismatches)} of {len(cases)} agree with snes9x")
+    return lines
+
+
+def main(argv, build=None, walk=None, say=print, complain=None):
+    """Cases run on both, with the two that shell out passed in so a run can be checked."""
+    complain = say if complain is None else complain
+    build = assemble if build is None else build
+    walk = run_in_snes9x if walk is None else walk
+
     seed = int(argv[1]) if len(argv) > 1 else 0
     count = int(argv[2]) if len(argv) > 2 else 400
 
     cases = build_cases(seed, count)
-    print(f"  {len(cases)} cases from seed {seed}")
+    say(f"  {len(cases)} cases from seed {seed}")
 
-    if not assemble(emit_asm(cases)):
+    if not build(emit_asm(cases)):
         return 1
 
     rom = CASES_ROM.read_bytes()
-    dump = run_in_snes9x(frames_for(len(cases)))
+    dump = walk(frames_for(len(cases)))
     if dump is None:
         return 1
     if dump[0x10000 + (DONE_FLAG & 0xFFFF)] != 0xA5:
-        print("  the cartridge did not finish its cases")
+        complain("  the cartridge did not finish its cases")
         return 1
 
-    from_snes9x = read_results(dump, len(cases))
-    from_python = run_in_python(cases, rom)
-    mismatches = compare(cases, from_snes9x, from_python)
-
-    for case, want, got, fields in mismatches[:EXAMPLE_LIMIT]:
-        detail = ", ".join(f"{f} snes9x {want[f]:#06x} python {got[f]:#06x}" for f in fields)
-        print(f"    ${case['opcode']:02X} {case['mnemonic']:<4s} {case['mode']:<18s} {detail}")
-
-    print(f"  {len(cases) - len(mismatches)} of {len(cases)} agree with snes9x")
+    mismatches = compare(cases, read_results(dump, len(cases)), run_in_python(cases, rom))
+    for line in lines_for(cases, mismatches):
+        say(line)
     return 1 if mismatches else 0
 
 

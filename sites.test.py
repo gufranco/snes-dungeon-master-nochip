@@ -187,51 +187,5 @@ class CensusTest(unittest.TestCase):
         self.assertEqual(sites.banks_touched(sites.find(image)), [0, 4])
 
 
-@unittest.skipUnless(RETAIL.exists(), "the retail dump is supplied by the builder")
-class RetailTest(unittest.TestCase):
-    def setUp(self):
-        self.image = RETAIL.read_bytes()
-
-    def test_the_measured_surface_is_the_one_the_dump_carries(self):
-        counted = sites.verify(sites.find(self.image))
-
-        self.assertEqual(
-            counted,
-            {
-                sites.KIND_WRITE: 51,
-                sites.KIND_READ: 4,
-                sites.KIND_STATUS: 5,
-                sites.KIND_FEED: 16,
-                sites.KIND_DRAIN: 2,
-            },
-        )
-
-    def test_every_site_lives_in_the_two_banks_that_drive_the_chip(self):
-        self.assertEqual(sites.banks_touched(sites.find(self.image)), [0x00, 0x04])
-
-    def test_the_status_polls_sit_where_they_were_measured(self):
-        found = sites.find(self.image, [sites.KIND_STATUS])
-
-        self.assertEqual(
-            [(site.bank, site.address) for site in found],
-            [(0x00, 0x9887), (0x04, 0x84E3), (0x04, 0x8898), (0x04, 0x9775), (0x04, 0x9886)],
-        )
-
-    def test_the_port_reads_sit_where_they_were_measured(self):
-        found = sites.find(self.image, [sites.KIND_READ])
-
-        self.assertEqual([site.address for site in found], [0x86D3, 0x86D8, 0x86DE, 0x86E2])
-
-    def test_the_dump_carries_the_measured_trampoline_calls(self):
-        counted = sites.verify_trampoline_calls(sites.find_trampoline_calls(self.image))
-
-        self.assertEqual(counted, {0x0080: 2, 0x0084: 5, 0x0088: 4, 0x008C: 1})
-
-    def test_every_trampoline_call_that_can_reach_the_chip_is_in_one_bank(self):
-        found = sites.find_trampoline_calls(self.image)
-
-        self.assertEqual({site.bank for site in found}, {0x04})
-
-
 if __name__ == "__main__":
     unittest.main(verbosity=2)

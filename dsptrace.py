@@ -60,6 +60,10 @@ class TruncatedTrace(Exception):
     pass
 
 
+class UnknownLength(Exception):
+    pass
+
+
 def is_work_ram(bank):
     return bank in WRAM_BANKS
 
@@ -227,8 +231,7 @@ def transactions(stream):
             pending = None
 
     if pending is not None:
-        if run is not None:
-            _finish(pending, run, complete=False)
+        _finish(pending, run, complete=False)
         yield pending
 
 
@@ -239,13 +242,20 @@ def _finish(transaction, run, complete=True):
 
 
 def _payload_sizes(command, lengths):
+    """How much a command takes and gives once its lengths are known.
+
+    Only the three commands that declare a length ever reach here, because only
+    those put the stream into the stage that asks. A fourth would mean a command
+    was given a length nobody wrote a rule for, so it says so rather than
+    answering nothing and quietly finishing the transaction early.
+    """
     if command == COMMAND_MERGE:
         return 2 * lengths[0], lengths[0]
     if command == COMMAND_MIRROR:
         return lengths[0], lengths[0]
     if command == COMMAND_SCALE:
         return (lengths[0] + 1) >> 1, lengths[1]
-    return 0, 0
+    raise UnknownLength(f"{command:#04x} was given a length and declares none")
 
 
 def summarise(stream):

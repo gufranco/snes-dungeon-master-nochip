@@ -71,6 +71,15 @@ class PartTest(unittest.TestCase):
         self.assertTrue(verify.why_not() is None or isinstance(verify.why_not(), str))
 
 
+class BuildTest(unittest.TestCase):
+    def test_it_asks_for_the_part_the_cartridge_carries(self):
+        asked = []
+
+        verify.chip(build=asked.append)
+
+        self.assertEqual(asked, [verify.PART])
+
+
 class CheckTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

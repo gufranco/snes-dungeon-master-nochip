@@ -145,6 +145,8 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | What | Command |
 |:-----|:--------|
 | Every test | `for t in *.test.py tools/*.test.py; do python3 "$t" \|\| break; done` |
+| Coverage, which fails below 100% | `python3 -m coverage erase && for t in *.test.py tools/*.test.py; do python3 -m coverage run -a "$t"; done && python3 -m coverage report` |
+| What is on this machine | `python3 doctor.py` |
 | Lint | `ruff check .` |
 | Format | `ruff format --check .` |
 | Workflows | `actionlint` |
@@ -157,6 +159,7 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | Commit messages | [Conventional Commits](https://www.conventionalcommits.org/), which drives the version number |
 | Python style | [`pyproject.toml`](pyproject.toml), ruff at line length 100, targeting 3.12 |
 | Tests | one `<module>.test.py` beside each module, standard library `unittest` |
+| Coverage | 100% of statements and branches, enforced by [`pyproject.toml`](pyproject.toml). A branch with no test fails the build rather than lowering the number |
 | Comments | required in the assembly and only there: entry and exit state, register widths, and where each recovered address came from |
 | Builds | in Docker, pinned, no network, non-root. Never on the host |
 | Releases | semantic versioning cut by the pipeline. Each image carries its version in the filename |
@@ -164,7 +167,12 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 ### Decisions worth knowing
 
 - **No ROM data enters this repository.** Not dumps, not intermediates, not test fixtures. It is why
-  parts of the suite skip rather than fail without a dump.
+  parts of the suite skip rather than fail without a dump, and why the checks that need one live in
+  `*.retail.test.py` files kept out of the coverage measurement: a machine with the dump runs one set
+  of paths and a machine without it runs the other, so no single build can exercise both.
+- **The part's own microcode answers for the part.** Nothing here computes a DSP-2 result. What a
+  command answers is whatever the program the chip carries answers, and a check that needs that
+  program reports it had nothing to run rather than passing without it.
 - **The cartridge is the only oracle.** A source and size pair is a request because the retail
   cartridge asks for it. Producing a plausible result for a pair nobody asked for proves nothing,
   since any bitmap scales to something of exactly the size requested.

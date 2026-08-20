@@ -1,4 +1,5 @@
 import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -218,6 +219,251 @@ class ResultTest(unittest.TestCase):
 
     def test_a_run_that_did_not_finish_says_so(self):
         self.assertFalse(replay.read_counters(bytes(0x20000))["finished"])
+
+
+def a_batch(finished=True, wrong=0, compared=4, transactions=2):
+    return {
+        "finished": finished,
+        "wrong": wrong,
+        "compared": compared,
+        "transactions": transactions,
+        "first": 0,
+        "expected": 0x11,
+        "returned": 0x22,
+    }
+
+
+class WalkTest(unittest.TestCase):
+    def test_a_run_where_every_batch_finishes_reports_what_it_checked(self):
+        found = replay.walk(
+            None, b"", [["one"], ["two"]], lambda *_: (b"s", a_batch()), lambda _l: None, int
+        )
+
+        self.assertEqual(found[:3], (4, 8, 0))
+
+    def test_a_batch_that_does_not_finish_ends_the_run(self):
+        said = []
+
+        found = replay.walk(
+            None, b"", [["one"]], lambda *_: (b"s", a_batch(finished=False)), said.append, int
+        )
+
+        self.assertIsNone(found)
+        self.assertIn("did not finish", said[-1])
+
+    def test_a_batch_with_disagreements_is_kept_for_the_summary(self):
+        found = replay.walk(
+            None, b"", [["one"]], lambda *_: (b"s", a_batch(wrong=2)), lambda _l: None, int
+        )
+
+        self.assertEqual(found[2], 2)
+        self.assertEqual(len(found[3]), 1)
+
+
+class SummaryTest(unittest.TestCase):
+    def test_it_says_how_much_went_each_way(self):
+        lines = "\n".join(replay.summary_lines(10, 4, 1, 4, 0, []))
+
+        self.assertIn("written 10", lines)
+        self.assertIn("returned 4", lines)
+
+    def test_a_disagreement_names_what_both_sides_had(self):
+        lines = "\n".join(replay.summary_lines(1, 1, 1, 1, 1, [(0, a_batch(wrong=1))]))
+
+        self.assertIn("cartridge $11", lines)
+        self.assertIn("routines $22", lines)
+
+    def test_no_more_than_a_handful_of_batches_are_listed(self):
+        failures = [(number, a_batch(wrong=1)) for number in range(20)]
+
+        lines = replay.summary_lines(0, 0, 0, 0, 20, failures)
+
+        self.assertEqual(sum(1 for line in lines if "first at byte" in line), 5)
+
+
+class EntryTest(unittest.TestCase):
+    def _record(self, kind, byte):
+        return type("Record", (), {"kind": kind, "byte": byte})()
+
+    def test_no_argument_at_all_is_refused_with_the_usage(self):
+        said = []
+
+        self.assertEqual(replay.main([], say=said.append), 2)
+        self.assertIn("usage", said[0])
+
+    def test_a_trace_that_is_not_there_is_a_skip_rather_than_a_failure(self):
+        said = []
+
+        code = replay.main(["/nowhere/at/all.bin"], say=said.append)
+
+        self.assertEqual(code, 0)
+        self.assertIn("no trace", said[0])
+
+    def test_a_run_where_everything_agrees_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp) / "trace.bin"
+            where.write_bytes(b"\x00")
+            reading = [self._record(replay.KIND_WRITE, 0x0F)]
+
+            code = replay.main(
+                [str(where)],
+                assemble=lambda *_: b"skeleton",
+                run_batch=lambda *_: (b"script", a_batch()),
+                records=lambda _path: reading,
+                say=lambda _l: None,
+                clock=int,
+            )
+
+        self.assertEqual(code, 0)
+
+    def test_a_run_with_a_disagreement_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp) / "trace.bin"
+            where.write_bytes(b"\x00")
+
+            code = replay.main(
+                [str(where)],
+                assemble=lambda *_: b"skeleton",
+                run_batch=lambda *_: (b"script", a_batch(wrong=1)),
+                records=lambda _path: [self._record(replay.KIND_WRITE, 0x0F)],
+                say=lambda _l: None,
+                clock=int,
+            )
+
+        self.assertEqual(code, 1)
+
+    def test_a_batch_that_does_not_finish_fails_too(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp) / "trace.bin"
+            where.write_bytes(b"\x00")
+
+            code = replay.main(
+                [str(where)],
+                assemble=lambda *_: b"skeleton",
+                run_batch=lambda *_: (b"script", a_batch(finished=False)),
+                records=lambda _path: [self._record(replay.KIND_WRITE, 0x0F)],
+                say=lambda _l: None,
+                clock=int,
+            )
+
+        self.assertEqual(code, 1)
+
+    def test_what_the_chip_returned_is_counted_as_well_as_what_was_written(self):
+        said = []
+
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp) / "trace.bin"
+            where.write_bytes(b"\x00")
+            reading = [
+                self._record(replay.KIND_WRITE, 0x09),
+                self._record(replay.KIND_READ, 0x11),
+            ]
+
+            replay.main(
+                [str(where)],
+                assemble=lambda *_: b"skeleton",
+                run_batch=lambda *_: (b"script", a_batch()),
+                records=lambda _path: reading,
+                say=said.append,
+                clock=int,
+            )
+
+        self.assertIn("the chip returned 1", " ".join(said))
+
+    def test_a_record_limit_stops_the_stream_where_it_says(self):
+        seen = []
+
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp) / "trace.bin"
+            where.write_bytes(b"\x00")
+            reading = [self._record(replay.KIND_WRITE, 0x0F) for _ in range(10)]
+
+            replay.main(
+                [str(where), "3"],
+                assemble=lambda *_: b"skeleton",
+                run_batch=lambda _b, _s, batch: seen.append(batch) or (b"script", a_batch()),
+                records=lambda _path: reading,
+                say=lambda _l: None,
+                clock=int,
+            )
+
+        self.assertEqual(sum(len(payload) for _kind, payload in seen[0]), 3)
+
+
+class ShellingOutTest(unittest.TestCase):
+    """What the two Docker commands are, checked without Docker."""
+
+    def test_assembling_names_the_pinned_assembler_and_the_source(self):
+        found = replay.assemble_command(Path("/root"), Path("/build"))
+
+        self.assertIn(replay.ASSEMBLER, found)
+        self.assertIn("dsp2-replay.asm /out/replay.sfc", " ".join(found))
+
+    def test_running_names_the_pinned_emulator_and_where_to_stop(self):
+        found = replay.run_command(Path("/build"))
+
+        self.assertIn(replay.EMULATOR, found)
+        self.assertIn(f"DMSTOP={replay.STATE + replay.DONE:X}:{replay.FINISHED:X}", found)
+
+    def test_an_assembler_that_fails_stops_the_run_with_what_it_said(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            failed = type("Done", (), {"returncode": 1, "stderr": "asar said no", "stdout": ""})
+
+            with self.assertRaises(SystemExit) as raised:
+                replay.assemble(Path("/root"), Path(tmp), execute=lambda _args: failed)
+
+        self.assertIn("asar said no", str(raised.exception))
+
+    def test_an_assembler_that_succeeds_hands_back_the_image_it_wrote(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            done = type("Done", (), {"returncode": 0, "stderr": "", "stdout": ""})
+
+            found = replay.assemble(Path("/root"), Path(tmp), execute=lambda _args: done)
+
+        self.assertEqual(len(found), replay.IMAGE_BYTES)
+
+    def test_a_batch_writes_the_script_into_the_cartridge_and_reads_the_counters(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            dump = bytearray(0x20000)
+            dump[replay.STATE + replay.DONE] = replay.FINISHED
+            (where / "replay-wram.bin").write_bytes(bytes(dump))
+
+            script, found = replay.run_batch(
+                where, bytes(replay.IMAGE_BYTES), [(replay.KIND_WRITE, b"\x0f")], lambda _a: None
+            )
+
+        self.assertTrue(script)
+        self.assertTrue(found["finished"])
+
+
+class RealShellTest(unittest.TestCase):
+    """The path that actually shells out, run against a command that does nothing."""
+
+    def test_it_runs_the_command_and_hands_back_what_it_returned(self):
+        found = replay._shell_out(["true"])
+
+        self.assertEqual(found.returncode, 0)
+
+
+class LoadingTest(unittest.TestCase):
+    def test_the_trace_reader_it_loads_is_the_one_beside_this_project(self):
+        found = replay.load_dsptrace(ROOT)
+
+        self.assertTrue(hasattr(found, "records"))
+
+
+class BatchEdgeTest(unittest.TestCase):
+    def test_a_stream_with_nothing_in_it_produces_no_batches(self):
+        self.assertEqual(list(replay.stream_batches([], 100)), [])
+
+    def test_and_grouping_nothing_produces_nothing_either(self):
+        self.assertEqual(replay.batches_of([], 100), [])
+
+    def test_a_run_larger_than_the_room_still_gets_a_batch_of_its_own(self):
+        found = replay.batches_of([(replay.KIND_WRITE, bytes(500))], 100)
+
+        self.assertEqual(len(found), 1)
 
 
 if __name__ == "__main__":

@@ -211,25 +211,35 @@ def _default_beneath():
     model whose doctor is here and will not run is a different thing entirely and
     is left to raise, because that is a real fault on this machine.
     """
+    return _ask_each(sorted(hardware.PACKAGES), hardware.root_of, importlib.import_module)
+
+
+def _ask_each(packages, locate, load):
+    """Each named model asked for its report, skipping the ones that have none."""
     found = []
-    for package in sorted(hardware.PACKAGES):
-        where = hardware.root_of(package)
-        if not Path(where).is_dir():
+    for package in packages:
+        where = Path(locate(package))
+        if not where.is_dir():
             continue
         if str(where) not in sys.path:
             sys.path.insert(0, str(where))
         try:
-            underneath = importlib.import_module(f"{package}.doctor")
+            underneath = load(f"{package}.doctor")
         except ModuleNotFoundError:
             continue
-        found.extend((Path(where).name, one) for one in underneath.examine())
+        found.extend((where.name, one) for one in underneath.examine())
     return found
 
 
-def _default_unused():
-    """The parts the coprocessor model covers that this cartridge does not carry."""
+def _default_unused(load=_default_import):
+    """The parts the coprocessor model covers that this cartridge does not carry.
+
+    A model that will not import at all is reported by its own check above, so
+    here it means only that nothing can be said about which parts are spare.
+    Saying nothing is right: every finding then stands as the model wrote it.
+    """
     try:
-        return sorted(set(_default_import("snesdsp").MODELS) - {PART})
+        return sorted(set(load("snesdsp").MODELS) - {PART})
     except Exception:
         return []
 
