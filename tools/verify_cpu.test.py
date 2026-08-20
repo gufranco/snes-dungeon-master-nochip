@@ -285,6 +285,13 @@ class LinesTest(unittest.TestCase):
 
 
 class EntryTest(unittest.TestCase):
+    def setUp(self):
+        where = Path(tempfile.mkdtemp()) / "cases.sfc"
+        where.write_bytes(bytes(verify.ROM_BYTES))
+        original = verify.CASES_ROM
+        verify.CASES_ROM = where
+        self.addCleanup(setattr, verify, "CASES_ROM", original)
+
     def _dump(self, finished=True):
         dump = bytearray(0x20000)
         if finished:
@@ -310,19 +317,13 @@ class EntryTest(unittest.TestCase):
 
     def test_a_whole_run_compares_both_and_says_how_many_agree(self):
         said = []
-        with tempfile.TemporaryDirectory() as tmp:
-            where = Path(tmp) / "cases.sfc"
-            where.write_bytes(bytes(verify.ROM_BYTES))
-            original, verify.CASES_ROM = verify.CASES_ROM, where
-            try:
-                code = verify.main(
-                    ["verify_cpu.py", "0", "2"],
-                    build=lambda _text: True,
-                    walk=lambda _frames: self._dump(),
-                    say=said.append,
-                )
-            finally:
-                verify.CASES_ROM = original
+
+        code = verify.main(
+            ["verify_cpu.py", "0", "2"],
+            build=lambda _text: True,
+            walk=lambda _frames: self._dump(),
+            say=said.append,
+        )
 
         self.assertIn(code, (0, 1))
         self.assertIn("agree with snes9x", said[-1])
