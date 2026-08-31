@@ -14,6 +14,7 @@ and both deserve an error rather than a partial conversion.
 
 from collections import namedtuple
 from collections.abc import Sequence
+from typing import Any
 
 STA_PORT = bytes([0x8F, 0x00, 0x80, 0x3F])
 LDA_PORT = bytes([0xAF, 0x00, 0x80, 0x3F])
@@ -76,7 +77,7 @@ def offset_of(bank: int, address: int) -> int:
 
 def occurrences(image: bytes | bytearray, pattern: bytes) -> list[int]:
     """Every position of the pattern, including overlapping ones."""
-    found = []
+    found: list[Any] = []
     at = image.find(pattern)
     while at >= 0:
         found.append(at)
@@ -87,7 +88,7 @@ def occurrences(image: bytes | bytearray, pattern: bytes) -> list[int]:
 def find(image: bytes | bytearray, kinds: Sequence[str] | None = None) -> list[Site]:
     """Every site in the image, in file order."""
     wanted = SIGNATURES if kinds is None else {kind: SIGNATURES[kind] for kind in kinds}
-    found = []
+    found: list[Any] = []
     for kind, pattern in wanted.items():
         for offset in occurrences(image, pattern):
             bank, address = address_of(offset)
@@ -140,7 +141,7 @@ def find_trampoline_calls(
     $3F into a trampoline operand, measured across the whole image, so only its
     calls can arrive at the port and only they are collected here.
     """
-    found = []
+    found: list[Any] = []
     start = (bank & 0x7F) * BANK_SIZE
     for trampoline in TRAMPOLINES:
         pattern = call_to(trampoline)

@@ -94,7 +94,7 @@ class RunTest(unittest.TestCase):
     """What a build shells out to, checked without shelling out."""
 
     def test_a_command_is_printed_before_it_runs(self) -> None:
-        said = []
+        said: list[Any] = []
 
         bd.run(["docker", "build"], execute=lambda _args: 0, say=said.append)
 
@@ -135,7 +135,7 @@ class EntryTest(unittest.TestCase):
         self.assertEqual(len(ran), 1)
 
     def test_too_few_arguments_are_refused_with_the_usage(self) -> None:
-        said = []
+        said: list[Any] = []
 
         code = bd.main(["bd.py", "patch.asm"], say=lambda _l: None, complain=said.append)
 
@@ -143,7 +143,7 @@ class EntryTest(unittest.TestCase):
         self.assertIn("usage", said[0])
 
     def test_an_image_that_will_not_build_stops_before_anything_is_staged(self) -> None:
-        said = []
+        said: list[Any] = []
 
         code = bd.main(
             ["bd.py", "patch.asm", "in.sfc", "out.sfc"],

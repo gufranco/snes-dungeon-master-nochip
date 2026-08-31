@@ -182,7 +182,7 @@ def _cartridges(diagnose: Callable[[], Any] = _default_cartridges) -> list[Any]:
                 " this project wants",
             )
         ]
-    lines = []
+    lines: list[Any] = []
     for one in found:
         digest = f", sha256 {one.identity.sha256}" if one.identity else ""
         lines.append(
@@ -275,7 +275,7 @@ def _beneath(beneath: Any, unused: Callable[..., Any] = _default_unused) -> list
             )
         ]
     elsewhere = set(unused())
-    lines = []
+    lines: list[Any] = []
     for where, one in found:
         spare = one.name in elsewhere and not one.ok
         lines.append(

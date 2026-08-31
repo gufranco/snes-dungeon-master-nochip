@@ -3,7 +3,7 @@ import struct
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 MODULE_PATH = Path(__file__).resolve().parent / "dsptrace.py"
 
@@ -22,7 +22,16 @@ FEED_TRAMPOLINE = 0x0084
 DSP_BANK = 0x3F
 
 
-def record(kind, byte, pc=0x048000, x=0, y=0, frame=0, feed_src=None, drain_dst=0x7E):
+def record(
+    kind: Any,
+    byte: Any,
+    pc: Any = 294912,
+    x: Any = 0,
+    y: Any = 0,
+    frame: Any = 0,
+    feed_src: Any = None,
+    drain_dst: Any = 126,
+) -> Any:
     trampolines = bytes([0x00, 0x00, DSP_BANK, 0x00, drain_dst, DSP_BANK, 0x00, 0x00])
     around = (
         bytes([0xA9, 0x00, 0x00, 0x00])
@@ -52,6 +61,7 @@ def reads(values, **kwargs):
 
 
 class RecordTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.path = Path(self.tmp.name) / "trace.bin"
@@ -96,12 +106,13 @@ class RecordTest(unittest.TestCase):
 
 
 class StateMachineTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.path = Path(self.tmp.name) / "trace.bin"
         self.addCleanup(self.tmp.cleanup)
 
-    def transactions_of(self, records):
+    def transactions_of(self, records: Any) -> Any:
         write_trace(self.path, records)
         return list(dt.transactions(dt.records(self.path)))
 
@@ -183,12 +194,13 @@ class StateMachineTest(unittest.TestCase):
 
 
 class SourceTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.path = Path(self.tmp.name) / "trace.bin"
         self.addCleanup(self.tmp.cleanup)
 
-    def transactions_of(self, records):
+    def transactions_of(self, records: Any) -> Any:
         write_trace(self.path, records)
         return list(dt.transactions(dt.records(self.path)))
 
@@ -244,6 +256,7 @@ class SourceTest(unittest.TestCase):
 
 
 class SummaryTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.path = Path(self.tmp.name) / "trace.bin"
@@ -268,12 +281,13 @@ class SummaryTest(unittest.TestCase):
 class ReportTest(unittest.TestCase):
     """What a summary reads like, since a summary nobody can read is a number."""
 
+    @override
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.path = Path(self.tmp.name) / "trace.bin"
         self.addCleanup(self.tmp.cleanup)
 
-    def _summary(self, records):
+    def _summary(self, records: Any) -> Any:
         write_trace(self.path, records)
         return dt.summarise(dt.transactions(dt.records(self.path)))
 
@@ -382,12 +396,13 @@ class PayloadSizeTest(unittest.TestCase):
 class StreamEdgeTest(unittest.TestCase):
     """Traces begin and end wherever the recorder was turned on and off."""
 
+    @override
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.path = Path(self.tmp.name) / "trace.bin"
         self.addCleanup(self.tmp.cleanup)
 
-    def _walk(self, records):
+    def _walk(self, records: Any) -> Any:
         write_trace(self.path, records)
         return list(dt.transactions(dt.records(self.path)))
 

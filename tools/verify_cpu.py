@@ -398,7 +398,7 @@ def run_in_python(cases: Any, rom: bytes) -> list[Any]:
         memory.wram[index] = index & 0xFF
         memory.wram[0x10000 + index] = index & 0xFF
 
-    found = []
+    found: list[Any] = []
     for case in cases:
         cpu = emu65816.Cpu(MODEL, memory)
         cpu.d = case["d"]
@@ -434,7 +434,7 @@ def run_in_python(cases: Any, rom: bytes) -> list[Any]:
 
 
 def read_results(dump: bytes, count: int) -> list[Any]:
-    found = []
+    found: list[Any] = []
     for index in range(count):
         at = 0x10000 + (RESULT_BASE & 0xFFFF) + index * RESULT_STRIDE
         found.append(
@@ -461,7 +461,7 @@ def compare(cases: Any, wanted: Any, found: Any) -> list[Any]:
 
 def lines_for(cases: Any, mismatches: Any) -> list[str]:
     """What disagreed, named by opcode so it can be looked up."""
-    lines = []
+    lines: list[Any] = []
     for case, want, got, fields in mismatches[:EXAMPLE_LIMIT]:
         detail = ", ".join(
             f"{one} snes9x {want[one]:#06x} python {got[one]:#06x}" for one in fields

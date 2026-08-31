@@ -34,19 +34,19 @@ class Puppet:
     def write(self, value: Any) -> None:
         self.written.append(value)
 
-    def read(self):
+    def read(self) -> Any:
         self.given += 1
         return self.given & 0xFF
 
 
-def puppets():
-    def build():
+def puppets() -> Any:
+    def build() -> Any:
         return Puppet()
 
     return build
 
 
-def generated(seed, count, only=None):
+def generated(seed: Any, count: Any, only: Any = None) -> Any:
     return fuzz.build_cases(seed, count, only, puppets())
 
 
@@ -131,7 +131,12 @@ class RunTest(unittest.TestCase):
         self.assertEqual(written, b"".join(case.written for case in cases))
 
 
-def a_batch(finished=True, wrong=0, compared=4, transactions=2):
+def a_batch(
+    finished: Any = True,
+    wrong: Any = 0,
+    compared: Any = 4,
+    transactions: Any = 2,
+) -> Any:
     return {
         "finished": finished,
         "wrong": wrong,
@@ -145,7 +150,7 @@ def a_batch(finished=True, wrong=0, compared=4, transactions=2):
 
 class PartTest(unittest.TestCase):
     def test_it_asks_for_the_part_this_cartridge_carries(self) -> None:
-        asked = []
+        asked: list[Any] = []
 
         fuzz.chip(build=asked.append)
 
@@ -170,7 +175,7 @@ class WalkTest(unittest.TestCase):
         self.assertEqual(found[2], 0)
 
     def test_a_batch_that_does_not_finish_ends_the_run(self) -> None:
-        said = []
+        said: list[Any] = []
 
         found = fuzz.walk(
             None,
@@ -228,7 +233,7 @@ class SummaryTest(unittest.TestCase):
 
 class EntryTest(unittest.TestCase):
     def test_a_machine_with_no_microcode_says_so_rather_than_building_anything(self) -> None:
-        said = []
+        said: list[Any] = []
 
         code = fuzz.main([], refuses=lambda: "no image is here", say=said.append)
 
@@ -275,7 +280,7 @@ class EntryTest(unittest.TestCase):
         self.assertEqual(code, 1)
 
     def test_the_commands_to_generate_are_taken_from_the_command_line(self) -> None:
-        asked = []
+        asked: list[Any] = []
 
         fuzz.main(
             ["7", "10", "0x05"],

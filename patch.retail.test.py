@@ -1,7 +1,7 @@
 import importlib.util
 import unittest
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 ROOT = Path(__file__).resolve().parent
 
@@ -48,6 +48,7 @@ can exercise both.
 
 @unittest.skipUnless(RETAIL.exists(), "the retail dump is supplied by the builder")
 class RetailTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         self.image = RETAIL.read_bytes()
         self.symbols = patch.resolve(patch.read_symbols(SYMBOLS))

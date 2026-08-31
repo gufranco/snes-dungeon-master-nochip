@@ -2,7 +2,7 @@ import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 ROOT = Path(__file__).resolve().parent.parent
 MODULE_PATH = ROOT / "tools" / "verify_cpu.py"
@@ -62,6 +62,7 @@ class CaseTest(unittest.TestCase):
 
 
 class AssemblyTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         self.cases = verify.build_cases(9, 12)
         self.text = verify.emit_asm(self.cases)
@@ -84,6 +85,7 @@ class AssemblyTest(unittest.TestCase):
 
 
 class MemoryTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         self.memory = verify.LoRomMemory(bytes(range(256)) * 1024)
 
@@ -175,7 +177,7 @@ class ResultsTest(unittest.TestCase):
 class MemoryMapTest(unittest.TestCase):
     """Where an address lands, which decides what a case reads and writes."""
 
-    def _memory(self):
+    def _memory(self) -> Any:
         return verify.LoRomMemory(bytes(verify.ROM_BYTES))
 
     def test_the_second_work_ram_bank_is_the_upper_half(self) -> None:
@@ -223,7 +225,7 @@ class ShellingOutTest(unittest.TestCase):
         self.assertIn("600", verify.emulator_command(600))
 
     def test_an_assembler_that_fails_says_what_it_said_and_stops(self) -> None:
-        said = []
+        said: list[Any] = []
         failed = type("Done", (), {"returncode": 1, "stdout": "out", "stderr": "asar said no"})
 
         found = verify.assemble("; nothing", execute=lambda _a: failed, say=said.append)
@@ -287,6 +289,7 @@ class LinesTest(unittest.TestCase):
 
 
 class EntryTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         where = Path(tempfile.mkdtemp()) / "cases.sfc"
         where.write_bytes(bytes(verify.ROM_BYTES))
@@ -294,7 +297,7 @@ class EntryTest(unittest.TestCase):
         verify.CASES_ROM = where
         self.addCleanup(setattr, verify, "CASES_ROM", original)
 
-    def _dump(self, finished=True):
+    def _dump(self, finished: Any = True) -> Any:
         dump = bytearray(0x20000)
         if finished:
             dump[0x10000 + (verify.DONE_FLAG & 0xFFFF)] = 0xA5
@@ -318,7 +321,7 @@ class EntryTest(unittest.TestCase):
         self.assertEqual(code, 1)
 
     def test_a_whole_run_compares_both_and_says_how_many_agree(self) -> None:
-        said = []
+        said: list[Any] = []
 
         code = verify.main(
             ["verify_cpu.py", "0", "2"],

@@ -15,7 +15,12 @@ class Complaint(Exception):
     pass
 
 
-def a_finding(name="something", ok=True, detail="detail", advice=None):
+def a_finding(
+    name: Any = "something",
+    ok: Any = True,
+    detail: Any = "detail",
+    advice: Any = None,
+) -> Any:
     return doctor.Finding(name, ok, detail, advice)
 
 
@@ -183,8 +188,8 @@ class CartridgeTest(unittest.TestCase):
 class BeneathTest(unittest.TestCase):
     """That what this is built on is examined too, and under its own name."""
 
-    def test_the_models_that_carry_a_doctor_are_asked_for_theirs(self):
-        def beneath():
+    def test_the_models_that_carry_a_doctor_are_asked_for_theirs(self) -> Any:
+        def beneath() -> Any:
             return [("snes-dsp-python", doctor.Finding("python", True, "some version"))]
 
         for one in doctor.examine(beneath=beneath):
@@ -201,8 +206,8 @@ class BeneathTest(unittest.TestCase):
         self.assertIn("no doctor down there", text)
         self.assertIn("Complaint", text)
 
-    def test_an_unwell_finding_beneath_makes_this_run_unwell_too(self):
-        def beneath():
+    def test_an_unwell_finding_beneath_makes_this_run_unwell_too(self) -> Any:
+        def beneath() -> Any:
             return [("snes-dsp-python", doctor.Finding("something", False, "not well", "look"))]
 
         self.assertTrue(any(not one.ok for one in doctor.examine(beneath=beneath)))
@@ -216,7 +221,7 @@ class BeneathTest(unittest.TestCase):
 class AskingEachTest(unittest.TestCase):
     """Which models get asked for a report, and which are passed over."""
 
-    def _a_doctor(self, findings):
+    def _a_doctor(self, findings: Any) -> Any:
         return type("Underneath", (), {"examine": staticmethod(lambda: findings)})
 
     def test_a_model_that_is_not_checked_out_is_passed_over(self) -> None:
@@ -299,14 +304,14 @@ class EntryTest(unittest.TestCase):
         )
 
     def test_the_report_is_printed_rather_than_kept(self) -> None:
-        said = []
+        said: list[Any] = []
 
         doctor.main([], examine=lambda **_: [a_finding(ok=True)], say=said.append)
 
         self.assertTrue(said)
 
     def test_a_real_run_says_something_about_this_machine(self) -> None:
-        said = []
+        said: list[Any] = []
 
         doctor.main([], say=said.append)
 

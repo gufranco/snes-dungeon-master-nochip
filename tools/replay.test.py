@@ -142,10 +142,10 @@ class StatefulBatchTest(unittest.TestCase):
     right, and that is tracked from the bytes themselves.
     """
 
-    def chip(self):
+    def chip(self) -> Any:
         return replay.protocol.Shape()
 
-    def merge_runs(self, count):
+    def merge_runs(self, count: Any) -> Any:
         runs = []
         for _ in range(count):
             runs.append((replay.KIND_WRITE, bytes([0x05, 0x04]) + bytes(8)))
@@ -223,7 +223,12 @@ class ResultTest(unittest.TestCase):
         self.assertFalse(replay.read_counters(bytes(0x20000))["finished"])
 
 
-def a_batch(finished=True, wrong=0, compared=4, transactions=2):
+def a_batch(
+    finished: Any = True,
+    wrong: Any = 0,
+    compared: Any = 4,
+    transactions: Any = 2,
+) -> Any:
     return {
         "finished": finished,
         "wrong": wrong,
@@ -244,7 +249,7 @@ class WalkTest(unittest.TestCase):
         self.assertEqual(found[:3], (4, 8, 0))
 
     def test_a_batch_that_does_not_finish_ends_the_run(self) -> None:
-        said = []
+        said: list[Any] = []
 
         found = replay.walk(
             None, b"", [["one"]], lambda *_: (b"s", a_batch(finished=False)), said.append, int
@@ -284,17 +289,17 @@ class SummaryTest(unittest.TestCase):
 
 
 class EntryTest(unittest.TestCase):
-    def _record(self, kind, byte):
+    def _record(self, kind: Any, byte: Any) -> Any:
         return type("Record", (), {"kind": kind, "byte": byte})()
 
     def test_no_argument_at_all_is_refused_with_the_usage(self) -> None:
-        said = []
+        said: list[Any] = []
 
         self.assertEqual(replay.main([], say=said.append), 2)
         self.assertIn("usage", said[0])
 
     def test_a_trace_that_is_not_there_is_a_skip_rather_than_a_failure(self) -> None:
-        said = []
+        said: list[Any] = []
 
         code = replay.main(["/nowhere/at/all.bin"], say=said.append)
 
@@ -351,7 +356,7 @@ class EntryTest(unittest.TestCase):
         self.assertEqual(code, 1)
 
     def test_what_the_chip_returned_is_counted_as_well_as_what_was_written(self) -> None:
-        said = []
+        said: list[Any] = []
 
         with tempfile.TemporaryDirectory() as tmp:
             where = Path(tmp) / "trace.bin"
@@ -373,7 +378,7 @@ class EntryTest(unittest.TestCase):
         self.assertIn("the chip returned 1", " ".join(said))
 
     def test_a_record_limit_stops_the_stream_where_it_says(self) -> None:
-        seen = []
+        seen: list[Any] = []
 
         with tempfile.TemporaryDirectory() as tmp:
             where = Path(tmp) / "trace.bin"

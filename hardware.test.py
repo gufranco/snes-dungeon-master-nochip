@@ -1,6 +1,7 @@
 import importlib
 import sys
 import unittest
+from typing import Any, override
 
 import hardware
 
@@ -51,6 +52,7 @@ class LoadTest(unittest.TestCase):
 
 
 class ModelTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         hardware.install()
 
@@ -106,7 +108,7 @@ class FirmwareTest(unittest.TestCase):
     """
 
     def test_this_project_s_directory_is_named(self) -> None:
-        where = {}
+        where: dict[Any, Any] = {}
 
         hardware.name_firmware(where)
 
@@ -127,7 +129,7 @@ class FirmwareTest(unittest.TestCase):
         self.assertTrue(found.startswith(str(hardware.FIRMWARE)))
 
     def test_naming_it_twice_does_not_name_it_twice(self) -> None:
-        where = {}
+        where: dict[Any, Any] = {}
 
         hardware.name_firmware(where)
         found = hardware.name_firmware(where)
@@ -135,7 +137,7 @@ class FirmwareTest(unittest.TestCase):
         self.assertEqual(found.count(str(hardware.FIRMWARE)), 1)
 
     def test_installing_names_it_too(self) -> None:
-        where = {}
+        where: dict[Any, Any] = {}
 
         hardware.install(where)
 

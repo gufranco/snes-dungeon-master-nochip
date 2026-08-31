@@ -72,7 +72,7 @@ class UnknownSite(Exception):
 
 def read_symbols(text: str) -> dict[str, tuple[int, int]]:
     """The labels asar emitted, as name to bank and address."""
-    found = {}
+    found: dict[Any, Any] = {}
     for raw in text.splitlines():
         line = raw.strip()
         if not line or line.startswith(";") or line.startswith("["):

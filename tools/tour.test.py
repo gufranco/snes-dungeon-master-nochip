@@ -2,7 +2,7 @@ import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 MODULE_PATH = Path(__file__).resolve().parent / "tour.py"
 
@@ -18,8 +18,8 @@ def load_module() -> Any:
 tour = load_module()
 
 
-def parse(text):
-    steps = []
+def parse(text: Any) -> Any:
+    steps: list[Any] = []
     for raw in text.splitlines():
         line = raw.split("#", 1)[0].strip()
         if not line:
@@ -44,6 +44,7 @@ class DeterminismTest(unittest.TestCase):
 
 
 class FormatTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         self.steps = parse(tour.build(frames=6000, seed=7))
 
@@ -131,7 +132,7 @@ class EntryTest(unittest.TestCase):
     """The command line, which is how a tour is actually produced."""
 
     def test_a_run_with_no_arguments_writes_a_tour_to_the_output(self) -> None:
-        said = []
+        said: list[Any] = []
 
         code = tour.main(["tour.py", "--frames", "600"], say=said.append)
 
@@ -150,7 +151,7 @@ class EntryTest(unittest.TestCase):
     def test_an_out_path_is_written_rather_than_printed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             where = Path(tmp) / "tour.txt"
-            said = []
+            said: list[Any] = []
 
             code = tour.main(["tour.py", "--frames", "600", "--out", str(where)], say=said.append)
 

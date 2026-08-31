@@ -1,7 +1,7 @@
 import importlib.util
 import unittest
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 ROOT = Path(__file__).resolve().parent
 
@@ -75,10 +75,11 @@ class EncodingTest(unittest.TestCase):
 
 
 class ApplyTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         self.symbols = patch.resolve(patch.read_symbols(SYMBOLS))
 
-    def build(self, pieces):
+    def build(self, pieces: Any) -> Any:
         end = max(offset + len(payload) for offset, payload in pieces.items())
         image = bytearray(max(0x28000, end))
         for offset, payload in pieces.items():
@@ -175,13 +176,13 @@ class ResidueTest(unittest.TestCase):
 class SyntheticImageTest(unittest.TestCase):
     """The whole pass over an image, on one built here rather than on a cartridge."""
 
-    def _image(self):
+    def _image(self) -> Any:
         image = bytearray(0x10000)
         image[0x1000 : 0x1000 + len(sites.STA_PORT)] = sites.STA_PORT
         image[0x2000 : 0x2000 + len(sites.LDA_PORT)] = sites.LDA_PORT
         return bytes(image)
 
-    def _symbols(self):
+    def _symbols(self) -> Any:
         return patch.resolve(patch.read_symbols(SYMBOLS))
 
     def test_the_first_write_is_taken_as_the_boot_write_when_none_is_named(self) -> None:

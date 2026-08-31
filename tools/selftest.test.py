@@ -118,15 +118,15 @@ class Puppet:
     def write(self, value: Any) -> None:
         self.written.append(value)
 
-    def read(self):
+    def read(self) -> Any:
         self.given += 1
         return self.given & 0xFF
 
 
-def puppets():
+def puppets() -> Any:
     held = []
 
-    def build():
+    def build() -> Any:
         held.append(Puppet())
         return held[-1]
 
@@ -198,7 +198,7 @@ class ModelTest(unittest.TestCase):
     """That the part a case is answered by is the one the cartridge carries."""
 
     def test_it_asks_the_model_for_that_part(self) -> None:
-        asked = []
+        asked: list[Any] = []
         made_up = type("Model", (), {"Chip": staticmethod(asked.append)})
 
         selftest.new_chip(made_up)

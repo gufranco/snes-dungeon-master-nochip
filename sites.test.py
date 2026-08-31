@@ -19,7 +19,7 @@ sites = load_module("sites", ROOT / "sites.py")
 RETAIL = ROOT / "roms" / "dungeon-master-usa.sfc"
 
 
-def image_with(pieces):
+def image_with(pieces: Any) -> Any:
     end = max((offset + len(payload) for offset, payload in pieces.items()), default=0)
     image = bytearray(max(0x10000, end))
     for offset, payload in pieces.items():

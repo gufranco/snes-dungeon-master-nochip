@@ -1,7 +1,7 @@
 import importlib.util
 import unittest
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 ROOT = Path(__file__).resolve().parent
 
@@ -19,7 +19,7 @@ sites = load_module("sites", ROOT / "sites.py")
 RETAIL = ROOT / "roms" / "dungeon-master-usa.sfc"
 
 
-def image_with(pieces):
+def image_with(pieces: Any) -> Any:
     end = max((offset + len(payload) for offset, payload in pieces.items()), default=0)
     image = bytearray(max(0x10000, end))
     for offset, payload in pieces.items():
@@ -39,6 +39,7 @@ can exercise both.
 
 @unittest.skipUnless(RETAIL.exists(), "the retail dump is supplied by the builder")
 class RetailTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         self.image = RETAIL.read_bytes()
 

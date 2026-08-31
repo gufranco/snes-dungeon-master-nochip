@@ -3,7 +3,7 @@ import struct
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 ROOT = Path(__file__).resolve().parent.parent
 MODULE_PATH = ROOT / "tools" / "verify_trace.py"
@@ -38,18 +38,18 @@ class Puppet:
     def write(self, value: Any) -> None:
         self.written.append(value)
 
-    def read(self):
+    def read(self) -> Any:
         return self.answers.pop(0) if self.answers else 0x00
 
 
-def puppets(answers=()):
-    def build():
+def puppets(answers: Any = ()) -> Any:
+    def build() -> Any:
         return Puppet(answers)
 
     return build
 
 
-def record(kind, byte):
+def record(kind: Any, byte: Any) -> Any:
     return (
         struct.pack("<II", 0, 0x048000)
         + struct.pack("<HH", 0, 0)
@@ -60,7 +60,7 @@ def record(kind, byte):
     )
 
 
-def trace_bytes(writes=(), reads=()):
+def trace_bytes(writes: Any = (), reads: Any = ()) -> Any:
     blob = b"".join(record(dt.KIND_WRITE, one) for one in writes)
     return blob + b"".join(record(dt.KIND_READ, one) for one in reads)
 
@@ -75,7 +75,7 @@ class PartTest(unittest.TestCase):
 
 class BuildTest(unittest.TestCase):
     def test_it_asks_for_the_part_the_cartridge_carries(self) -> None:
-        asked = []
+        asked: list[Any] = []
 
         verify.chip(build=asked.append)
 
@@ -83,6 +83,7 @@ class BuildTest(unittest.TestCase):
 
 
 class CheckTest(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.path = Path(self.tmp.name) / "trace.bin"
@@ -160,7 +161,7 @@ class ExplainTest(unittest.TestCase):
 
 class MainTest(unittest.TestCase):
     def test_a_machine_with_no_microcode_reports_that_it_had_nothing_to_run(self) -> None:
-        said = []
+        said: list[Any] = []
 
         code = verify.main(["verify_trace.py"], refuses=lambda: "no image is here", say=said.append)
 
@@ -193,7 +194,7 @@ class MainTest(unittest.TestCase):
         self.assertEqual(code, 0)
 
     def test_and_one_it_does_not_fails(self) -> None:
-        said = []
+        said: list[Any] = []
         with tempfile.TemporaryDirectory() as tmp:
             where = Path(tmp) / "trace.bin"
             where.write_bytes(trace_bytes(writes=(0x09,), reads=(0x11,)))
