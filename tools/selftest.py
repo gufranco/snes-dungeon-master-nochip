@@ -20,6 +20,7 @@ The script is a byte stream the cartridge at asm/dsp2-selftest.asm walks:
 
 from collections import namedtuple
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -44,7 +45,7 @@ class ScriptTooLong(Exception):
     pass
 
 
-def _model():
+def _model() -> Any:
     """The vendored coprocessor model, imported rather than read off disk."""
     import sys
 
@@ -57,7 +58,7 @@ def _model():
     return snesdsp
 
 
-def output_size(command, lengths):
+def output_size(command: int, lengths: tuple[int, ...]) -> int:
     """How many bytes the command hands back, from its own declaration.
 
     Reading until the port goes idle would stop early on any output that
@@ -81,7 +82,7 @@ PART = "dsp2"
 """The part this cartridge carries, and the microcode a case is answered by."""
 
 
-def new_chip(model=None):
+def new_chip(model: Any = None) -> Any:
     """One DSP-2, running the part's own microcode rather than a description of it.
 
     A case is only worth checking against what the hardware answers, so the
@@ -93,12 +94,18 @@ def new_chip(model=None):
     return (model or _model()).Chip(PART)
 
 
-def why_not(model=None):
+def why_not(model: Any = None) -> Any:
     """Why cases cannot be built here, or nothing when they can."""
     return (model or _model()).why_not()
 
 
-def case_for(command, lengths, payload, chip=None, build=new_chip):
+def case_for(
+    command: int,
+    lengths: tuple[int, ...],
+    payload: bytes,
+    chip: Any = None,
+    build: Any = new_chip,
+) -> Any:
     """One case, with the answer taken from the part rather than assumed.
 
     The part carries state between commands: the transparent colour set by one
@@ -116,13 +123,13 @@ def case_for(command, lengths, payload, chip=None, build=new_chip):
     return Case(feed, wanted, produced)
 
 
-def cases_for(transactions, build=new_chip):
+def cases_for(transactions: Any, build: Any = new_chip) -> list[Any]:
     """A run of cases walked through one part, in the order given."""
     chip = build()
     return [case_for(command, lengths, payload, chip) for command, lengths, payload in transactions]
 
 
-def build_script(cases):
+def build_script(cases: Any) -> bytes:
     """The byte stream the cartridge walks."""
     out = bytearray()
     for case in cases:
@@ -141,15 +148,15 @@ def build_script(cases):
     return bytes(out)
 
 
-def expected(cases):
+def expected(cases: Any) -> bytes:
     """Every byte the cases should hand back, in order."""
     return b"".join(case.output for case in cases)
 
 
-def compare(cases, produced):
+def compare(cases: Any, produced: bytes) -> list[Any]:
     """Where the run and the model disagree, by case and by position."""
     wanted = expected(cases)
-    found = []
+    found: list[tuple[int, int, Any, Any]] = []
     at = 0
     for index, case in enumerate(cases):
         for step in range(case.reads):

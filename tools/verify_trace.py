@@ -1,6 +1,7 @@
 import importlib.util
 import sys
 from collections import namedtuple
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -32,7 +33,7 @@ PART = "dsp2"
 Result = namedtuple("Result", "path writes reads mismatches examples")
 
 
-def chip(build=None):
+def chip(build: Any = None) -> Any:
     """One DSP-2, running the microcode of the part rather than a description of it.
 
     A trace is what the cartridge's own chip answered, so the only thing worth
@@ -42,26 +43,27 @@ def chip(build=None):
     return (build or snesdsp.Chip)(PART)
 
 
-def why_not():
+def why_not() -> Any:
     """Why a check cannot run here, or nothing when it can."""
     return snesdsp.why_not()
 
 
-def _ok(self):
-    return self.mismatches == 0
+def _ok(self: Any) -> bool:
+    found: bool = self.mismatches == 0
+    return found
 
 
-Result.ok = property(_ok)
+Result.ok = property(_ok)  # type: ignore[attr-defined]
 
 
-def check(path, build=chip):
+def check(path: Any, build: Any = chip) -> Any:
     path = Path(path)
     if not path.exists():
         return None
 
     part = build()
     writes = reads = mismatches = 0
-    examples = []
+    examples: list[Any] = []
 
     for record in dsptrace.records(path):
         if record.kind == dsptrace.KIND_WRITE:
@@ -79,7 +81,7 @@ def check(path, build=chip):
     return Result(path=path, writes=writes, reads=reads, mismatches=mismatches, examples=examples)
 
 
-def explain(result):
+def explain(result: Any) -> str:
     lines = [
         f"  {result.path.name}: {result.writes:,} written, {result.reads:,} read, "
         f"{result.mismatches:,} wrong"
@@ -91,7 +93,12 @@ def explain(result):
     return "\n".join(lines)
 
 
-def main(argv, build=chip, refuses=why_not, say=print):
+def main(
+    argv: list[str],
+    build: Any = chip,
+    refuses: Any = why_not,
+    say: Callable[[str], None] = print,
+) -> int:
     reason = refuses()
     if reason:
         say(f"  nothing to check: {reason}")

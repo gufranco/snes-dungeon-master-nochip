@@ -109,3 +109,11 @@ files = ["."]
 # configuration. Checking them from here would report on a toolchain nobody
 # ships. build/ holds recordings and generated sources this project does not own.
 exclude = "^(?!tools/|[^/]+\\.py$)"
+
+# The models are imported by name after hardware.install() puts them on the
+# path, which the checker cannot follow because it does not run that call. Each
+# is checked in its own repository against its own configuration, so what is
+# silenced here is the import and nothing about how this project uses it.
+[[tool.mypy.overrides]]
+module = ["snesdsp.*", "snesdsp", "mos65xx.*", "mos65xx", "mapper.*", "mapper", "romimage.*", "romimage"]
+ignore_missing_imports = true

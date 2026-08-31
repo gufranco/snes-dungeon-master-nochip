@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, override
 
 """How many bytes each DSP-2 command takes and gives, tracked from the stream.
 
@@ -58,23 +58,23 @@ class Shape:
         self.taken = 0
         self.owed = 0
         self.transparent = None
-        self._armed = {}
-        self._held = {}
-        self._lengths = []
+        self._armed: dict[Any, Any] = {}
+        self._held: dict[Any, Any] = {}
+        self._lengths: list[int] = []
         self._reading_lengths = False
 
     @property
-    def produced(self):
+    def produced(self) -> Any:
         """How many bytes of a finished result have not been read yet."""
         return self.owed
 
     @property
-    def expecting_input(self):
+    def expecting_input(self) -> bool:
         """Whether the part is still owed bytes before it can act."""
         return not self.waiting_for_command
 
     @property
-    def at_boundary(self):
+    def at_boundary(self) -> bool:
         """Whether a fresh part could take over here without losing anything.
 
         True when the stream is between commands and no result is waiting. A
@@ -108,7 +108,7 @@ class Shape:
             self.waiting_for_command = True
             self._acted(value)
 
-    def _headers(self):
+    def _headers(self) -> Any:
         """The length bytes this command declares before its data."""
         if self.command in (MERGE, MIRROR):
             return (0,)
@@ -146,7 +146,7 @@ class Shape:
             self._scaled(value)
 
     @property
-    def _first(self):
+    def _first(self) -> Any:
         return self._lengths[0] if self._lengths else 0
 
     def _sized(self, command: Any, payload_for: Any, value: Any) -> None:
@@ -170,6 +170,7 @@ class Shape:
         self._armed[SCALE] = True
         self._arm((taking + 1) >> 1, value)
 
-    def __repr__(self):
+    @override
+    def __repr__(self) -> str:
         where = "between commands" if self.waiting_for_command else f"inside {self.command:#04x}"
         return f"<Shape {where}, {self.owed} owed>"

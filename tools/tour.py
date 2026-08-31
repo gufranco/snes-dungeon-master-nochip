@@ -1,5 +1,6 @@
 import random
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,7 @@ MAX_RUN = 8
 CLICKS_PER_RUN = 3
 
 
-def _intro(steps, frame):
+def _intro(steps: list[tuple[int, tuple[str, ...]]], frame: int) -> int:
     while frame < INTRO_FRAMES:
         steps.append((frame, ("start",)))
         steps.append((frame + PRESS_FRAMES, ()))
@@ -24,13 +25,13 @@ def _intro(steps, frame):
     return frame
 
 
-def _press(steps, frame, button):
+def _press(steps: list[tuple[int, tuple[str, ...]]], frame: int, button: str) -> int:
     steps.append((frame, (button,)))
     steps.append((frame + PRESS_FRAMES, ()))
     return frame + STEP_PERIOD
 
 
-def _body(steps, frame, frames, rng):
+def _body(steps: list[tuple[int, tuple[str, ...]]], frame: int, frames: int, rng: Any) -> int:
     while frame + STEP_PERIOD < frames:
         direction = rng.choice(DIRECTIONS)
         for _ in range(rng.randint(1, MAX_RUN)):
@@ -44,13 +45,13 @@ def _body(steps, frame, frames, rng):
     return frame
 
 
-def build(frames, seed=0):
+def build(frames: int, seed: int = 0) -> str:
     rng = random.Random(seed)
-    steps = []
+    steps: list[tuple[int, tuple[str, ...]]] = []
     frame = _intro(steps, 60)
     _body(steps, frame, frames, rng)
 
-    lines = []
+    lines: list[str] = []
     for at, buttons in steps:
         if at >= frames:
             continue
@@ -62,7 +63,11 @@ def _to_stderr(line: Any) -> None:
     print(line, file=sys.stderr)
 
 
-def main(argv, say=None, complain=None):
+def main(
+    argv: list[str],
+    say: Callable[[str], Any] | None = None,
+    complain: Callable[[str], Any] | None = None,
+) -> int:
     """The command line, with both streams passed in so a run can be checked."""
     say = sys.stdout.write if say is None else say
     complain = _to_stderr if complain is None else complain
