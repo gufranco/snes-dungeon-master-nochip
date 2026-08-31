@@ -26,8 +26,9 @@ without carrying it, which is the whole reason digests are published.
 import importlib
 import platform
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 ROOT = Path(__file__).resolve().parent
 
@@ -60,22 +61,23 @@ class Finding:
         self.advice = advice
 
     @property
-    def line(self):
+    def line(self) -> str:
         """The one-line form, which is what a reader scans."""
         return f"  {'ok  ' if self.ok else '   !'}  {self.name}: {self.detail}"
 
     @property
-    def report(self):
+    def report(self) -> str:
         """The same, with what to do about it when there is something to do."""
         if self.ok or not self.advice:
             return self.line
         return f"{self.line}\n         {self.advice}"
 
-    def __repr__(self):
+    @override
+    def __repr__(self) -> str:
         return f"<Finding {self.name} {'ok' if self.ok else 'not ok'}>"
 
 
-def _python():
+def _python() -> Any:
     return Finding(
         "python",
         sys.version_info[:2] >= OLDEST_PYTHON,
@@ -84,16 +86,16 @@ def _python():
     )
 
 
-def _project():
+def _project() -> Any:
     return Finding(PROJECT, True, f"version {VERSION}")
 
 
-def _default_import(package):
+def _default_import(package: str) -> Any:
     hardware.install()
     return importlib.import_module(package)
 
 
-def _model(package, where, load):
+def _model(package: str, where: Path | str, load: Callable[[str], Any]) -> Any:
     """Whether that model is checked out and imports, and which version it is."""
     if not Path(where).is_dir() or not any(Path(where).iterdir()):
         return Finding(
@@ -116,15 +118,18 @@ def _model(package, where, load):
     return Finding(package, True, f"version {getattr(found, 'VERSION', 'not stated')}")
 
 
-def _default_why_not():
+def _default_why_not() -> Any:
     return _default_import("snesdsp").why_not()
 
 
-def _default_available():
+def _default_available() -> Any:
     return sorted(_default_import("snesdsp").available())
 
 
-def _microcode(why_not=_default_why_not, available=_default_available):
+def _microcode(
+    why_not: Callable[[], Any] = _default_why_not,
+    available: Callable[[], Any] = _default_available,
+) -> Any:
     """Whether the coprocessor can actually run here.
 
     The model runs the part's own program, which nothing in any of these
@@ -153,12 +158,12 @@ def _microcode(why_not=_default_why_not, available=_default_available):
     return Finding("microcode", True, f"can run {', '.join(held) or 'nothing'}")
 
 
-def _default_cartridges():
+def _default_cartridges() -> Any:
     manifest = identify.read_manifest()
     return [identify.diagnose(one, manifest) for one in manifest["artifacts"]]
 
 
-def _cartridges(diagnose=_default_cartridges):
+def _cartridges(diagnose: Callable[[], Any] = _default_cartridges) -> list[Any]:
     """Every dump this project reads, and whether the one here is the one it wants.
 
     A region with no digests published yet is reported and is not a failure. It
@@ -192,7 +197,7 @@ def _cartridges(diagnose=_default_cartridges):
     return lines
 
 
-def _traces(root=ROOT):
+def _traces(root: Path | str = ROOT) -> Any:
     """The recorded cartridge traffic, which is what the routines are checked against."""
     found = [name for name in TRACES if (Path(root) / name).exists()]
     return Finding(
@@ -204,7 +209,7 @@ def _traces(root=ROOT):
     )
 
 
-def _default_beneath():
+def _default_beneath() -> Any:
     """Every model that carries a doctor, asked for its own report.
 
     A model with no doctor is passed over rather than reported: not every one of
@@ -215,9 +220,9 @@ def _default_beneath():
     return _ask_each(sorted(hardware.PACKAGES), hardware.root_of, importlib.import_module)
 
 
-def _ask_each(packages, locate, load):
+def _ask_each(packages: Any, locate: Callable[[str], Any], load: Callable[[str], Any]) -> list[Any]:
     """Each named model asked for its report, skipping the ones that have none."""
-    found = []
+    found: list[Any] = []
     for package in packages:
         where = Path(locate(package))
         if not where.is_dir():
@@ -232,7 +237,7 @@ def _ask_each(packages, locate, load):
     return found
 
 
-def _default_unused(load=_default_import):
+def _default_unused(load: Callable[[str], Any] = _default_import) -> Any:
     """The parts the coprocessor model covers that this cartridge does not carry.
 
     A model that will not import at all is reported by its own check above, so
@@ -245,7 +250,7 @@ def _default_unused(load=_default_import):
         return []
 
 
-def _beneath(beneath, unused=_default_unused):
+def _beneath(beneath: Any, unused: Callable[..., Any] = _default_unused) -> list[Any]:
     """Everything the models found, each filed under the name of its repository.
 
     One adjustment is made on the way through, and it is worth saying exactly
@@ -284,7 +289,10 @@ def _beneath(beneath, unused=_default_unused):
     return lines
 
 
-def examine(load=_default_import, beneath=_default_beneath):
+def examine(
+    load: Callable[[str], Any] = _default_import,
+    beneath: Callable[[], Any] = _default_beneath,
+) -> list[Any]:
     """Everything worth looking at on this machine, in the order a reader wants it."""
     found = [_python(), _project()]
     found.extend(
@@ -297,7 +305,7 @@ def examine(load=_default_import, beneath=_default_beneath):
     return found
 
 
-def report(found):
+def report(found: Any) -> list[str]:
     """The lines a person pastes into an issue."""
     unwell = [one for one in found if not one.ok]
     lines = [f"{PROJECT} {VERSION} on {platform.python_version()}, {platform.system()}", ""]
@@ -310,7 +318,11 @@ def report(found):
     return lines
 
 
-def main(argv=(), examine=examine, say=print):
+def main(
+    argv: tuple[str, ...] | list[str] = (),
+    examine: Callable[..., Any] = examine,
+    say: Callable[[str], None] = print,
+) -> int:
     found = examine()
     for line in report(found):
         say(line)

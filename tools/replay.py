@@ -1,5 +1,3 @@
-from typing import Any
-
 """Feed the cartridge's own recorded traffic to the routines, on the processor.
 
 The model reproduces what the chip returned across a whole recorded run, but the
@@ -19,6 +17,10 @@ came back differing from the cartridge while agreeing exactly with the model,
 which is the signature of a harness feeding something the chip was never fed.
 What the trace says, in the order it says it, is what gets fed.
 """
+
+from collections.abc import Callable, Iterator
+from pathlib import Path
+from typing import Any
 
 
 def _load_beside(name: str) -> Any:
@@ -65,7 +67,7 @@ class ScriptTooLong(Exception):
     pass
 
 
-def runs_from(records):
+def runs_from(records: Any) -> Iterator[Any]:
     """Consecutive bytes going the same way, as the cartridge sent them."""
     kind = None
     payload = bytearray()
@@ -79,7 +81,7 @@ def runs_from(records):
         yield (kind, bytes(payload))
 
 
-def script_for(runs):
+def script_for(runs: Any) -> bytes:
     """The byte stream the cartridge walks.
 
     A run longer than a count can declare is split across several, which changes
@@ -111,13 +113,13 @@ end marker, which is what a script overrunning this looks like from outside.
 """
 
 
-def capacity(image_bytes, bank=SCRIPT_BANK):
+def capacity(image_bytes: int, bank: int = SCRIPT_BANK) -> int:
     """How much script an image of this size can carry from this bank on."""
     banks = min(image_bytes // BANK_SIZE, WORK_RAM_BANK)
     return max(0, (banks - bank) * BANK_SIZE)
 
 
-def place_script(image, script, bank=SCRIPT_BANK):
+def place_script(image: bytes | bytearray, script: bytes, bank: int = SCRIPT_BANK) -> bytes:
     """The script laid into the image from the given bank onward.
 
     LoROM exposes the upper half of each bank, and a file offset runs
@@ -148,7 +150,7 @@ which is 512 bytes fed and 255 read. The caller leaves this much spare.
 """
 
 
-def stream_batches(runs, room, shape=None):
+def stream_batches(runs: Any, room: int, shape: Any = None) -> Any:
     """Batches a fresh cartridge can each start from, with what it carries.
 
     A batch is a separate run of the cartridge, so anything the part holds is
@@ -166,7 +168,7 @@ def stream_batches(runs, room, shape=None):
     says the part wants attention and never how much it still owes.
     """
     shape = protocol.Shape() if shape is None else shape
-    current = []
+    current: list[Any] = []
     used = 1  # the stop marker every script carries
     prelude = b""
 
@@ -193,10 +195,10 @@ def stream_batches(runs, room, shape=None):
         yield ([(KIND_WRITE, prelude)] if prelude else []) + current
 
 
-def batches_of(runs, room):
+def batches_of(runs: Any, room: int) -> list[Any]:
     """Runs grouped so each group's script fits the room, never splitting one."""
     batches = []
-    current = []
+    current: list[Any] = []
     used = 0
     for kind, payload in runs:
         cost = 3 + len(payload)
@@ -216,12 +218,12 @@ ASSEMBLER = "dungeon-master-nochip/asar:1.81"
 EMULATOR = "dungeon-master-nochip/emu:dev"
 
 
-def _number(dump, offset, width):
+def _number(dump: bytes, offset: int, width: int) -> int:
     at = STATE + offset
     return int.from_bytes(dump[at : at + width], "little")
 
 
-def read_counters(dump):
+def read_counters(dump: bytes) -> Any:
     """What the run reported, read out of the dumped work RAM."""
     return {
         "finished": dump[STATE + DONE] == FINISHED,
@@ -234,7 +236,7 @@ def read_counters(dump):
     }
 
 
-def assemble_command(root, build):
+def assemble_command(root: Path, build: Path) -> list[str]:
     """What assembling the replay cartridge shells out to."""
     return [
         "docker",
@@ -253,13 +255,13 @@ def assemble_command(root, build):
     ]
 
 
-def _shell_out(args):
+def _shell_out(args: list[str]) -> Any:
     import subprocess
 
     return subprocess.run(args, capture_output=True, text=True, check=False)
 
 
-def assemble(root, build, execute=_shell_out):
+def assemble(root: Path, build: Path, execute: Any = _shell_out) -> Any:
     """The replay cartridge, assembled by the pinned toolchain."""
     (build / "replay.sfc").write_bytes(bytes(IMAGE_BYTES))
     built = execute(assemble_command(root, build))
@@ -268,7 +270,7 @@ def assemble(root, build, execute=_shell_out):
     return (build / "replay.sfc").read_bytes()
 
 
-def run_command(build):
+def run_command(build: Path) -> list[str]:
     """What running one batch through the emulator shells out to."""
     return [
         "docker",
@@ -287,7 +289,7 @@ def run_command(build):
     ]
 
 
-def run_batch(build, skeleton, batch, execute=_shell_out):
+def run_batch(build: Path, skeleton: Any, batch: Any, execute: Any = _shell_out) -> Any:
     """One batch walked by the cartridge, and the counters it left behind."""
     script = script_for(batch)
     (build / "replay.sfc").write_bytes(place_script(skeleton, script))
@@ -295,7 +297,14 @@ def run_batch(build, skeleton, batch, execute=_shell_out):
     return script, read_counters((build / "replay-wram.bin").read_bytes())
 
 
-def walk(build, skeleton, batches, run_batch, say, clock):
+def walk(
+    build: Path,
+    skeleton: Any,
+    batches: Any,
+    run_batch: Any,
+    say: Callable[[str], None],
+    clock: Any,
+) -> Any:
     """Every batch through the cartridge, or nothing when one does not finish."""
     walked = compared = wrong = 0
     failures = []
@@ -318,7 +327,9 @@ def walk(build, skeleton, batches, run_batch, say, clock):
     return walked, compared, wrong, failures
 
 
-def summary_lines(written, returned, walked, compared, wrong, failures):
+def summary_lines(
+    written: int, returned: int, walked: Any, compared: int, wrong: int, failures: Any
+) -> list[str]:
     """What a run found, in the order somebody reading it wants it."""
     lines = [
         "",
@@ -336,13 +347,13 @@ def summary_lines(written, returned, walked, compared, wrong, failures):
 
 
 def main(
-    argv,
-    assemble=assemble,
-    run_batch=run_batch,
-    records=None,
-    say=print,
-    clock=None,
-):
+    argv: list[str],
+    assemble: Any = assemble,
+    run_batch: Any = run_batch,
+    records: Any = None,
+    say: Callable[[str], None] = print,
+    clock: Any = None,
+) -> int:
     """A recorded trace fed to the routines on the processor, and what disagreed."""
     import time
     from pathlib import Path
@@ -373,7 +384,7 @@ def main(
     room = capacity(IMAGE_BYTES) - MAX_OVERSHOOT
     written = returned = 0
 
-    def counted(source):
+    def counted(source: Any) -> Any:
         nonlocal written, returned
         for kind, payload in source:
             if kind == KIND_WRITE:
@@ -393,7 +404,7 @@ def main(
     return 0 if wrong == 0 else 1
 
 
-def load_dsptrace(root):
+def load_dsptrace(root: Path) -> Any:
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("dsptrace", root / "dsptrace.py")

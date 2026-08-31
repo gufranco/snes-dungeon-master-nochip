@@ -21,12 +21,14 @@ import importlib.util
 import random
 import sys
 from collections import namedtuple
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def _load_tool(name):
+def _load_tool(name: str) -> Any:
     spec = importlib.util.spec_from_file_location(name, ROOT / "tools" / f"{name}.py")
     assert spec is not None and spec.loader is not None, "no loader for that path"
     module = importlib.util.module_from_spec(spec)
@@ -48,12 +50,12 @@ PART = "dsp2"
 """The part this cartridge carries, and the microcode an expected answer comes from."""
 
 
-def chip(build=None):
+def chip(build: Any = None) -> Any:
     """One DSP-2, running the part's own microcode rather than a description of it."""
     return (build or snesdsp.Chip)(PART)
 
 
-def why_not(model=None):
+def why_not(model: Any = None) -> Any:
     """Why cases cannot be built here, or nothing when they can."""
     return (model or snesdsp).why_not()
 
@@ -95,13 +97,15 @@ EDGE_LENGTHS = (1, 2, 3, 4, 15, 16, 17, 127, 128, 254, 255)
 Case = namedtuple("Case", "command lengths written expected")
 
 
-def _length(rng):
+def _length(rng: Any) -> int:
     if rng.random() < 0.4:
-        return rng.choice(EDGE_LENGTHS)
-    return rng.randrange(1, 256)
+        chosen: int = rng.choice(EDGE_LENGTHS)
+        return chosen
+    drawn: int = rng.randrange(1, 256)
+    return drawn
 
 
-def _lengths_for(command, rng):
+def _lengths_for(command: int, rng: Any) -> tuple[int, ...]:
     if command == UNKNOWN:
         return ()
     if command in (MERGE, MIRROR):
@@ -111,7 +115,7 @@ def _lengths_for(command, rng):
     return ()
 
 
-def build_cases(seed, count, only=None, build=chip):
+def build_cases(seed: int, count: int, only: Any = None, build: Any = chip) -> list[Any]:
     """Cases from a seed, with the model deciding every shape and every answer.
 
     `only` restricts the commands generated, which is how a disagreement gets
@@ -124,10 +128,10 @@ def build_cases(seed, count, only=None, build=chip):
     rng = random.Random(seed)
     part = build()
     shape = protocol.Shape()
-    wanted = (*COMMANDS, UNKNOWN) if only is None else tuple(only)
-    population = [command for command in wanted for _ in range(WEIGHTS[command])]
+    chosen_commands = (*COMMANDS, UNKNOWN) if only is None else tuple(only)
+    population = [command for command in chosen_commands for _ in range(WEIGHTS[command])]
 
-    cases = []
+    cases: list[Any] = []
     for _ in range(count):
         chosen = rng.choice(population)
         command = rng.choice(UNRECOGNISED) if chosen == UNKNOWN else chosen
@@ -144,20 +148,19 @@ def build_cases(seed, count, only=None, build=chip):
             part.write(byte)
             shape.wrote(byte)
 
-        pending = shape.produced
-        wanted = pending
+        pending: int = shape.produced
+        wanted: int = pending
         if pending and rng.random() < 0.25:
             wanted = rng.randrange(0, pending)
-        expected = bytearray()
+        collected = bytearray()
         for _ in range(wanted):
-            expected.append(part.read())
+            collected.append(part.read())
             shape.was_read()
-        expected = bytes(expected)
-        cases.append(Case(command, lengths, bytes(written), expected))
+        cases.append(Case(command, lengths, bytes(written), bytes(collected)))
     return cases
 
 
-def runs_for(cases):
+def runs_for(cases: Any) -> list[Any]:
     """The feed and check runs a list of cases becomes."""
     runs = []
     for case in cases:
@@ -178,7 +181,14 @@ NAMES = {
 }
 
 
-def walk(build, skeleton, batches, run_batch, say, clock):
+def walk(
+    build: Any,
+    skeleton: Any,
+    batches: Any,
+    run_batch: Any,
+    say: Callable[[str], None],
+    clock: Any,
+) -> Any:
     """Every batch through the cartridge, or nothing when one does not finish.
 
     A batch that stops early has left the routines somewhere nobody can describe,
@@ -206,9 +216,9 @@ def walk(build, skeleton, batches, run_batch, say, clock):
     return walked, compared, wrong, failures
 
 
-def summary_lines(cases, walked, compared, wrong, failures):
+def summary_lines(cases: Any, walked: Any, compared: int, wrong: int, failures: Any) -> list[str]:
     """What a run found, in the order somebody reading it wants it."""
-    per_command = {}
+    per_command: dict[int, int] = {}
     for case in cases:
         per_command[case.command] = per_command.get(case.command, 0) + 1
 
@@ -233,14 +243,14 @@ def summary_lines(cases, walked, compared, wrong, failures):
 
 
 def main(
-    argv,
-    refuses=why_not,
-    assemble=replay.assemble,
-    run_batch=replay.run_batch,
-    generate=build_cases,
-    say=print,
-    clock=None,
-):
+    argv: list[str],
+    refuses: Any = why_not,
+    assemble: Any = replay.assemble,
+    run_batch: Any = replay.run_batch,
+    generate: Any = build_cases,
+    say: Callable[[str], None] = print,
+    clock: Any = None,
+) -> int:
     """Cases from a seed, driven through the cartridge and checked on the processor."""
     import time
 

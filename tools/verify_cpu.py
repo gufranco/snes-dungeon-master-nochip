@@ -1,6 +1,7 @@
 import random
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -53,7 +54,7 @@ class LoRomMemory:
         self.rom = rom
         self.wram = bytearray(0x20000)
 
-    def _wram_offset(self, address):
+    def _wram_offset(self, address: int) -> int | None:
         bank = (address >> 16) & 0xFF
         offset = address & 0xFFFF
         if bank == 0x7E:
@@ -64,7 +65,7 @@ class LoRomMemory:
             return offset
         return None
 
-    def _rom_offset(self, address):
+    def _rom_offset(self, address: int) -> int | None:
         bank = (address >> 16) & 0xFF
         offset = address & 0xFFFF
         if bank in (0x7E, 0x7F) or offset < 0x8000:
@@ -72,7 +73,7 @@ class LoRomMemory:
         linear = (bank & 0x7F) * 0x8000 + (offset - 0x8000)
         return linear % len(self.rom)
 
-    def read8(self, address):
+    def read8(self, address: int) -> int:
         at = self._wram_offset(address)
         if at is not None:
             return self.wram[at]
@@ -134,7 +135,7 @@ SKIP_MODES = frozenset(
 )
 
 
-def testable_opcodes():
+def testable_opcodes() -> list[tuple[int, Any, Any]]:
     return [
         (opcode, mnemonic, mode)
         for opcode, (mnemonic, mode) in enumerate(wdc65816.OPCODES)
@@ -142,13 +143,14 @@ def testable_opcodes():
     ]
 
 
-def operand_size(mode, wide):
+def operand_size(mode: Any, wide: bool) -> int:
     if mode in ("immediateA", "immediateX"):
         return 2 if wide else 1
-    return wdc65816.MODE_SIZE[mode]
+    size: int = wdc65816.MODE_SIZE[mode]
+    return size
 
 
-def build_cases(seed, count):
+def build_cases(seed: int, count: int) -> list[Any]:
     rng = random.Random(seed)
     catalogue = testable_opcodes()
     cases = []
@@ -180,7 +182,7 @@ def build_cases(seed, count):
     return cases
 
 
-def emit_asm(cases):
+def emit_asm(cases: Any) -> str:
     lines = [
         "lorom",
         "",
@@ -314,7 +316,7 @@ def emit_asm(cases):
     return "\n".join(lines) + "\n"
 
 
-def assemble_command():
+def assemble_command() -> list[str]:
     """What assembling the case cartridge shells out to."""
     return [
         "docker",
@@ -330,11 +332,16 @@ def assemble_command():
     ]
 
 
-def _shell_out(args):
+def _shell_out(args: list[str]) -> Any:
     return subprocess.run(args, capture_output=True, text=True, check=False)
 
 
-def assemble(text, execute=_shell_out, say=print, complain=None):
+def assemble(
+    text: str,
+    execute: Any = _shell_out,
+    say: Callable[[str], None] = print,
+    complain: Callable[[str], None] | None = None,
+) -> Any:
     """The case cartridge, assembled by the pinned toolchain."""
     complain = say if complain is None else complain
     BUILD.mkdir(exist_ok=True)
@@ -348,11 +355,11 @@ def assemble(text, execute=_shell_out, say=print, complain=None):
     return True
 
 
-def frames_for(count):
+def frames_for(count: int) -> int:
     return FRAMES_BASE + count * FRAMES_PER_CASE
 
 
-def emulator_command(frames):
+def emulator_command(frames: int) -> list[str]:
     """What running the case cartridge shells out to."""
     return [
         "docker",
@@ -369,7 +376,12 @@ def emulator_command(frames):
     ]
 
 
-def run_in_snes9x(frames, execute=_shell_out, say=print, complain=None):
+def run_in_snes9x(
+    frames: int,
+    execute: Any = _shell_out,
+    say: Callable[[str], None] = print,
+    complain: Callable[[str], None] | None = None,
+) -> bytes | None:
     """The cases walked by the emulator, and the memory it left behind."""
     complain = say if complain is None else complain
     result = execute(emulator_command(frames))
@@ -380,7 +392,7 @@ def run_in_snes9x(frames, execute=_shell_out, say=print, complain=None):
     return CASES_DUMP.read_bytes()
 
 
-def run_in_python(cases, rom):
+def run_in_python(cases: Any, rom: bytes) -> list[Any]:
     memory = LoRomMemory(rom)
     for index in range(0x10000):
         memory.wram[index] = index & 0xFF
@@ -421,7 +433,7 @@ def run_in_python(cases, rom):
     return found
 
 
-def read_results(dump, count):
+def read_results(dump: bytes, count: int) -> list[Any]:
     found = []
     for index in range(count):
         at = 0x10000 + (RESULT_BASE & 0xFFFF) + index * RESULT_STRIDE
@@ -438,7 +450,7 @@ def read_results(dump, count):
     return found
 
 
-def compare(cases, wanted, found):
+def compare(cases: Any, wanted: Any, found: Any) -> list[Any]:
     mismatches = []
     for case, want, got in zip(cases, wanted, found, strict=True):
         differences = [field for field in ("a", "x", "y", "p") if want[field] != got[field]]
@@ -447,7 +459,7 @@ def compare(cases, wanted, found):
     return mismatches
 
 
-def lines_for(cases, mismatches):
+def lines_for(cases: Any, mismatches: Any) -> list[str]:
     """What disagreed, named by opcode so it can be looked up."""
     lines = []
     for case, want, got, fields in mismatches[:EXAMPLE_LIMIT]:
@@ -461,7 +473,13 @@ def lines_for(cases, mismatches):
     return lines
 
 
-def main(argv, build=None, walk=None, say=print, complain=None):
+def main(
+    argv: list[str],
+    build: Any = None,
+    walk: Any = None,
+    say: Callable[[str], None] = print,
+    complain: Callable[[str], None] | None = None,
+) -> int:
     """Cases run on both, with the two that shell out passed in so a run can be checked."""
     complain = say if complain is None else complain
     build = assemble if build is None else build
