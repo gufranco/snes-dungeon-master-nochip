@@ -225,7 +225,7 @@ class AskingEachTest(unittest.TestCase):
         return type("Underneath", (), {"examine": staticmethod(lambda: findings)})
 
     def test_a_model_that_is_not_checked_out_is_passed_over(self) -> None:
-        found = doctor._ask_each(["nothing"], lambda _name: "/nowhere/at/all", None)
+        found = doctor._ask_each(["nothing"], lambda _name: "/nowhere/at/all", lambda _n: None)
 
         self.assertEqual(found, [])
 

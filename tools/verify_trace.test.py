@@ -33,7 +33,7 @@ class Puppet:
 
     def __init__(self, answers: Any = ()) -> None:
         self.answers = list(answers)
-        self.written = []
+        self.written: list[Any] = []
 
     def write(self, value: Any) -> None:
         self.written.append(value)

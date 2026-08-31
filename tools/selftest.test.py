@@ -112,7 +112,7 @@ class Puppet:
     """
 
     def __init__(self) -> None:
-        self.written = []
+        self.written: list[Any] = []
         self.given = 0
 
     def write(self, value: Any) -> None:
@@ -124,13 +124,13 @@ class Puppet:
 
 
 def puppets() -> Any:
-    held = []
+    held: list[Any] = []
 
     def build() -> Any:
         held.append(Puppet())
         return held[-1]
 
-    build.held = held
+    build.held = held  # type: ignore[attr-defined]
     return build
 
 

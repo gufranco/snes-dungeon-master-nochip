@@ -153,7 +153,7 @@ def operand_size(mode: Any, wide: bool) -> int:
 def build_cases(seed: int, count: int) -> list[Any]:
     rng = random.Random(seed)
     catalogue = testable_opcodes()
-    cases = []
+    cases: list[Any] = []
     for index in range(count):
         opcode, mnemonic, mode = catalogue[index % len(catalogue)]
         status = rng.randrange(0x00, 0x100) | emu65816.FLAG_I
@@ -451,7 +451,7 @@ def read_results(dump: bytes, count: int) -> list[Any]:
 
 
 def compare(cases: Any, wanted: Any, found: Any) -> list[Any]:
-    mismatches = []
+    mismatches: list[Any] = []
     for case, want, got in zip(cases, wanted, found, strict=True):
         differences = [field for field in ("a", "x", "y", "p") if want[field] != got[field]]
         if differences:

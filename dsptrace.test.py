@@ -52,11 +52,11 @@ def write_trace(path: Any, records: Any) -> None:
     Path(path).write_bytes(b"".join(records))
 
 
-def writes(values, **kwargs):
+def writes(values: Any, **kwargs: Any) -> list[Any]:
     return [record(dt.KIND_WRITE, v, **kwargs) for v in values]
 
 
-def reads(values, **kwargs):
+def reads(values: Any, **kwargs: Any) -> list[Any]:
     return [record(dt.KIND_READ, v, **kwargs) for v in values]
 
 
@@ -214,7 +214,7 @@ class SourceTest(unittest.TestCase):
         self.assertEqual(found[0].source, (0x21, 0x2000))
 
     def test_a_run_split_across_several_block_moves_keeps_the_first_address(self) -> None:
-        block = []
+        block: list[Any] = []
         for row in range(8):
             for column in range(4):
                 block.append(

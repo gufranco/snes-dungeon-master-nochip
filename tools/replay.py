@@ -197,7 +197,7 @@ def stream_batches(runs: Any, room: int, shape: Any = None) -> Any:
 
 def batches_of(runs: Any, room: int) -> list[Any]:
     """Runs grouped so each group's script fits the room, never splitting one."""
-    batches = []
+    batches: list[Any] = []
     current: list[Any] = []
     used = 0
     for kind, payload in runs:
@@ -307,7 +307,7 @@ def walk(
 ) -> Any:
     """Every batch through the cartridge, or nothing when one does not finish."""
     walked = compared = wrong = 0
-    failures = []
+    failures: list[Any] = []
     for number, batch in enumerate(batches):
         started = clock()
         script, found = run_batch(build, skeleton, batch)

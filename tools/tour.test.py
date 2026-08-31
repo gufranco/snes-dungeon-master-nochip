@@ -140,8 +140,8 @@ class EntryTest(unittest.TestCase):
         self.assertTrue(said)
 
     def test_a_seed_is_taken_from_the_command_line(self) -> None:
-        first = []
-        second = []
+        first: list[Any] = []
+        second: list[Any] = []
 
         tour.main(["tour.py", "--frames", "4000", "--seed", "1"], say=first.append)
         tour.main(["tour.py", "--frames", "4000", "--seed", "2"], say=second.append)
@@ -160,7 +160,7 @@ class EntryTest(unittest.TestCase):
             self.assertIn("wrote", " ".join(said))
 
     def test_an_argument_nobody_recognises_is_refused_with_the_usage(self) -> None:
-        complained = []
+        complained: list[Any] = []
 
         code = tour.main(["tour.py", "--nonsense"], complain=complained.append)
 

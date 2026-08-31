@@ -18,6 +18,16 @@ def load_module(name: str, path: Path) -> Any:
 replay = load_module("replay", ROOT / "tools" / "replay.py")
 
 
+def _capture(seen: list[Any], make: Any) -> Any:
+    """A stand-in for one batch run that keeps the batch it was handed."""
+
+    def _run(_build: Any, _skeleton: Any, batch: Any) -> Any:
+        seen.append(batch)
+        return b"script", make()
+
+    return _run
+
+
 class RunTest(unittest.TestCase):
     def test_consecutive_writes_become_one_run(self) -> None:
         runs = list(replay.runs_from([(0, 1), (0, 2), (0, 3)]))
@@ -146,7 +156,7 @@ class StatefulBatchTest(unittest.TestCase):
         return replay.protocol.Shape()
 
     def merge_runs(self, count: Any) -> Any:
-        runs = []
+        runs: list[Any] = []
         for _ in range(count):
             runs.append((replay.KIND_WRITE, bytes([0x05, 0x04]) + bytes(8)))
             runs.append((replay.KIND_READ, bytes(4)))
@@ -388,7 +398,7 @@ class EntryTest(unittest.TestCase):
             replay.main(
                 [str(where), "3"],
                 assemble=lambda *_: b"skeleton",
-                run_batch=lambda _b, _s, batch: seen.append(batch) or (b"script", a_batch()),
+                run_batch=_capture(seen, a_batch),
                 records=lambda _path: reading,
                 say=lambda _l: None,
                 clock=int,

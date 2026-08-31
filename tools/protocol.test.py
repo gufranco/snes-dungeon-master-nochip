@@ -17,7 +17,7 @@ def load_module(name: str, path: Path) -> Any:
 protocol = load_module("protocol", ROOT / "tools" / "protocol.py")
 
 
-def feed(shape, *values):
+def feed(shape: Any, *values: int) -> Any:
     for value in values:
         shape.wrote(value)
     return shape

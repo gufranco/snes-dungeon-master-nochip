@@ -162,7 +162,7 @@ def build_cases(seed: int, count: int, only: Any = None, build: Any = chip) -> l
 
 def runs_for(cases: Any) -> list[Any]:
     """The feed and check runs a list of cases becomes."""
-    runs = []
+    runs: list[Any] = []
     for case in cases:
         runs.append((replay.KIND_WRITE, case.written))
         if case.expected:
@@ -196,7 +196,7 @@ def walk(
     state. The run ends there rather than reporting them.
     """
     walked = compared = wrong = 0
-    failures = []
+    failures: list[Any] = []
     for number, batch in enumerate(batches):
         started = clock()
         script, found = run_batch(build, skeleton, batch)

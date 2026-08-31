@@ -106,7 +106,7 @@ def main(
 
     wanted = argv[1:] or [str(ROOT / name) for name in DEFAULT_TRACES]
 
-    results = []
+    results: list[Any] = []
     for path in wanted:
         result = check(path, build)
         if result is None:

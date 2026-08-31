@@ -17,6 +17,16 @@ def load_module(name: str, path: Path) -> Any:
 fuzz = load_module("fuzz", ROOT / "tools" / "fuzz.py")
 
 
+def _recording_generate(seen: list[Any], make: Any) -> Any:
+    """A stand-in for case generation that keeps what it was asked for."""
+
+    def _generate(seed: int, count: int, only: Any) -> Any:
+        seen.append((seed, count, only))
+        return make(1, 5)
+
+    return _generate
+
+
 class Puppet:
     """A part that counts up, so the generator can be checked without microcode.
 
@@ -28,7 +38,7 @@ class Puppet:
     """
 
     def __init__(self) -> None:
-        self.written = []
+        self.written: list[Any] = []
         self.given = 0
 
     def write(self, value: Any) -> None:
@@ -287,7 +297,7 @@ class EntryTest(unittest.TestCase):
             refuses=lambda: None,
             assemble=lambda *_: b"skeleton",
             run_batch=lambda *_: (b"script", a_batch()),
-            generate=lambda seed, count, only: asked.append((seed, count, only)) or generated(1, 5),
+            generate=_recording_generate(asked, generated),
             say=lambda _l: None,
             clock=int,
         )

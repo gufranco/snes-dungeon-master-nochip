@@ -280,7 +280,7 @@ class EntryTest(unittest.TestCase):
         }
 
     def test_a_name_nothing_matches_is_reported_rather_than_passing(self) -> None:
-        complained = []
+        complained: list[Any] = []
 
         code = ident.main(
             ["identify.py", "nothing-at-all.sfc"],

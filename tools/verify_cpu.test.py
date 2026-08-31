@@ -334,7 +334,7 @@ class EntryTest(unittest.TestCase):
         self.assertIn("agree with snes9x", said[-1])
 
     def test_a_cartridge_that_did_not_finish_is_reported(self) -> None:
-        complained = []
+        complained: list[Any] = []
 
         code = verify.main(
             ["verify_cpu.py", "0", "2"],

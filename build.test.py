@@ -1,6 +1,7 @@
 import importlib.util
 import tempfile
 import unittest
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,16 @@ def load_module() -> Any:
 
 
 bd = load_module()
+
+
+def _recording(seen: list[Any]) -> Callable[[list[str]], int]:
+    """A stand-in for the shelling out that keeps what it was asked to run."""
+
+    def _run(args: list[str]) -> int:
+        seen.append(args)
+        return 0
+
+    return _run
 
 
 class ImageTest(unittest.TestCase):
@@ -125,11 +136,9 @@ class ShellingOutTest(unittest.TestCase):
 
 class EntryTest(unittest.TestCase):
     def test_asking_for_the_image_alone_builds_only_that(self) -> None:
-        ran = []
+        ran: list[Any] = []
 
-        code = bd.main(
-            ["bd.py", "--image"], execute=lambda args: ran.append(args) or 0, say=lambda _l: None
-        )
+        code = bd.main(["bd.py", "--image"], execute=_recording(ran), say=lambda _l: None)
 
         self.assertEqual(code, 0)
         self.assertEqual(len(ran), 1)
@@ -160,11 +169,11 @@ class EntryTest(unittest.TestCase):
             where = Path(tmp)
             (where / "patch.asm").write_text("; nothing")
             (where / "in.sfc").write_bytes(b"\x00" * 32)
-            ran = []
+            ran: list[Any] = []
 
             code = bd.main(
                 ["bd.py", str(where / "patch.asm"), str(where / "in.sfc"), "out.sfc"],
-                execute=lambda args: ran.append(args) or 0,
+                execute=_recording(ran),
                 say=lambda _l: None,
             )
 
