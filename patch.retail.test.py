@@ -46,26 +46,26 @@ can exercise both.
 
 @unittest.skipUnless(RETAIL.exists(), "the retail dump is supplied by the builder")
 class RetailTest(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.image = RETAIL.read_bytes()
         self.symbols = patch.resolve(patch.read_symbols(SYMBOLS))
 
-    def test_the_first_port_write_is_the_one_the_boot_code_makes(self):
+    def test_the_first_port_write_is_the_one_the_boot_code_makes(self) -> None:
         first = sites.find(self.image, [sites.KIND_WRITE])[0]
 
         self.assertEqual((first.bank, first.address), (0x00, 0x801E))
 
-    def test_no_retail_access_survives_the_patch(self):
+    def test_no_retail_access_survives_the_patch(self) -> None:
         result = patch.apply(self.image, self.symbols)
 
         self.assertEqual(patch.residue(bytes(result)), {})
 
-    def test_the_patched_image_is_the_same_size(self):
+    def test_the_patched_image_is_the_same_size(self) -> None:
         result = patch.apply(self.image, self.symbols)
 
         self.assertEqual(len(result), len(self.image))
 
-    def test_the_patch_changes_nothing_outside_the_bytes_it_declares(self):
+    def test_the_patch_changes_nothing_outside_the_bytes_it_declares(self) -> None:
         result = patch.apply(self.image, self.symbols)
         allowed = patch.regions(self.image)
         changed = {
@@ -76,7 +76,7 @@ class RetailTest(unittest.TestCase):
 
         self.assertEqual(changed - allowed, set())
 
-    def test_the_patch_changes_a_byte_of_every_site(self):
+    def test_the_patch_changes_a_byte_of_every_site(self) -> None:
         result = patch.apply(self.image, self.symbols)
         found = sites.find(self.image)
         for site in found:
@@ -96,13 +96,13 @@ class UnknownSiteTest(unittest.TestCase):
     not there.
     """
 
-    def test_a_site_of_an_unknown_kind_is_refused(self):
+    def test_a_site_of_an_unknown_kind_is_refused(self) -> None:
         site = sites.Site(kind="something nobody wrote", offset=0, address=0x8000, bank=0)
 
         with self.assertRaises(patch.UnknownSite):
             patch.rewrite_site(bytearray(16), site, {})
 
-    def test_and_the_refusal_names_the_kind(self):
+    def test_and_the_refusal_names_the_kind(self) -> None:
         site = sites.Site(kind="something nobody wrote", offset=0, address=0x8000, bank=0)
 
         with self.assertRaises(patch.UnknownSite) as raised:
@@ -114,22 +114,22 @@ class UnknownSiteTest(unittest.TestCase):
 class SymbolReadingTest(unittest.TestCase):
     """What asar emits is not always a symbol, and the reader says which is which."""
 
-    def test_a_line_with_an_unreadable_address_is_passed_over(self):
+    def test_a_line_with_an_unreadable_address_is_passed_over(self) -> None:
         found = patch.read_symbols("zz:zzzz  nonsense\n00:8000  real")
 
         self.assertNotIn("nonsense", found)
         self.assertEqual(found["real"], (0x00, 0x8000))
 
-    def test_a_comment_is_passed_over(self):
+    def test_a_comment_is_passed_over(self) -> None:
         self.assertEqual(patch.read_symbols("; a comment"), {})
 
-    def test_and_so_is_a_section_heading(self):
+    def test_and_so_is_a_section_heading(self) -> None:
         self.assertEqual(patch.read_symbols("[labels]"), {})
 
-    def test_and_a_line_with_no_name_at_all(self):
+    def test_and_a_line_with_no_name_at_all(self) -> None:
         self.assertEqual(patch.read_symbols("00:8000"), {})
 
-    def test_and_a_local_label(self):
+    def test_and_a_local_label(self) -> None:
         self.assertEqual(patch.read_symbols("00:8000 :local"), {})
 
 

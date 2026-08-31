@@ -32,6 +32,8 @@ ROOT = Path(__file__).resolve().parent
 
 sys.path.insert(0, str(ROOT))
 
+from typing import Any
+
 import hardware  # noqa: E402
 from version import VERSION  # noqa: E402
 
@@ -52,7 +54,7 @@ TRACES = ("build/trace-s1.bin", "build/trace-s2.bin", "build/trace-s3.bin")
 class Finding:
     """One thing that was looked at, and what was there."""
 
-    def __init__(self, name, ok, detail, advice=None):
+    def __init__(self, name: Any, ok: Any, detail: Any, advice: Any = None) -> None:
         self.name = name
         self.ok = ok
         self.detail = detail

@@ -28,13 +28,13 @@ def parse(text):
 
 
 class DeterminismTest(unittest.TestCase):
-    def test_the_same_seed_produces_the_same_script(self):
+    def test_the_same_seed_produces_the_same_script(self) -> None:
         first = tour.build(frames=4000, seed=99)
         second = tour.build(frames=4000, seed=99)
 
         self.assertEqual(first, second)
 
-    def test_a_different_seed_produces_a_different_script(self):
+    def test_a_different_seed_produces_a_different_script(self) -> None:
         first = tour.build(frames=4000, seed=1)
         second = tour.build(frames=4000, seed=2)
 
@@ -42,43 +42,43 @@ class DeterminismTest(unittest.TestCase):
 
 
 class FormatTest(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.steps = parse(tour.build(frames=6000, seed=7))
 
-    def test_every_line_carries_a_frame_number(self):
+    def test_every_line_carries_a_frame_number(self) -> None:
         self.assertTrue(self.steps)
         for frame, _ in self.steps:
             self.assertGreaterEqual(frame, 0)
 
-    def test_frames_never_go_backwards(self):
+    def test_frames_never_go_backwards(self) -> None:
         frames = [frame for frame, _ in self.steps]
 
         self.assertEqual(frames, sorted(frames))
 
-    def test_no_frame_is_given_two_different_inputs(self):
+    def test_no_frame_is_given_two_different_inputs(self) -> None:
         frames = [frame for frame, _ in self.steps]
 
         self.assertEqual(len(frames), len(set(frames)))
 
-    def test_every_button_is_one_the_harness_knows(self):
+    def test_every_button_is_one_the_harness_knows(self) -> None:
         for _, buttons in self.steps:
             for button in buttons:
                 self.assertIn(button, tour.BUTTONS)
 
-    def test_nothing_is_scheduled_past_the_requested_length(self):
+    def test_nothing_is_scheduled_past_the_requested_length(self) -> None:
         for frame, _ in self.steps:
             self.assertLess(frame, 6000)
 
 
 class ShapeTest(unittest.TestCase):
-    def test_the_opening_presses_start_to_clear_the_introduction(self):
+    def test_the_opening_presses_start_to_clear_the_introduction(self) -> None:
         steps = parse(tour.build(frames=6000, seed=3))
 
         opening = [buttons for frame, buttons in steps if frame < tour.INTRO_FRAMES]
 
         self.assertIn(("start",), opening)
 
-    def test_the_body_interleaves_cursor_moves_with_clicks(self):
+    def test_the_body_interleaves_cursor_moves_with_clicks(self) -> None:
         steps = parse(tour.build(frames=12000, seed=3))
 
         body = [buttons for frame, buttons in steps if frame >= tour.INTRO_FRAMES]
@@ -86,14 +86,14 @@ class ShapeTest(unittest.TestCase):
         self.assertTrue(any(b in directions for b in body))
         self.assertTrue(any(b == ("a",) for b in body))
 
-    def test_every_press_is_followed_by_a_release(self):
+    def test_every_press_is_followed_by_a_release(self) -> None:
         steps = parse(tour.build(frames=8000, seed=5))
 
         releases = [buttons for _, buttons in steps if buttons == ()]
 
         self.assertGreater(len(releases), len(steps) // 3)
 
-    def test_a_longer_tour_schedules_more_input(self):
+    def test_a_longer_tour_schedules_more_input(self) -> None:
         short = parse(tour.build(frames=6000, seed=4))
         long = parse(tour.build(frames=20000, seed=4))
 
@@ -101,7 +101,7 @@ class ShapeTest(unittest.TestCase):
 
 
 class StreamTest(unittest.TestCase):
-    def test_a_complaint_goes_to_the_error_stream_by_default(self):
+    def test_a_complaint_goes_to_the_error_stream_by_default(self) -> None:
         import io
         from contextlib import redirect_stderr
 
@@ -111,7 +111,7 @@ class StreamTest(unittest.TestCase):
 
         self.assertIn("something went wrong", caught.getvalue())
 
-    def test_and_a_tour_goes_to_the_output_stream(self):
+    def test_and_a_tour_goes_to_the_output_stream(self) -> None:
         import io
         from contextlib import redirect_stdout
 
@@ -121,14 +121,14 @@ class StreamTest(unittest.TestCase):
 
         self.assertIn("start", caught.getvalue())
 
-    def test_a_line_with_nothing_on_it_is_passed_over(self):
+    def test_a_line_with_nothing_on_it_is_passed_over(self) -> None:
         self.assertEqual(parse("\n# only a comment\n"), [])
 
 
 class EntryTest(unittest.TestCase):
     """The command line, which is how a tour is actually produced."""
 
-    def test_a_run_with_no_arguments_writes_a_tour_to_the_output(self):
+    def test_a_run_with_no_arguments_writes_a_tour_to_the_output(self) -> None:
         said = []
 
         code = tour.main(["tour.py", "--frames", "600"], say=said.append)
@@ -136,7 +136,7 @@ class EntryTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertTrue(said)
 
-    def test_a_seed_is_taken_from_the_command_line(self):
+    def test_a_seed_is_taken_from_the_command_line(self) -> None:
         first = []
         second = []
 
@@ -145,7 +145,7 @@ class EntryTest(unittest.TestCase):
 
         self.assertNotEqual(first, second)
 
-    def test_an_out_path_is_written_rather_than_printed(self):
+    def test_an_out_path_is_written_rather_than_printed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             where = Path(tmp) / "tour.txt"
             said = []
@@ -156,7 +156,7 @@ class EntryTest(unittest.TestCase):
             self.assertTrue(where.read_text())
             self.assertIn("wrote", " ".join(said))
 
-    def test_an_argument_nobody_recognises_is_refused_with_the_usage(self):
+    def test_an_argument_nobody_recognises_is_refused_with_the_usage(self) -> None:
         complained = []
 
         code = tour.main(["tour.py", "--nonsense"], complain=complained.append)

@@ -26,39 +26,39 @@ def image_with(pieces):
 
 
 class AddressTest(unittest.TestCase):
-    def test_the_first_bank_starts_at_the_window(self):
+    def test_the_first_bank_starts_at_the_window(self) -> None:
         self.assertEqual(sites.address_of(0), (0, 0x8000))
 
-    def test_an_offset_maps_to_the_bank_that_holds_it(self):
+    def test_an_offset_maps_to_the_bank_that_holds_it(self) -> None:
         self.assertEqual(sites.address_of(0x20000), (4, 0x8000))
 
-    def test_an_address_and_an_offset_are_inverses(self):
+    def test_an_address_and_an_offset_are_inverses(self) -> None:
         for offset in (0, 1, 0x7FFF, 0x8000, 0x20123, 0xFFFFF):
             bank, address = sites.address_of(offset)
 
             self.assertEqual(sites.offset_of(bank, address), offset)
 
-    def test_a_mirrored_bank_reads_the_same_offset(self):
+    def test_a_mirrored_bank_reads_the_same_offset(self) -> None:
         self.assertEqual(sites.offset_of(0x80, 0x8000), sites.offset_of(0x00, 0x8000))
 
 
 class ScanTest(unittest.TestCase):
-    def test_a_pattern_that_is_absent_is_not_found(self):
+    def test_a_pattern_that_is_absent_is_not_found(self) -> None:
         self.assertEqual(sites.occurrences(bytes(64), b"\x8f\x00\x80\x3f"), [])
 
-    def test_every_occurrence_is_reported(self):
+    def test_every_occurrence_is_reported(self) -> None:
         image = image_with({0x10: sites.STA_PORT, 0x400: sites.STA_PORT})
 
         self.assertEqual(sites.occurrences(image, sites.STA_PORT), [0x10, 0x400])
 
-    def test_overlapping_occurrences_are_not_skipped(self):
+    def test_overlapping_occurrences_are_not_skipped(self) -> None:
         pattern = b"\xaa\xaa"
 
         self.assertEqual(sites.occurrences(b"\xaa\xaa\xaa", pattern), [0, 1])
 
 
 class FindTest(unittest.TestCase):
-    def test_each_kind_is_recognised_by_its_own_bytes(self):
+    def test_each_kind_is_recognised_by_its_own_bytes(self) -> None:
         image = image_with(
             {
                 0x100: sites.STA_PORT,
@@ -82,33 +82,33 @@ class FindTest(unittest.TestCase):
             },
         )
 
-    def test_sites_come_back_in_file_order(self):
+    def test_sites_come_back_in_file_order(self) -> None:
         image = image_with({0x500: sites.STA_PORT, 0x100: sites.LDA_PORT})
 
         self.assertEqual([site.offset for site in sites.find(image)], [0x100, 0x500])
 
-    def test_a_single_kind_can_be_asked_for(self):
+    def test_a_single_kind_can_be_asked_for(self) -> None:
         image = image_with({0x100: sites.STA_PORT, 0x200: sites.LDA_PORT})
 
         found = sites.find(image, [sites.KIND_WRITE])
 
         self.assertEqual([site.kind for site in found], [sites.KIND_WRITE])
 
-    def test_a_site_carries_the_address_it_is_reached_through(self):
+    def test_a_site_carries_the_address_it_is_reached_through(self) -> None:
         image = image_with({0x20123: sites.STA_PORT})
 
         found = sites.find(image)[0]
 
         self.assertEqual((found.bank, found.address), (4, 0x8123))
 
-    def test_the_status_poll_is_not_mistaken_for_a_port_read(self):
+    def test_the_status_poll_is_not_mistaken_for_a_port_read(self) -> None:
         image = image_with({0x100: sites.LDA_STATUS})
 
         self.assertEqual([site.kind for site in sites.find(image)], [sites.KIND_STATUS])
 
 
 class TrampolineTest(unittest.TestCase):
-    def test_a_call_to_each_trampoline_is_recognised(self):
+    def test_a_call_to_each_trampoline_is_recognised(self) -> None:
         image = image_with(
             {0x20000 + 3 * n: sites.call_to(address) for n, address in enumerate(sites.TRAMPOLINES)}
         )
@@ -117,17 +117,17 @@ class TrampolineTest(unittest.TestCase):
 
         self.assertEqual([site.trampoline for site in found], list(sites.TRAMPOLINES))
 
-    def test_a_call_outside_the_bank_that_reaches_the_chip_is_left_alone(self):
+    def test_a_call_outside_the_bank_that_reaches_the_chip_is_left_alone(self) -> None:
         image = image_with({0x08000: sites.call_to(0x0080)})
 
         self.assertEqual(sites.find_trampoline_calls(image), [])
 
-    def test_a_call_to_an_ordinary_address_is_not_a_trampoline_call(self):
+    def test_a_call_to_an_ordinary_address_is_not_a_trampoline_call(self) -> None:
         image = image_with({0x20000: bytes([0x20, 0x00, 0x90])})
 
         self.assertEqual(sites.find_trampoline_calls(image), [])
 
-    def test_the_measured_counts_are_held(self):
+    def test_the_measured_counts_are_held(self) -> None:
         image = image_with(
             {
                 **{0x20000 + 3 * n: sites.call_to(0x0080) for n in range(2)},
@@ -141,7 +141,7 @@ class TrampolineTest(unittest.TestCase):
 
         self.assertEqual(counted, {0x0080: 2, 0x0084: 5, 0x0088: 4, 0x008C: 1})
 
-    def test_a_missing_call_is_refused(self):
+    def test_a_missing_call_is_refused(self) -> None:
         image = image_with({0x20000: sites.call_to(0x0080)})
 
         with self.assertRaises(sites.UnexpectedImage):
@@ -149,7 +149,7 @@ class TrampolineTest(unittest.TestCase):
 
 
 class VerifyTest(unittest.TestCase):
-    def test_an_image_with_the_measured_surface_is_accepted(self):
+    def test_an_image_with_the_measured_surface_is_accepted(self) -> None:
         image = image_with(
             {
                 **{0x100 + 4 * n: sites.STA_PORT for n in range(51)},
@@ -164,7 +164,7 @@ class VerifyTest(unittest.TestCase):
 
         self.assertEqual(counted[sites.KIND_WRITE], 51)
 
-    def test_an_image_with_too_few_sites_is_refused(self):
+    def test_an_image_with_too_few_sites_is_refused(self) -> None:
         image = image_with({0x100: sites.STA_PORT})
 
         with self.assertRaises(sites.UnexpectedImage) as raised:
@@ -172,16 +172,16 @@ class VerifyTest(unittest.TestCase):
 
         self.assertIn("expected 51 found 1", str(raised.exception))
 
-    def test_an_unmeasured_region_is_refused_rather_than_guessed(self):
+    def test_an_unmeasured_region_is_refused_rather_than_guessed(self) -> None:
         with self.assertRaises(sites.UnexpectedImage):
             sites.verify([], region="Mars")
 
 
 class CensusTest(unittest.TestCase):
-    def test_a_kind_with_no_sites_is_still_reported(self):
+    def test_a_kind_with_no_sites_is_still_reported(self) -> None:
         self.assertEqual(sites.census([])[sites.KIND_DRAIN], 0)
 
-    def test_banks_are_reported_without_repeats(self):
+    def test_banks_are_reported_without_repeats(self) -> None:
         image = image_with({0x100: sites.STA_PORT, 0x20100: sites.STA_PORT})
 
         self.assertEqual(sites.banks_touched(sites.find(image)), [0, 4])

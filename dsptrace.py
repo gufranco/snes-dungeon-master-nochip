@@ -2,6 +2,7 @@ import struct
 from collections import Counter, namedtuple
 from itertools import pairwise
 from pathlib import Path
+from typing import Any
 
 RECORD_BYTES = 28
 RECORD = struct.Struct("<IIHHBB8sBB4s")
@@ -69,7 +70,7 @@ def is_work_ram(bank):
 
 
 class Transaction:
-    def __init__(self, frame, pc, command):
+    def __init__(self, frame: Any, pc: Any, command: Any) -> None:
         self.frame = frame
         self.pc = pc
         self.command = command
@@ -126,10 +127,10 @@ def records(path):
 
 
 class _Run:
-    def __init__(self):
+    def __init__(self) -> None:
         self.segments = []
 
-    def note(self, record):
+    def note(self, record: Any) -> None:
         if record.move_source_bank is None:
             self.segments.append(None)
             return
@@ -235,7 +236,7 @@ def transactions(stream):
         yield pending
 
 
-def _finish(transaction, run, complete=True):
+def _finish(transaction: Any, run: Any, complete: bool = True) -> None:
     transaction.source, transaction.second_source = run.sources()
     transaction.strides = run.strides()
     transaction.complete = complete

@@ -1,6 +1,7 @@
 import random
 import sys
 from pathlib import Path
+from typing import Any
 
 BUTTONS = ("up", "down", "left", "right", "a", "b", "x", "y", "l", "r", "start", "select")
 DIRECTIONS = ("up", "down", "left", "right")
@@ -57,7 +58,7 @@ def build(frames, seed=0):
     return "\n".join(lines) + "\n"
 
 
-def _to_stderr(line):
+def _to_stderr(line: Any) -> None:
     print(line, file=sys.stderr)
 
 

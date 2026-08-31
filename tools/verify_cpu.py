@@ -42,13 +42,15 @@ import hardware  # noqa: E402
 
 hardware.install()
 
+from typing import Any
+
 import mos65xx as emu65816  # noqa: E402
 from mos65xx import opcodes65816 as wdc65816  # noqa: E402
 from mos65xx.wdc65816 import IMMEDIATE_MODES, INDEX_WIDTH_OPS  # noqa: E402, F401
 
 
 class LoRomMemory:
-    def __init__(self, rom):
+    def __init__(self, rom: Any) -> None:
         self.rom = rom
         self.wram = bytearray(0x20000)
 
@@ -78,7 +80,7 @@ class LoRomMemory:
         at = self._rom_offset(address)
         return self.rom[at] if at is not None else 0x00
 
-    def write8(self, address, value):
+    def write8(self, address: Any, value: Any) -> None:
         at = self._wram_offset(address)
         if at is not None:
             self.wram[at] = value & 0xFF

@@ -35,45 +35,45 @@ SYMBOLS = """; wla symbolic information file
 
 
 class SymbolTest(unittest.TestCase):
-    def test_a_label_is_read_with_its_bank_and_address(self):
+    def test_a_label_is_read_with_its_bank_and_address(self) -> None:
         found = patch.read_symbols(SYMBOLS)
 
         self.assertEqual(found["dsp_write"], (0x9C, 0xE203))
 
-    def test_anonymous_macro_labels_are_ignored(self):
+    def test_anonymous_macro_labels_are_ignored(self) -> None:
         found = patch.read_symbols(SYMBOLS)
 
         self.assertNotIn(":macro_0_feeding", found)
 
-    def test_a_file_without_the_labels_it_needs_is_refused(self):
+    def test_a_file_without_the_labels_it_needs_is_refused(self) -> None:
         with self.assertRaises(patch.MissingSymbol):
             patch.resolve(patch.read_symbols("[labels]\n00:8000 something\n"))
 
-    def test_every_label_the_patch_needs_is_resolved(self):
+    def test_every_label_the_patch_needs_is_resolved(self) -> None:
         resolved = patch.resolve(patch.read_symbols(SYMBOLS))
 
         self.assertEqual(sorted(resolved), sorted(patch.REQUIRED))
 
 
 class EncodingTest(unittest.TestCase):
-    def test_a_long_call_carries_its_bank(self):
+    def test_a_long_call_carries_its_bank(self) -> None:
         self.assertEqual(patch.long_call(0x9C, 0xE203), bytes([0x22, 0x03, 0xE2, 0x9C]))
 
-    def test_a_long_call_is_the_width_of_the_store_it_replaces(self):
+    def test_a_long_call_is_the_width_of_the_store_it_replaces(self) -> None:
         self.assertEqual(len(patch.long_call(0x9C, 0xE203)), len(sites.STA_PORT))
 
-    def test_a_near_call_is_the_width_of_the_block_move_it_replaces(self):
+    def test_a_near_call_is_the_width_of_the_block_move_it_replaces(self) -> None:
         self.assertEqual(len(sites.call_to(0xFBF5)), len(sites.MVN_TO_PORT))
 
-    def test_the_status_replacement_is_the_width_of_the_poll(self):
+    def test_the_status_replacement_is_the_width_of_the_poll(self) -> None:
         self.assertEqual(len(patch.STATUS_REPLACEMENT), len(sites.LDA_STATUS))
 
-    def test_the_status_replacement_loads_zero_and_does_nothing_else(self):
+    def test_the_status_replacement_loads_zero_and_does_nothing_else(self) -> None:
         self.assertEqual(patch.STATUS_REPLACEMENT, bytes([0xA9, 0x00, 0xEA, 0xEA]))
 
 
 class ApplyTest(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.symbols = patch.resolve(patch.read_symbols(SYMBOLS))
 
     def build(self, pieces):
@@ -83,7 +83,7 @@ class ApplyTest(unittest.TestCase):
             image[offset : offset + len(payload)] = payload
         return bytes(image)
 
-    def test_a_port_write_becomes_a_call_to_the_write_entry(self):
+    def test_a_port_write_becomes_a_call_to_the_write_entry(self) -> None:
         image = self.build({0x1000: sites.STA_PORT})
 
         result = patch.rewrite_site(
@@ -92,7 +92,7 @@ class ApplyTest(unittest.TestCase):
 
         self.assertEqual(bytes(result[0x1000:0x1004]), patch.long_call(0x9C, 0xE203))
 
-    def test_the_first_port_write_of_all_initialises_before_it_writes(self):
+    def test_the_first_port_write_of_all_initialises_before_it_writes(self) -> None:
         image = self.build({0x1E: sites.STA_PORT, 0x1000: sites.STA_PORT})
 
         result = patch.apply(image, self.symbols, boot_write_offset=0x1E)
@@ -100,56 +100,56 @@ class ApplyTest(unittest.TestCase):
         self.assertEqual(bytes(result[0x1E:0x22]), patch.long_call(0x00, 0xFBED))
         self.assertEqual(bytes(result[0x1000:0x1004]), patch.long_call(0x9C, 0xE203))
 
-    def test_a_port_read_becomes_a_call_to_the_read_entry(self):
+    def test_a_port_read_becomes_a_call_to_the_read_entry(self) -> None:
         image = self.build({0x1E: sites.STA_PORT, 0x2000: sites.LDA_PORT})
 
         result = patch.apply(image, self.symbols, boot_write_offset=0x1E)
 
         self.assertEqual(bytes(result[0x2000:0x2004]), patch.long_call(0x9C, 0xE21E))
 
-    def test_a_status_poll_becomes_a_load_of_zero(self):
+    def test_a_status_poll_becomes_a_load_of_zero(self) -> None:
         image = self.build({0x1E: sites.STA_PORT, 0x3000: sites.LDA_STATUS})
 
         result = patch.apply(image, self.symbols, boot_write_offset=0x1E)
 
         self.assertEqual(bytes(result[0x3000:0x3004]), patch.STATUS_REPLACEMENT)
 
-    def test_a_block_move_into_the_port_becomes_a_near_call(self):
+    def test_a_block_move_into_the_port_becomes_a_near_call(self) -> None:
         image = self.build({0x1E: sites.STA_PORT, 0x4000: sites.MVN_TO_PORT})
 
         result = patch.apply(image, self.symbols, boot_write_offset=0x1E)
 
         self.assertEqual(bytes(result[0x4000:0x4003]), sites.call_to(0xFBF5))
 
-    def test_a_block_move_out_of_the_port_becomes_a_near_call(self):
+    def test_a_block_move_out_of_the_port_becomes_a_near_call(self) -> None:
         image = self.build({0x1E: sites.STA_PORT, 0x4000: sites.MVN_FROM_PORT})
 
         result = patch.apply(image, self.symbols, boot_write_offset=0x1E)
 
         self.assertEqual(bytes(result[0x4000:0x4003]), sites.call_to(0xFBFA))
 
-    def test_a_trampoline_call_is_pointed_at_its_own_stub(self):
+    def test_a_trampoline_call_is_pointed_at_its_own_stub(self) -> None:
         image = self.build({0x1E: sites.STA_PORT, 0x20000: sites.call_to(0x0084)})
 
         result = patch.apply(image, self.symbols, boot_write_offset=0x1E)
 
         self.assertEqual(bytes(result[0x20000:0x20003]), sites.call_to(0xAA20))
 
-    def test_a_trampoline_call_outside_the_bank_is_left_alone(self):
+    def test_a_trampoline_call_outside_the_bank_is_left_alone(self) -> None:
         image = self.build({0x1E: sites.STA_PORT, 0x08000: sites.call_to(0x0084)})
 
         result = patch.apply(image, self.symbols, boot_write_offset=0x1E)
 
         self.assertEqual(bytes(result[0x08000:0x08003]), sites.call_to(0x0084))
 
-    def test_the_image_keeps_its_size(self):
+    def test_the_image_keeps_its_size(self) -> None:
         image = self.build({0x1E: sites.STA_PORT})
 
         result = patch.apply(image, self.symbols, boot_write_offset=0x1E)
 
         self.assertEqual(len(result), len(image))
 
-    def test_nothing_outside_a_site_is_touched(self):
+    def test_nothing_outside_a_site_is_touched(self) -> None:
         image = self.build({0x1E: sites.STA_PORT, 0x5000: b"\xde\xad\xbe\xef"})
 
         result = patch.apply(image, self.symbols, boot_write_offset=0x1E)
@@ -158,7 +158,7 @@ class ApplyTest(unittest.TestCase):
 
 
 class ResidueTest(unittest.TestCase):
-    def test_an_image_still_carrying_a_port_access_is_reported(self):
+    def test_an_image_still_carrying_a_port_access_is_reported(self) -> None:
         image = bytearray(0x10000)
         image[0x100:0x104] = sites.STA_PORT
 
@@ -166,7 +166,7 @@ class ResidueTest(unittest.TestCase):
 
         self.assertEqual(left[sites.KIND_WRITE], 1)
 
-    def test_an_image_with_nothing_left_reports_nothing(self):
+    def test_an_image_with_nothing_left_reports_nothing(self) -> None:
         self.assertEqual(patch.residue(bytes(0x10000)), {})
 
 
@@ -182,18 +182,18 @@ class SyntheticImageTest(unittest.TestCase):
     def _symbols(self):
         return patch.resolve(patch.read_symbols(SYMBOLS))
 
-    def test_the_first_write_is_taken_as_the_boot_write_when_none_is_named(self):
+    def test_the_first_write_is_taken_as_the_boot_write_when_none_is_named(self) -> None:
         patched = patch.apply(self._image(), self._symbols())
 
         self.assertNotEqual(patched[0x1000:0x1004], sites.STA_PORT)
 
-    def test_every_byte_the_patch_may_touch_is_declared(self):
+    def test_every_byte_the_patch_may_touch_is_declared(self) -> None:
         found = patch.regions(self._image())
 
         self.assertIn(0x1000, found)
         self.assertIn(0x2000, found)
 
-    def test_a_call_to_a_trampoline_is_declared_too(self):
+    def test_a_call_to_a_trampoline_is_declared_too(self) -> None:
         image = bytearray(0x100000)
         at = (sites.TRAMPOLINE_BANK & 0x7F) * sites.BANK_SIZE + 0x40
         image[at : at + 3] = sites.call_to(next(iter(sites.TRAMPOLINES)))
@@ -202,10 +202,10 @@ class SyntheticImageTest(unittest.TestCase):
 
         self.assertIn(at, found)
 
-    def test_and_nothing_outside_a_site_is_declared(self):
+    def test_and_nothing_outside_a_site_is_declared(self) -> None:
         self.assertNotIn(0x3000, patch.regions(self._image()))
 
-    def test_an_image_with_no_write_at_all_still_patches(self):
+    def test_an_image_with_no_write_at_all_still_patches(self) -> None:
         image = bytearray(0x10000)
         image[0x2000 : 0x2000 + len(sites.LDA_PORT)] = sites.LDA_PORT
 

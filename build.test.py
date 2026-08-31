@@ -17,22 +17,22 @@ bd = load_module()
 
 
 class ImageTest(unittest.TestCase):
-    def test_the_image_tag_is_pinned_not_latest(self):
+    def test_the_image_tag_is_pinned_not_latest(self) -> None:
         self.assertNotIn(":latest", bd.IMAGE)
         self.assertIn(":", bd.IMAGE)
 
-    def test_the_dockerfile_sits_beside_the_sources(self):
+    def test_the_dockerfile_sits_beside_the_sources(self) -> None:
         self.assertTrue((bd.ASM_DIR / "Dockerfile").exists())
 
 
 class CommandTest(unittest.TestCase):
-    def test_the_build_command_names_the_pinned_tag(self):
+    def test_the_build_command_names_the_pinned_tag(self) -> None:
         args = bd.build_image_command()
 
         self.assertIn("build", args)
         self.assertIn(bd.IMAGE, args)
 
-    def test_the_patch_command_mounts_the_work_tree_read_write(self):
+    def test_the_patch_command_mounts_the_work_tree_read_write(self) -> None:
         args = bd.patch_command(Path("/w"), "p.asm", "rom.sfc")
 
         joined = " ".join(args)
@@ -41,30 +41,30 @@ class CommandTest(unittest.TestCase):
         self.assertIn("p.asm", args)
         self.assertIn("rom.sfc", args)
 
-    def test_the_container_runs_without_network(self):
+    def test_the_container_runs_without_network(self) -> None:
         args = bd.patch_command(Path("/w"), "p.asm", "rom.sfc")
 
         self.assertIn("--network=none", args)
 
-    def test_paths_are_passed_as_names_not_host_paths(self):
+    def test_paths_are_passed_as_names_not_host_paths(self) -> None:
         args = bd.patch_command(Path("/some/host/dir"), "patch.asm", "rom.sfc")
 
         self.assertNotIn("/some/host/dir/patch.asm", args)
 
 
 class ArgumentTest(unittest.TestCase):
-    def test_the_image_only_flag_is_reachable_on_its_own(self):
+    def test_the_image_only_flag_is_reachable_on_its_own(self) -> None:
         self.assertTrue(bd.wants_image_only(["build.py", "--image"]))
 
-    def test_a_normal_invocation_is_not_image_only(self):
+    def test_a_normal_invocation_is_not_image_only(self) -> None:
         self.assertFalse(bd.wants_image_only(["build.py", "p.asm", "in", "out"]))
 
-    def test_too_few_arguments_is_not_image_only(self):
+    def test_too_few_arguments_is_not_image_only(self) -> None:
         self.assertFalse(bd.wants_image_only(["build.py"]))
 
 
 class SafetyTest(unittest.TestCase):
-    def test_a_rom_is_copied_before_patching(self):
+    def test_a_rom_is_copied_before_patching(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
             rom = work / "orig.sfc"
@@ -76,7 +76,7 @@ class SafetyTest(unittest.TestCase):
             self.assertEqual(out.read_bytes(), rom.read_bytes())
             self.assertNotEqual(out, rom)
 
-    def test_staging_never_overwrites_the_source(self):
+    def test_staging_never_overwrites_the_source(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
             rom = work / "orig.sfc"
@@ -91,19 +91,19 @@ class SafetyTest(unittest.TestCase):
 class RunTest(unittest.TestCase):
     """What a build shells out to, checked without shelling out."""
 
-    def test_a_command_is_printed_before_it_runs(self):
+    def test_a_command_is_printed_before_it_runs(self) -> None:
         said = []
 
         bd.run(["docker", "build"], execute=lambda _args: 0, say=said.append)
 
         self.assertIn("docker build", said[0])
 
-    def test_and_what_it_returned_comes_back(self):
+    def test_and_what_it_returned_comes_back(self) -> None:
         self.assertEqual(bd.run(["x"], execute=lambda _args: 3, say=lambda _line: None), 3)
 
 
 class StagingTest(unittest.TestCase):
-    def test_patching_the_source_in_place_is_refused(self):
+    def test_patching_the_source_in_place_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             where = Path(tmp)
             (where / "in.sfc").write_bytes(b"\x00" * 16)
@@ -115,14 +115,14 @@ class StagingTest(unittest.TestCase):
 class ShellingOutTest(unittest.TestCase):
     """That the real path runs the command, checked with one that does nothing."""
 
-    def test_with_nothing_passed_in_it_runs_the_command_itself(self):
+    def test_with_nothing_passed_in_it_runs_the_command_itself(self) -> None:
         code = bd.run(["true"], say=lambda _line: None)
 
         self.assertEqual(code, 0)
 
 
 class EntryTest(unittest.TestCase):
-    def test_asking_for_the_image_alone_builds_only_that(self):
+    def test_asking_for_the_image_alone_builds_only_that(self) -> None:
         ran = []
 
         code = bd.main(
@@ -132,7 +132,7 @@ class EntryTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(len(ran), 1)
 
-    def test_too_few_arguments_are_refused_with_the_usage(self):
+    def test_too_few_arguments_are_refused_with_the_usage(self) -> None:
         said = []
 
         code = bd.main(["bd.py", "patch.asm"], say=lambda _l: None, complain=said.append)
@@ -140,7 +140,7 @@ class EntryTest(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("usage", said[0])
 
-    def test_an_image_that_will_not_build_stops_before_anything_is_staged(self):
+    def test_an_image_that_will_not_build_stops_before_anything_is_staged(self) -> None:
         said = []
 
         code = bd.main(
@@ -153,7 +153,7 @@ class EntryTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("failed to build", said[0])
 
-    def test_a_whole_run_stages_the_rom_and_patches_it(self):
+    def test_a_whole_run_stages_the_rom_and_patches_it(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             where = Path(tmp)
             (where / "patch.asm").write_text("; nothing")
@@ -170,7 +170,7 @@ class EntryTest(unittest.TestCase):
             self.assertEqual(len(ran), 2)
             self.assertTrue((where / "out.sfc").exists())
 
-    def test_a_patch_that_fails_is_reported_as_what_it_returned(self):
+    def test_a_patch_that_fails_is_reported_as_what_it_returned(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             where = Path(tmp)
             (where / "patch.asm").write_text("; nothing")

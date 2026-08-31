@@ -1,3 +1,5 @@
+from typing import Any
+
 """How many bytes each DSP-2 command takes and gives, tracked from the stream.
 
 The part answers what it answers, and nothing here has an opinion about that.
@@ -49,7 +51,7 @@ how much to take.
 class Shape:
     """Where a stream of bytes has got to, and what the part owes because of it."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.command = None
         self.waiting_for_command = True
         self.wanted = 0
@@ -81,12 +83,12 @@ class Shape:
         """
         return self.waiting_for_command and self.owed == 0
 
-    def was_read(self):
+    def was_read(self) -> None:
         """One byte of the result taken by whoever is driving."""
         if self.owed:
             self.owed -= 1
 
-    def wrote(self, value):
+    def wrote(self, value: Any) -> None:
         """One byte given to the part, and what that leaves it owing."""
         value &= 0xFF
 
@@ -114,7 +116,7 @@ class Shape:
             return (0, 1)
         return ()
 
-    def _arm(self, wanted, value):
+    def _arm(self, wanted: Any, value: Any) -> None:
         """Take the lengths, then decide whether data follows them.
 
         A non zero length means data comes next. A zero length leaves the part
@@ -127,7 +129,7 @@ class Shape:
         if value:
             self.waiting_for_command = False
 
-    def _acted(self, value):
+    def _acted(self, value: Any) -> None:
         command = self.command
 
         if command == TILE:
@@ -147,7 +149,7 @@ class Shape:
     def _first(self):
         return self._lengths[0] if self._lengths else 0
 
-    def _sized(self, command, payload_for, value):
+    def _sized(self, command: Any, payload_for: Any, value: Any) -> None:
         """A merge or a mirror: its length once, then that much data."""
         if self._armed.pop(command, None) is not None:
             self.owed = self._held[command]
@@ -157,7 +159,7 @@ class Shape:
         self._armed[command] = True
         self._arm(payload_for(length), value)
 
-    def _scaled(self, value):
+    def _scaled(self, value: Any) -> None:
         """A scale: two lengths, then half the first rounded up in data."""
         if self._armed.pop(SCALE, None) is not None:
             self.owed = self._held["scale_out"]
