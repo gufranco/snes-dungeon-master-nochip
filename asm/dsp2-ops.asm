@@ -43,28 +43,29 @@
 ; Exit:  !O_BUFFER holds 32 bytes, !S_OUT_LEN = 32.
 ; ---------------------------------------------------------------------------
 op_tile:
-    ldy.w #$0000                  ; Y walks the input, four bytes to a group
-    ldx.w #$0000                  ; X walks the output, two bytes to a group
+    ldy.w #$0000                ; Y walks the input, four bytes to a row
+    rep #$20                    ; sixteen bit for the whole conversion: every
+                                ;   table entry is a word and so is every
+                                ;   accumulator, and switching per row cost more
+                                ;   than the switching saved
+    stz !S_SCRATCH+4            ; the output cursor lives here rather than in X,
+                                ;   because X carries the table index all through
+                                ;   a row and saving it around each of the four
+                                ;   lookups cost nine cycles a byte
 
 .group:
-    rep #$20                    ; sixteen bit for the whole group: every table
-                                ;   entry is a word and so is every accumulator,
-                                ;   so nothing here works a byte at a time
-    lda.w !P_BUFFER+0,y         ; byte 0 of the row, and the byte after it, which
+    lda.w !P_BUFFER+0,y         ; the row byte, and the one after it, which
     and.w #$00FF                ;   the mask discards
     asl                         ; the tables hold words, so the index is doubled
-    phx
     tax
     lda.l tile_lo,x
     sta !S_SCRATCH+0            ; planes 0 and 1, in the order the output wants
     lda.l tile_hi,x
     sta !S_SCRATCH+2            ; planes 2 and 3
-    plx
 
     lda.w !P_BUFFER+1,y
     and.w #$00FF
     asl
-    phx
     tax
     lda.l tile_lo+512,x
     ora !S_SCRATCH+0
@@ -72,12 +73,10 @@ op_tile:
     lda.l tile_hi+512,x
     ora !S_SCRATCH+2
     sta !S_SCRATCH+2
-    plx
 
     lda.w !P_BUFFER+2,y
     and.w #$00FF
     asl
-    phx
     tax
     lda.l tile_lo+1024,x
     ora !S_SCRATCH+0
@@ -85,12 +84,10 @@ op_tile:
     lda.l tile_hi+1024,x
     ora !S_SCRATCH+2
     sta !S_SCRATCH+2
-    plx
 
     lda.w !P_BUFFER+3,y
     and.w #$00FF
     asl
-    phx
     tax
     lda.l tile_lo+1536,x
     ora !S_SCRATCH+0
@@ -98,16 +95,16 @@ op_tile:
     lda.l tile_hi+1536,x
     ora !S_SCRATCH+2
     sta !S_SCRATCH+2
-    plx
 
+    ldx !S_SCRATCH+4
     lda !S_SCRATCH+0            ; planes 0 and 1 are adjacent in the output, so
     sta.w !O_BUFFER+0,x         ;   one sixteen bit store places both
     lda !S_SCRATCH+2
     sta.w !O_BUFFER+16,x        ; and planes 2 and 3 sixteen bytes along
-    sep #$20
+    inx
+    inx
+    stx !S_SCRATCH+4
 
-    inx
-    inx
     iny
     iny
     iny
@@ -115,7 +112,6 @@ op_tile:
     cpy.w #!TILE_BYTES
     bne .group
 
-    rep #$20
     lda.w #!TILE_BYTES
     sta !S_OUT_LEN
     sep #$20
