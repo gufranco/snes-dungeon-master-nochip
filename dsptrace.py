@@ -254,7 +254,7 @@ def _payload_sizes(command, lengths):
     if command == COMMAND_MIRROR:
         return lengths[0], lengths[0]
     if command == COMMAND_SCALE:
-        return (lengths[0] + 1) >> 1, lengths[1]
+        return (lengths[0] + 1) >> 1, (lengths[1] + 1) >> 1
     raise UnknownLength(f"{command:#04x} was given a length and declares none")
 
 

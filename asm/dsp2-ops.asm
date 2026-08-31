@@ -419,19 +419,30 @@ multiply_add_shifted:
 ; below costs nothing that can be measured.
 ;
 ; Entry: DB = $00, DP = !STATE, !P_BUFFER holds ceil(!S_LEN1 / 2) bytes.
-; Exit:  !O_BUFFER holds !S_LEN2 bytes, !S_OUT_LEN = !S_LEN2.
+; Both declared lengths count nibbles, not bytes. That is measurable rather than
+; assumed: a recorded scale writes 63 bytes and then reads 40, and the 63 are a
+; command, two lengths and ceil(120 / 2) of payload, so the 40 read back are
+; ceil(80 / 2). Reading the second length as a byte count produced twice as many
+; bytes as the chip returns, and derived the resampling step from the wrong
+; figure as well, so every scaled row was wrong past its first few pixels.
+;
+; Exit:  !O_BUFFER holds ceil(!S_LEN2 / 2) bytes, !S_OUT_LEN the same count.
 ; ---------------------------------------------------------------------------
 op_scale:
     rep #$20
     lda !S_LEN2
     and.w #$00FF
-    sta !S_OUT_LEN
+    sta !S_SCRATCH+40           ; the output length in nibbles, which is what the
+                                ;   resampling step is derived from
+    inc a
+    lsr
+    sta !S_OUT_LEN              ; and in bytes, which is what the caller drains
     beq .done
 
     lda !S_LEN1
     and.w #$00FF
     sta !S_SCRATCH+24           ; the input length, in nibbles
-    lda !S_OUT_LEN
+    lda !S_SCRATCH+40
     cmp !S_SCRATCH+24
     bcc .shrink                 ; input longer than output, so derive the step
 
@@ -515,7 +526,7 @@ scale_nibble:
 ; Entry: A and index registers 16 bit. !S_SCRATCH+24 holds the input length.
 ; Exit:  the step is in place. A, Y clobbered, X preserved.
 scale_step:
-    lda !S_OUT_LEN
+    lda !S_SCRATCH+40           ; nibbles, because both declared lengths are
     asl
     inc a
     sta !S_SCRATCH+38           ; the divisor, (out << 1) + 1

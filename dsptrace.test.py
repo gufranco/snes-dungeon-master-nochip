@@ -157,16 +157,16 @@ class StateMachineTest(unittest.TestCase):
         self.assertEqual(found[0].lengths, (5,))
         self.assertEqual(len(found[0].parameters), 5)
 
-    def test_a_scale_reads_two_lengths_then_half_the_input_rounded_up(self):
+    def test_a_scale_reads_two_lengths_then_half_of_each_rounded_up(self):
         found = self.transactions_of(
-            writes([0x0D, 7, 10]) + writes(bytes(range(4))) + reads(bytes(range(10)))
+            writes([0x0D, 7, 10]) + writes(bytes(range(4))) + reads(bytes(range(5)))
         )
 
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0].command, 0x0D)
         self.assertEqual(found[0].lengths, (7, 10))
         self.assertEqual(len(found[0].parameters), 4)
-        self.assertEqual(len(found[0].output), 10)
+        self.assertEqual(len(found[0].output), 5)
 
     def test_two_transactions_in_a_row_are_kept_apart(self):
         found = self.transactions_of(writes([0x03, 0x0A]) + writes([0x03, 0x0B]))
@@ -359,8 +359,18 @@ class PayloadSizeTest(unittest.TestCase):
     def test_a_mirror_takes_and_gives_its_length(self):
         self.assertEqual(dt._payload_sizes(0x06, (4,)), (4, 4))
 
-    def test_a_scale_takes_half_its_first_length_rounded_up(self):
-        self.assertEqual(dt._payload_sizes(0x0D, (5, 9)), (3, 9))
+    def test_a_scale_takes_and_gives_half_of_each_length_rounded_up(self):
+        self.assertEqual(dt._payload_sizes(0x0D, (5, 9)), (3, 5))
+
+    def test_both_scale_lengths_count_nibbles_rather_than_bytes(self):
+        """A recorded scale writes 63 bytes and reads 40.
+
+        The 63 are a command, two lengths and ceil(120 / 2) of payload, so the
+        40 read back are ceil(80 / 2). Reading the second length as a count of
+        bytes made the parser wait for twice as many, and absorb the next
+        command's writes into this one's parameters while it waited.
+        """
+        self.assertEqual(dt._payload_sizes(0x0D, (120, 80)), (60, 40))
 
     def test_a_command_that_declares_no_length_is_refused(self):
         with self.assertRaises(dt.UnknownLength):
