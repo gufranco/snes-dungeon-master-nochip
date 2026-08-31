@@ -9,8 +9,9 @@ ROMS = ROOT / "roms"
 MANIFEST_PATH = ROOT / "artifacts.manifest.json"
 
 
-def _load(name):
+def _load(name: str) -> Any:
     spec = importlib.util.spec_from_file_location(name, ROOT / f"{name}.py")
+    assert spec is not None and spec.loader is not None, "no loader for that path"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

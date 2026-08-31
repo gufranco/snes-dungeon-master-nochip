@@ -9,8 +9,9 @@ from pathlib import Path
 MODULE_PATH = Path(__file__).resolve().parent / "identify.py"
 
 
-def load_module():
+def load_module() -> Any:
     spec = importlib.util.spec_from_file_location("identify", MODULE_PATH)
+    assert spec is not None and spec.loader is not None, "no loader for that path"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

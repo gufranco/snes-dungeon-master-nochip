@@ -5,8 +5,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 
 
-def load_module(name, path):
+def load_module(name: str, path: Path) -> Any:
     spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None, "no loader for that path"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

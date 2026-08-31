@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def _load_tool(name):
     spec = importlib.util.spec_from_file_location(name, ROOT / "tools" / f"{name}.py")
+    assert spec is not None and spec.loader is not None, "no loader for that path"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

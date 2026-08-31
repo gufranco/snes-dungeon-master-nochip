@@ -13,6 +13,7 @@ and both deserve an error rather than a partial conversion.
 """
 
 from collections import namedtuple
+from collections.abc import Sequence
 
 STA_PORT = bytes([0x8F, 0x00, 0x80, 0x3F])
 LDA_PORT = bytes([0xAF, 0x00, 0x80, 0x3F])
@@ -63,17 +64,17 @@ class UnexpectedImage(Exception):
     pass
 
 
-def address_of(offset):
+def address_of(offset: int) -> tuple[int, int]:
     """The LoROM bank and address a file offset is reached through."""
     return (offset // BANK_SIZE, BANK_WINDOW + (offset % BANK_SIZE))
 
 
-def offset_of(bank, address):
+def offset_of(bank: int, address: int) -> int:
     """The file offset a LoROM bank and address read from."""
     return (bank & 0x7F) * BANK_SIZE + (address - BANK_WINDOW)
 
 
-def occurrences(image, pattern):
+def occurrences(image: bytes | bytearray, pattern: bytes) -> list[int]:
     """Every position of the pattern, including overlapping ones."""
     found = []
     at = image.find(pattern)
@@ -83,7 +84,7 @@ def occurrences(image, pattern):
     return found
 
 
-def find(image, kinds=None):
+def find(image: bytes | bytearray, kinds: Sequence[str] | None = None) -> list[Site]:
     """Every site in the image, in file order."""
     wanted = SIGNATURES if kinds is None else {kind: SIGNATURES[kind] for kind in kinds}
     found = []
@@ -94,7 +95,7 @@ def find(image, kinds=None):
     return sorted(found, key=lambda site: site.offset)
 
 
-def census(sites):
+def census(sites: Sequence[Site]) -> dict[str, int]:
     """How many sites of each kind, including the kinds with none."""
     counted = dict.fromkeys(SIGNATURES, 0)
     for site in sites:
@@ -102,7 +103,7 @@ def census(sites):
     return counted
 
 
-def verify(sites, region="USA"):
+def verify(sites: Sequence[Site], region: str = "USA") -> dict[str, int]:
     """Refuse an image whose access surface is not the one measured."""
     if region not in EXPECTED:
         raise UnexpectedImage(
@@ -119,17 +120,19 @@ def verify(sites, region="USA"):
     return found
 
 
-def banks_touched(sites):
+def banks_touched(sites: Sequence[Site]) -> list[int]:
     """The banks the sites live in, without repeats."""
     return sorted({site.bank for site in sites})
 
 
-def call_to(address):
+def call_to(address: int) -> bytes:
     """The bytes of a JSR to an address in the current bank."""
     return bytes([JSR, address & 0xFF, (address >> 8) & 0xFF])
 
 
-def find_trampoline_calls(image, bank=TRAMPOLINE_BANK):
+def find_trampoline_calls(
+    image: bytes | bytearray, bank: int = TRAMPOLINE_BANK
+) -> list[TrampolineCall]:
     """Calls to a work RAM trampoline from the bank that can reach the chip.
 
     The four trampolines are called from ten banks and most of that traffic
@@ -147,7 +150,7 @@ def find_trampoline_calls(image, bank=TRAMPOLINE_BANK):
     return sorted(found, key=lambda call: call.offset)
 
 
-def verify_trampoline_calls(calls):
+def verify_trampoline_calls(calls: Sequence[TrampolineCall]) -> dict[int, int]:
     """Refuse an image whose trampoline traffic is not the one measured."""
     found = dict.fromkeys(TRAMPOLINES, 0)
     for call in calls:

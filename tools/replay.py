@@ -19,13 +19,14 @@ What the trace says, in the order it says it, is what gets fed.
 """
 
 
-def _load_beside(name):
+def _load_beside(name: str) -> Any:
     """A module that sits next to this one, loaded the way the tools load each other."""
     import importlib.util
     from pathlib import Path
 
     where = Path(__file__).resolve().parent / f"{name}.py"
     spec = importlib.util.spec_from_file_location(name, where)
+    assert spec is not None and spec.loader is not None, "no loader for that path"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -394,6 +395,7 @@ def load_dsptrace(root):
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("dsptrace", root / "dsptrace.py")
+    assert spec is not None and spec.loader is not None, "no loader for that path"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

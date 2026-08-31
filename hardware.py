@@ -22,7 +22,9 @@ statement to work.
 import importlib
 import os
 import sys
+from collections.abc import MutableMapping
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 
@@ -49,7 +51,7 @@ class UnknownPackage(Exception):
     pass
 
 
-def root_of(package):
+def root_of(package: str) -> Path:
     """Where a vendored model lives, by the name it is imported under."""
     directory = PACKAGES.get(package)
     if directory is None:
@@ -59,7 +61,7 @@ def root_of(package):
     return ROOT / directory
 
 
-def install(environment=None):
+def install(environment: MutableMapping[str, str] | None = None) -> str:
     """Make every vendored model importable, and say where the microcode is.
 
     The coprocessor model runs the part's own microcode, which belongs to whoever
@@ -76,7 +78,7 @@ def install(environment=None):
     return name_firmware(environment)
 
 
-def name_firmware(environment=None):
+def name_firmware(environment: MutableMapping[str, str] | None = None) -> str:
     """Put this project's firmware directory in front of whatever was named."""
     where = environment if environment is not None else os.environ
     already = [one for one in where.get(FIRMWARE_VARIABLE, "").split(os.pathsep) if one]
@@ -86,7 +88,7 @@ def name_firmware(environment=None):
     return where[FIRMWARE_VARIABLE]
 
 
-def load(package):
+def load(package: str) -> Any:
     """A model, by the name it is published under."""
     root_of(package)
     install()

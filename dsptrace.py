@@ -1,8 +1,9 @@
 import struct
 from collections import Counter, namedtuple
+from collections.abc import Iterable, Iterator
 from itertools import pairwise
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 RECORD_BYTES = 28
 RECORD = struct.Struct("<IIHHBB8sBB4s")
@@ -65,32 +66,33 @@ class UnknownLength(Exception):
     pass
 
 
-def is_work_ram(bank):
+def is_work_ram(bank: int) -> bool:
     return bank in WRAM_BANKS
 
 
 class Transaction:
-    def __init__(self, frame: Any, pc: Any, command: Any) -> None:
+    def __init__(self, frame: int, pc: int, command: int) -> None:
         self.frame = frame
         self.pc = pc
         self.command = command
-        self.lengths = ()
+        self.lengths: tuple[int, ...] = ()
         self.parameters = b""
         self.output = b""
-        self.source = None
-        self.second_source = None
-        self.strides = ()
+        self.source: tuple[int, int] | None = None
+        self.second_source: tuple[int, int] | None = None
+        self.strides: tuple[int, ...] = ()
         self.complete = False
 
     @property
-    def name(self):
+    def name(self) -> str:
         return COMMAND_NAMES.get(self.command, f"op{self.command:02X}")
 
     @property
-    def source_banks(self):
+    def source_banks(self) -> tuple[int, ...]:
         return tuple(where[0] for where in (self.source, self.second_source) if where is not None)
 
-    def __repr__(self):
+    @override
+    def __repr__(self) -> str:
         where = "" if self.source is None else f" src=${self.source[0]:02X}:{self.source[1]:04X}"
         return (
             f"<{self.name} frame={self.frame} pc=${self.pc:06X} "
@@ -98,7 +100,7 @@ class Transaction:
         )
 
 
-def records(path):
+def records(path: Path | str) -> Iterator[Record]:
     with Path(path).open("rb") as handle:
         while True:
             blob = handle.read(RECORD_BYTES)
@@ -128,7 +130,7 @@ def records(path):
 
 class _Run:
     def __init__(self) -> None:
-        self.segments = []
+        self.segments: list[tuple[int, int, int] | None] = []
 
     def note(self, record: Any) -> None:
         if record.move_source_bank is None:
@@ -144,10 +146,10 @@ class _Run:
                 return
         self.segments.append((key[0], key[1], 1))
 
-    def _blocks(self):
+    def _blocks(self) -> list[tuple[int, int, int]]:
         return [segment for segment in self.segments if segment is not None]
 
-    def sources(self):
+    def sources(self) -> tuple[tuple[int, int] | None, tuple[int, int] | None]:
         blocks = self._blocks()
         if not blocks:
             return None, None
@@ -159,7 +161,7 @@ class _Run:
                 break
         return first, second
 
-    def strides(self):
+    def strides(self) -> tuple[int, ...]:
         blocks = self._blocks()
         gaps = set()
         for previous, current in pairwise(blocks):
@@ -169,9 +171,9 @@ class _Run:
         return tuple(sorted(gaps))
 
 
-def transactions(stream):
-    pending = None
-    run = None
+def transactions(stream: Iterable[Record]) -> Iterator[Transaction]:
+    pending: Transaction | None = None
+    run: _Run | None = None
     wanted_in = 0
     wanted_out = 0
     stage = 0
@@ -213,6 +215,7 @@ def transactions(stream):
                 continue
 
             pending.parameters += bytes([record.byte])
+            assert run is not None, "a transaction is opened with its run beside it"
             run.note(record)
             wanted_in -= 1
             if wanted_in == 0 and wanted_out == 0:
@@ -242,7 +245,7 @@ def _finish(transaction: Any, run: Any, complete: bool = True) -> None:
     transaction.complete = complete
 
 
-def _payload_sizes(command, lengths):
+def _payload_sizes(command: int, lengths: tuple[int, ...]) -> tuple[int, int]:
     """How much a command takes and gives once its lengths are known.
 
     Only the three commands that declare a length ever reach here, because only
@@ -259,14 +262,14 @@ def _payload_sizes(command, lengths):
     raise UnknownLength(f"{command:#04x} was given a length and declares none")
 
 
-def summarise(stream):
+def summarise(stream: Iterable[Transaction]) -> Summary:
     total = 0
     complete = 0
-    per_command = Counter()
-    sites = Counter()
-    sources = Counter()
-    source_banks = Counter()
-    lengths = Counter()
+    per_command: Counter[int] = Counter()
+    sites: Counter[int] = Counter()
+    sources: Counter[tuple[int, ...]] = Counter()
+    source_banks: Counter[tuple[int, int]] = Counter()
+    lengths: Counter[tuple[int, ...]] = Counter()
 
     for transaction in stream:
         total += 1
@@ -292,7 +295,7 @@ def summarise(stream):
     )
 
 
-def report(summary):
+def report(summary: Summary) -> str:
     lines = [f"  transactions {summary.total:,}, incomplete {summary.incomplete:,}"]
     for command, count in sorted(summary.per_command.items()):
         name = COMMAND_NAMES.get(command, f"op{command:02X}")

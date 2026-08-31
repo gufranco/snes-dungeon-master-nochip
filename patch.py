@@ -26,7 +26,9 @@ is an accident of the image's contents and not something to inherit.
 """
 
 import sys
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -68,7 +70,7 @@ class UnknownSite(Exception):
     pass
 
 
-def read_symbols(text):
+def read_symbols(text: str) -> dict[str, tuple[int, int]]:
     """The labels asar emitted, as name to bank and address."""
     found = {}
     for raw in text.splitlines():
@@ -87,7 +89,7 @@ def read_symbols(text):
     return found
 
 
-def resolve(symbols):
+def resolve(symbols: Mapping[str, tuple[int, int]]) -> dict[str, tuple[int, int]]:
     """The labels the patch needs, refusing to guess at any it cannot find."""
     absent = [name for name in REQUIRED if name not in symbols]
     if absent:
@@ -95,12 +97,17 @@ def resolve(symbols):
     return {name: symbols[name] for name in REQUIRED}
 
 
-def long_call(bank, address):
+def long_call(bank: int, address: int) -> bytes:
     """The bytes of a JSL, which is as wide as the long store it replaces."""
     return bytes([JSL, address & 0xFF, (address >> 8) & 0xFF, bank & 0xFF])
 
 
-def rewrite_site(image, site, symbols, boot=False):
+def rewrite_site(
+    image: bytearray,
+    site: Any,
+    symbols: Mapping[str, tuple[int, int]],
+    boot: bool = False,
+) -> bytearray:
     """Point one site at the code that replaces it."""
     if site.kind == sites.KIND_WRITE:
         target = symbols[BOOT_WRITE] if boot else symbols["dsp_write"]
@@ -121,7 +128,11 @@ def rewrite_site(image, site, symbols, boot=False):
     return image
 
 
-def apply(image, symbols, boot_write_offset=None):
+def apply(
+    image: bytes | bytearray,
+    symbols: Mapping[str, tuple[int, int]],
+    boot_write_offset: int | None = None,
+) -> bytes:
     """Every site redirected, in one pass over a copy of the image."""
     found = sites.find(image)
     if boot_write_offset is None:
@@ -148,7 +159,7 @@ WIDTHS = {
 }
 
 
-def regions(image):
+def regions(image: bytes | bytearray) -> set[int]:
     """Every byte the patch is entitled to alter.
 
     A replacement is the same width as the instruction it replaces, so this is
@@ -158,7 +169,7 @@ def regions(image):
     therefore report fewer than this and prove nothing, whereas an alteration
     outside this set is a defect whatever its size.
     """
-    covered = set()
+    covered: set[int] = set()
     for site in sites.find(image):
         covered.update(range(site.offset, site.offset + WIDTHS[site.kind]))
     for call in sites.find_trampoline_calls(image):
@@ -166,7 +177,7 @@ def regions(image):
     return covered
 
 
-def residue(image):
+def residue(image: bytes | bytearray) -> dict[str, int]:
     """Any retail access the patch failed to redirect."""
     left = sites.census(sites.find(image))
     return {kind: count for kind, count in left.items() if count}
