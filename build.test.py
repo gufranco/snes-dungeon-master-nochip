@@ -2,6 +2,7 @@ import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 MODULE_PATH = Path(__file__).resolve().parent / "build.py"
 

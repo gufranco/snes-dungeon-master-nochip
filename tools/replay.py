@@ -1,3 +1,5 @@
+from typing import Any
+
 """Feed the cartridge's own recorded traffic to the routines, on the processor.
 
 The model reproduces what the chip returned across a whole recorded run, but the

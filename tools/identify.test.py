@@ -5,6 +5,7 @@ import tempfile
 import unittest
 import zlib
 from pathlib import Path
+from typing import Any
 
 MODULE_PATH = Path(__file__).resolve().parent / "identify.py"
 

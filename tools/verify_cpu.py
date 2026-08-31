@@ -2,6 +2,7 @@ import random
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / "build"
@@ -41,8 +42,6 @@ sys.path.insert(0, str(ROOT))
 import hardware  # noqa: E402
 
 hardware.install()
-
-from typing import Any
 
 import mos65xx as emu65816  # noqa: E402
 from mos65xx import opcodes65816 as wdc65816  # noqa: E402

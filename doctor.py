@@ -27,12 +27,11 @@ import importlib
 import platform
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 
 sys.path.insert(0, str(ROOT))
-
-from typing import Any
 
 import hardware  # noqa: E402
 from version import VERSION  # noqa: E402
