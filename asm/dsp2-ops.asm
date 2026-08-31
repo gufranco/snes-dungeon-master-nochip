@@ -47,28 +47,64 @@ op_tile:
     ldx.w #$0000                  ; X walks the output, two bytes to a group
 
 .group:
-    stz !S_SCRATCH+0            ; the four plane accumulators for this row
-    stz !S_SCRATCH+1
-    stz !S_SCRATCH+2
-    stz !S_SCRATCH+3
+    rep #$20                    ; sixteen bit for the whole group: every table
+                                ;   entry is a word and so is every accumulator,
+                                ;   so nothing here works a byte at a time
+    lda.w !P_BUFFER+0,y         ; byte 0 of the row, and the byte after it, which
+    and.w #$00FF                ;   the mask discards
+    asl                         ; the tables hold words, so the index is doubled
+    phx
+    tax
+    lda.l tile_lo,x
+    sta !S_SCRATCH+0            ; planes 0 and 1, in the order the output wants
+    lda.l tile_hi,x
+    sta !S_SCRATCH+2            ; planes 2 and 3
+    plx
 
-    lda.w !P_BUFFER+0,y
-    jsr tile_row_byte
     lda.w !P_BUFFER+1,y
-    jsr tile_row_byte
-    lda.w !P_BUFFER+2,y
-    jsr tile_row_byte
-    lda.w !P_BUFFER+3,y
-    jsr tile_row_byte
+    and.w #$00FF
+    asl
+    phx
+    tax
+    lda.l tile_lo+512,x
+    ora !S_SCRATCH+0
+    sta !S_SCRATCH+0
+    lda.l tile_hi+512,x
+    ora !S_SCRATCH+2
+    sta !S_SCRATCH+2
+    plx
 
-    lda !S_SCRATCH+0            ; planes 0 and 1 go to the first half
-    sta.w !O_BUFFER+0,x
-    lda !S_SCRATCH+1
-    sta.w !O_BUFFER+1,x
-    lda !S_SCRATCH+2            ; planes 2 and 3 to the second
-    sta.w !O_BUFFER+16,x
-    lda !S_SCRATCH+3
-    sta.w !O_BUFFER+17,x
+    lda.w !P_BUFFER+2,y
+    and.w #$00FF
+    asl
+    phx
+    tax
+    lda.l tile_lo+1024,x
+    ora !S_SCRATCH+0
+    sta !S_SCRATCH+0
+    lda.l tile_hi+1024,x
+    ora !S_SCRATCH+2
+    sta !S_SCRATCH+2
+    plx
+
+    lda.w !P_BUFFER+3,y
+    and.w #$00FF
+    asl
+    phx
+    tax
+    lda.l tile_lo+1536,x
+    ora !S_SCRATCH+0
+    sta !S_SCRATCH+0
+    lda.l tile_hi+1536,x
+    ora !S_SCRATCH+2
+    sta !S_SCRATCH+2
+    plx
+
+    lda !S_SCRATCH+0            ; planes 0 and 1 are adjacent in the output, so
+    sta.w !O_BUFFER+0,x         ;   one sixteen bit store places both
+    lda !S_SCRATCH+2
+    sta.w !O_BUFFER+16,x        ; and planes 2 and 3 sixteen bytes along
+    sep #$20
 
     inx
     inx
@@ -85,30 +121,6 @@ op_tile:
     sep #$20
     rts
 
-; Shifts one pixel pair into the four plane accumulators.
-;
-; Entry: A 8 bit, holding the input byte. DP = !STATE.
-; Exit:  A clobbered, the accumulators at !S_SCRATCH+0 to +3 advanced by two
-;        bits each. X and Y preserved.
-tile_row_byte:
-    asl                         ; bit 7
-    rol !S_SCRATCH+3
-    asl                         ; bit 6
-    rol !S_SCRATCH+2
-    asl                         ; bit 5
-    rol !S_SCRATCH+1
-    asl                         ; bit 4
-    rol !S_SCRATCH+0
-    asl                         ; bit 3
-    rol !S_SCRATCH+3
-    asl                         ; bit 2
-    rol !S_SCRATCH+2
-    asl                         ; bit 1
-    rol !S_SCRATCH+1
-    asl                         ; bit 0
-    rol !S_SCRATCH+0
-    rts
-
 ; ---------------------------------------------------------------------------
 ; op_transparent
 ;
@@ -122,14 +134,79 @@ tile_row_byte:
 op_transparent:
     lda.w !P_BUFFER
     and.b #$0F
-    sta !S_TRANSPARENT
-    asl                         ; the same colour in the high nibble, so a merge
-    asl                         ;   can compare a whole byte at a time without
-    asl                         ;   shifting the overlay down first
+    cmp !S_TABLE_FOR            ; the cartridge sets this 8,852 times in a tour
+    beq .unchanged              ;   and changes it three times, so the tables
+    sta !S_TRANSPARENT          ;   almost always stand and this almost always
+    asl                         ;   ends here
     asl
-    sta !S_SCRATCH+16           ; the count is deliberately left alone: setting
-    rep #$20                    ;   the transparent colour produces nothing and
-    sep #$20                    ;   does not spend a result already waiting
+    asl
+    asl
+    sta !S_SCRATCH+16
+    jsr build_merge
+.unchanged:
+    rts
+
+; ---------------------------------------------------------------------------
+; build_merge
+;
+; Fills the two tables a merge reads, for the colour now in !S_TRANSPARENT.
+;
+; A merge asks the same question of every byte: for each of its two nibbles,
+; does the overlay hold the transparent colour, and if it does let the
+; background through. The answer depends only on the overlay byte, so it can be
+; worked out once for all 256 of them and read back rather than recomputed two
+; million times a tour.
+;
+; keep holds what the overlay contributes, its transparent nibbles cleared.
+; mask holds $F where a nibble was transparent, so the background passes through
+; exactly there. A merged byte is then keep or background and mask, which is
+; three reads and no branches.
+;
+; Entry: DB = $00, DP = !STATE, A 8 bit, index 16 bit, !S_SCRATCH+16 holding the
+;        transparent colour moved into the high nibble.
+; Exit:  both tables filled, !S_TABLE_FOR recording what they were built for.
+;        A, X clobbered. Y preserved.
+; ---------------------------------------------------------------------------
+build_merge:
+    lda !S_TRANSPARENT
+    sta !S_TABLE_FOR
+    ldx.w #$0000
+
+.entry:
+    txa                         ; the byte this entry answers for
+    and.b #$F0
+    cmp !S_SCRATCH+16
+    bne .high_opaque
+    stz !S_SCRATCH+20           ; transparent, so the overlay keeps nothing here
+    lda.b #$F0                  ;   and the background comes through all of it
+    bra .high_done
+.high_opaque:
+    sta !S_SCRATCH+20
+    lda.b #$00
+.high_done:
+    sta !S_SCRATCH+21
+
+    txa
+    and.b #$0F
+    cmp !S_TRANSPARENT
+    bne .low_opaque
+    lda !S_SCRATCH+21
+    ora.b #$0F
+    sta !S_SCRATCH+21
+    bra .low_done
+.low_opaque:
+    ora !S_SCRATCH+20
+    sta !S_SCRATCH+20
+.low_done:
+
+    lda !S_SCRATCH+20
+    sta.w !MERGE_KEEP,x
+    lda !S_SCRATCH+21
+    sta.w !MERGE_MASK,x
+
+    inx
+    cpx.w #$0100
+    bne .entry
     rts
 
 ; ---------------------------------------------------------------------------
@@ -156,33 +233,23 @@ op_merge:
     rep #$20
     and.w #$00FF
     sta !S_OUT_LEN
-    tay                         ; Y indexes the overlay, which starts at !S_LEN1
-    ldx.w #$0000                  ; X indexes the background and the output
-    sep #$20
+    clc                         ; the overlay follows the background, so its base
+    adc.w #(!P_BUFFER&$FFFF)    ;   is one length along. Reaching it through the
+    sta !S_OVERLAY              ;   direct page leaves both index registers free
+    lda.w #$0000                ; the high byte of the accumulator is cleared once
+    sep #$20                    ;   so that every later transfer to X carries the
+                                ;   overlay byte alone and nothing above it
+    ldy.w #$0000
 
 .byte:
-    lda.w !P_BUFFER,y           ; the overlay's high pixel
-    and.b #$F0
-    cmp !S_SCRATCH+16
-    bne .keep_high
-    lda.w !P_BUFFER,x           ; transparent, so the background shows through
-    and.b #$F0
-.keep_high:
-    sta !S_SCRATCH+17
-
-    lda.w !P_BUFFER,y           ; and its low pixel
-    and.b #$0F
-    cmp !S_TRANSPARENT
-    bne .keep_low
-    lda.w !P_BUFFER,x
-    and.b #$0F
-.keep_low:
-    ora !S_SCRATCH+17
-    sta.w !O_BUFFER,x
-
+    lda (!S_OVERLAY),y          ; the overlay byte decides for both its nibbles
+    tax
+    lda.w !MERGE_MASK,x         ; where it was transparent, and only there
+    and.w !P_BUFFER,y           ;   the background shows through
+    ora.w !MERGE_KEEP,x         ; everywhere else the overlay stands
+    sta.w !O_BUFFER,y
     iny
-    inx
-    cpx !S_OUT_LEN
+    cpy !S_OUT_LEN
     bne .byte
     rts
 

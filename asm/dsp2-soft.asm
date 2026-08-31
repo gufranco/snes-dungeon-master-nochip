@@ -55,6 +55,10 @@ dsp_init:
     stz !S_LEN2
     stz !S_WANT_LEN
     stz !S_TRANSPARENT
+    lda.b #$FF                  ; no colour, so the first transparent command
+    sta !S_TABLE_FOR            ;   builds the merge tables rather than trusting
+                                ;   whatever those two pages happen to hold. A
+                                ;   nibble is never $FF, so nothing matches this
     stz !S_INBYTE
     stz !S_XFER_BANK
     rep #$20
@@ -65,7 +69,7 @@ dsp_init:
     stz !S_XFER_LEFT
     stz !S_XFER_TOTAL
     stz !S_SCRATCH+16           ; the transparent colour in its high nibble form,
-                                ;   which op_merge compares against directly
+                                ;   which the table builder compares against
 
     ldx.w #$0000                ; the parameter buffer is cleared as well. A
 .clear:                         ;   scale reads past the payload it was handed,

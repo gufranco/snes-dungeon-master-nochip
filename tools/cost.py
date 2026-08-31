@@ -257,6 +257,12 @@ def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = S
     Sampling stops once every command named has been seen the requested number
     of times, because a trace holds millions of exchanges and the cost of one
     command does not change with how many of them are measured.
+
+    One machine runs the whole sample, in the order the cartridge issued it,
+    because two of the commands answer differently depending on what came
+    before: a merge reads the transparent colour a previous command set, so
+    starting each exchange from a fresh chip would measure it against a colour
+    the cartridge never chose.
     """
     rom_path = ROOT / "asm" / "dm-sym.sfc" if len(argv) < 2 else Path(argv[1])
     sym_path = rom_path.with_suffix(".sym") if len(argv) < 3 else Path(argv[2])
@@ -274,6 +280,8 @@ def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = S
 
     seen: defaultdict[str, int] = defaultdict(int)
     rows: defaultdict[str, list[tuple[int, int, bool]]] = defaultdict(list)
+    cpu, memory = machine(rom)
+    enter(cpu, names["dsp_init"])
     for tx in dsptrace.transactions(dsptrace.records(trace)):
         if not tx.complete or tx.name == "sync":
             continue
@@ -283,8 +291,6 @@ def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = S
             continue
         seen[tx.name] += 1
 
-        cpu, memory = machine(rom)
-        enter(cpu, names["dsp_init"])
         spent = measure(
             cpu,
             memory,

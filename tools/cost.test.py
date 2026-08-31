@@ -1,5 +1,4 @@
 import importlib.util
-import struct
 import sys
 import tempfile
 import unittest

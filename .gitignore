@@ -3,6 +3,7 @@ roms/
 build/
 dist/
 *.sfc
+*.sym
 *.smc
 *.bin
 *.srm

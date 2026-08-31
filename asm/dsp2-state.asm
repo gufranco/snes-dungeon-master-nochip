@@ -58,11 +58,26 @@
 !S_SCRATCH      = $28           ; working room for the operations, $0928 to $09FF
 
 ; Buffers, reached through DB = $00 by absolute addressing.
+!S_OVERLAY      = $0E           ; where the overlay half of a merge payload
+                                ;   starts, so the loop can reach it through the
+                                ;   direct page rather than carrying a second
+                                ;   index it would have to save and restore
+!S_TABLE_FOR    = $30           ; the transparent colour the merge tables were
+                                ;   built for, or $FF when they hold nothing. The
+                                ;   cartridge sets the colour 8,852 times in a
+                                ;   30,000 frame tour and changes it three times,
+                                ;   so comparing costs almost nothing and
+                                ;   rebuilding almost never happens
+
 !P_BUFFER       = $000A00       ; parameters, 512 bytes. A merge of the longest
                                 ;   declared length, 255, takes 2 x 255 = 510
 !O_BUFFER       = $000C00       ; output, 256 bytes. No command produces more
                                 ;   than 255, and the tile conversion takes 32
-!STATE_END      = $000D00
+!MERGE_KEEP     = $000D00       ; the overlay byte with its transparent nibbles
+                                ;   cleared, for every byte value
+!MERGE_MASK     = $000E00       ; where those nibbles were, as $F, so the
+                                ;   background can be let through them
+!STATE_END      = $000F00
 
 !STAGE_IDLE     = $00
 !STAGE_LENGTH   = $01
