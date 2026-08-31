@@ -9,9 +9,19 @@ dist/
 *.srm
 *.ppm
 
-# Local scratch
+# Local scratch. Everything here must be listed even when a machine-global
+# ignore file already covers it, because that file does not travel with a clone
+# and a path protected only there is exposed in CI and in every other checkout.
 __pycache__/
 .ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+node_modules/
+.claude/
+docs/
+specs/
+ref/
 .DS_Store
 
 # The emulator patch is source, not scratch. A machine-global ignore file

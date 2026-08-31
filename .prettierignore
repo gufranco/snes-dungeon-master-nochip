@@ -2,10 +2,11 @@ pnpm-lock.yaml
 node_modules/
 .coverage
 build/
+.mypy_cache/
+.ruff_cache/
 mos65xx-python/
+snes-driver-python/
 snes-dsp-python/
+snes-graphics-python/
 snes-mapper-python/
 snes-rom-image-python/
-validated/
-validated-v2/
-validated-v3/

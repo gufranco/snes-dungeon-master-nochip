@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parent
 
 sys.path.insert(0, str(ROOT))
 
+import environment  # noqa: E402
 import hardware  # noqa: E402
 from version import VERSION  # noqa: E402
 
@@ -309,6 +310,10 @@ def report(found: Any) -> list[str]:
     """The lines a person pastes into an issue."""
     unwell = [one for one in found if not one.ok]
     lines = [f"{PROJECT} {VERSION} on {platform.python_version()}, {platform.system()}", ""]
+    lines.append("  the machine")
+    lines.extend(environment.lines(ROOT))
+    lines.append("")
+    lines.append("  this package")
     lines.extend(one.report for one in found)
     lines.append("")
     if unwell:

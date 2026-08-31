@@ -47,6 +47,7 @@ RETURN = 0x00FFFF
 """Where a measured call is told to return to, so the run ends on a known fetch."""
 
 DECLARED_LENGTHS = {
+    "sync": 0,
     "tile": 0,
     "transparent": 0,
     "multiply": 0,
@@ -247,8 +248,16 @@ def report(rows: dict[str, list[tuple[int, int, bool]]], say: Any = print) -> in
     return 1 if slower else 0
 
 
-SAMPLED = ("tile", "merge", "mirror", "multiply", "scale", "transparent")
-"""The commands worth sampling, which is every one that computes something."""
+SAMPLED = ("sync", "tile", "merge", "mirror", "multiply", "scale", "transparent")
+"""Every command the cartridge sends, including the one that computes nothing.
+
+Sync computes nothing and so looks like a command not worth pricing, which is
+how it was left out at first. It is the third most frequent thing the cartridge
+sends, 180,975 times across the three tours against 3,155,798 of everything
+else, and the replacement still walks the whole dispatch path to answer it. A
+report that omits it cannot be summed into a per frame figure, which is the one
+question the report exists to answer.
+"""
 
 
 def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = SAMPLED) -> int:
@@ -283,7 +292,7 @@ def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = S
     cpu, memory = machine(rom)
     enter(cpu, names["dsp_init"])
     for tx in dsptrace.transactions(dsptrace.records(trace)):
-        if not tx.complete or tx.name == "sync":
+        if not tx.complete:
             continue
         if seen[tx.name] >= wanted:
             if all(seen[one] >= wanted for one in wanted_commands):

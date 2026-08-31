@@ -179,8 +179,10 @@ def recorded() -> bytes:
 
     The transparent command is used because it is the shortest the cartridge
     ever sends: one command byte and one parameter, with nothing to read back.
-    A sync leads, because a run has to pass over the one command that computes
-    nothing, and three exchanges follow so a quota can be reached and exceeded.
+    Three of them arrive so a quota can be reached and exceeded, and two syncs
+    sit among them so the same is true of the command that computes nothing.
+    Neither sync ends the stream, because a transaction is closed by whatever
+    follows it and one left at the end would be recorded as incomplete.
     """
     import dsptrace
 
@@ -188,6 +190,7 @@ def recorded() -> bytes:
         (0x0F, dsptrace.KIND_WRITE),
         (0x03, dsptrace.KIND_WRITE),
         (0x0A, dsptrace.KIND_WRITE),
+        (0x0F, dsptrace.KIND_WRITE),
         (0x03, dsptrace.KIND_WRITE),
         (0x0A, dsptrace.KIND_WRITE),
         (0x03, dsptrace.KIND_WRITE),
@@ -359,6 +362,25 @@ class WholeRunTest(unittest.TestCase):
         cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append)
 
         self.assertIn("1/1", "\n".join(said))
+
+    def test_the_handshake_is_priced_rather_than_passed_over(self) -> None:
+        rom, sym, trace = self.setUpFiles()
+        said: list[str] = []
+
+        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append)
+
+        self.assertTrue(any(one.strip().startswith("sync") for one in said))
+
+    def test_an_exchange_the_trace_never_finished_is_left_out(self) -> None:
+        import dsptrace
+
+        rom, sym, trace = self.setUpFiles()
+        trace.write_bytes(recorded()[: -dsptrace.RECORD_BYTES])
+        said: list[str] = []
+
+        cost.main(["cost.py", str(rom), str(sym), str(trace), "9"], said.append)
+
+        self.assertIn("      2", said[2])
 
 
 if __name__ == "__main__":

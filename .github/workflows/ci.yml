@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: recursive
 
       - uses: actions/setup-python@v7
         with:
@@ -27,8 +29,16 @@ jobs:
       - name: Install ruff
         run: pipx install ruff==0.16.3
 
+      - name: Install the type checker
+        run: pipx install mypy==1.14.1
+
       - name: Lint
         run: ruff check .
+
+      # The models are separate repositories with their own checks, so this only
+      # needs the submodules present for the imports to resolve.
+      - name: Types
+        run: mypy .
 
       - uses: pnpm/action-setup@v6
 
