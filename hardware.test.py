@@ -63,7 +63,7 @@ class ModelTest(unittest.TestCase):
     def test_the_coprocessor_is_the_one_that_was_vendored(self):
         chip = importlib.import_module("snesdsp")
 
-        self.assertTrue(hasattr(chip, "Dsp"))
+        self.assertTrue(hasattr(chip, "Chip"))
         self.assertIn("dsp2", chip.MODELS)
 
     def test_and_it_runs_the_part_rather_than_describing_it(self):

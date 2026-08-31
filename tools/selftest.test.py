@@ -197,7 +197,7 @@ class ModelTest(unittest.TestCase):
 
     def test_it_asks_the_model_for_that_part(self):
         asked = []
-        made_up = type("Model", (), {"Dsp": staticmethod(asked.append)})
+        made_up = type("Model", (), {"Chip": staticmethod(asked.append)})
 
         selftest.new_chip(made_up)
 
@@ -209,7 +209,7 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(selftest.why_not(made_up), "no image is here")
 
     def test_the_model_it_uses_by_default_is_the_vendored_one(self):
-        self.assertTrue(hasattr(selftest._model(), "Dsp"))
+        self.assertTrue(hasattr(selftest._model(), "Chip"))
 
 
 class ScriptTailTest(unittest.TestCase):

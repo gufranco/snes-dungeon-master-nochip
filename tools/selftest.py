@@ -90,7 +90,7 @@ def new_chip(model=None):
     directory, and without one this refuses rather than answering from somewhere
     else.
     """
-    return (model or _model()).Dsp(PART)
+    return (model or _model()).Chip(PART)
 
 
 def why_not(model=None):

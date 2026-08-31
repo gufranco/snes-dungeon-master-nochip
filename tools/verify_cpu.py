@@ -26,6 +26,9 @@ STACK_WINDOW = (0x1EF0, 0x1F10)
 POINTER_WINDOW = (0x0400, 0x0540)
 POINTER_MASK = 0x3F
 
+MODEL = "65816"
+"""The part this cartridge runs, named because the family covers sixteen of them."""
+
 ROM_BYTES = 0x80000
 CASES_PER_BANK = 180
 FIRST_CASE_BANK = 0x01
@@ -384,7 +387,7 @@ def run_in_python(cases, rom):
 
     found = []
     for case in cases:
-        cpu = emu65816.Cpu(memory, reset=False)
+        cpu = emu65816.Cpu(MODEL, memory)
         cpu.d = case["d"]
         cpu.db = case["db"]
         cpu.x = case["x"]

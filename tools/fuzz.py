@@ -49,7 +49,7 @@ PART = "dsp2"
 
 def chip(build=None):
     """One DSP-2, running the part's own microcode rather than a description of it."""
-    return (build or snesdsp.Dsp)(PART)
+    return (build or snesdsp.Chip)(PART)
 
 
 def why_not(model=None):

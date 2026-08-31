@@ -63,6 +63,8 @@ omit = [
   "snes-dsp-python/*",
   "snes-mapper-python/*",
   "snes-rom-image-python/*",
+  "snes-graphics-python/*",
+  "snes-driver-python/*",
   "build/*",
   "emu/*",
   "snes9x/*",

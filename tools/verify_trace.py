@@ -37,7 +37,7 @@ def chip(build=None):
     replaying it against is that chip's program. Nothing here carries it: a copy
     somebody already owns goes in this project's firmware directory.
     """
-    return (build or snesdsp.Dsp)(PART)
+    return (build or snesdsp.Chip)(PART)
 
 
 def why_not():
