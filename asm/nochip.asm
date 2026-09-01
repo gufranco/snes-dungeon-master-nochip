@@ -26,7 +26,6 @@ lorom
 !BANK04   = $04AA1B
 
 org !ROUTINES
-incsrc "dsp2-tables.asm"
 incsrc "dsp2-soft.asm"
 incsrc "dsp2-tramp.asm"
 routines_end:

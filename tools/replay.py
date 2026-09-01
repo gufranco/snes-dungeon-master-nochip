@@ -50,7 +50,14 @@ RUN_LIMIT = 0xFFFF
 BANK_SIZE = 0x8000
 SCRIPT_BANK = 0x02
 
-STATE = 0x0D00
+STATE = 0x1000
+"""Where the replay cartridge keeps its counters, which `!R_STATE` also names.
+
+The two are separate declarations of one address and a test holds them together,
+because when they last disagreed the run still produced numbers. They were the
+bytes of a lookup table that had been placed on top of the counters, and they did
+not change with the script, which is the only reason it was noticed.
+"""
 BYTE_COUNT = 4
 TRANSACTIONS = 0x0A
 COMPARED = 0x0E
@@ -289,12 +296,29 @@ def run_command(build: Path) -> list[str]:
     ]
 
 
+class EmulatorFailed(Exception):
+    """A batch that never ran, which is a failed check rather than a skipped one."""
+
+
 def run_batch(build: Path, skeleton: Any, batch: Any, execute: Any = _shell_out) -> Any:
-    """One batch walked by the cartridge, and the counters it left behind."""
+    """One batch walked by the cartridge, and the counters it left behind.
+
+    The dump is removed before the run and its absence afterwards is a failure,
+    because the alternative is reading the previous batch's dump and reporting it
+    as this one's. The exit code is read for the same reason: it used to be
+    discarded, so a container that could not start produced a clean result.
+    """
     script = script_for(batch)
+    dump = build / "replay-wram.bin"
+    dump.unlink(missing_ok=True)
     (build / "replay.sfc").write_bytes(place_script(skeleton, script))
-    execute(run_command(build))
-    return script, read_counters((build / "replay-wram.bin").read_bytes())
+
+    finished = execute(run_command(build))
+    if finished.returncode:
+        raise EmulatorFailed(finished.stderr or finished.stdout)
+    if not dump.exists():
+        raise EmulatorFailed("the run left no work RAM dump")
+    return script, read_counters(dump.read_bytes())
 
 
 def walk(
@@ -310,7 +334,11 @@ def walk(
     failures: list[Any] = []
     for number, batch in enumerate(batches):
         started = clock()
-        script, found = run_batch(build, skeleton, batch)
+        try:
+            script, found = run_batch(build, skeleton, batch)
+        except EmulatorFailed as failure:
+            say(f"  batch {number} did not run: {failure}")
+            return None
         say(
             f"    batch {number:3d}: {len(script):8d} bytes of script, "
             f"{found['compared']:9d} checked, {found['wrong']:6d} wrong, "

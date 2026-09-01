@@ -1,6 +1,7 @@
 import importlib.util
 import tempfile
 import unittest
+from collections import namedtuple
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,21 @@ def load_module(name: str, path: Path) -> Any:
 
 
 replay = load_module("replay", ROOT / "tools" / "replay.py")
+
+
+Finished = namedtuple("Finished", "returncode stdout stderr")
+"""What a finished shell command looks like to the caller that started it."""
+
+
+def keeping(dump: Path) -> Any:
+    """A stand-in for the emulator that leaves the dump the caller staged."""
+    written = dump.read_bytes()
+
+    def _run(_args: Any) -> Any:
+        dump.write_bytes(written)
+        return Finished(0, "", "")
+
+    return _run
 
 
 def _capture(seen: list[Any], make: Any) -> Any:
@@ -207,6 +223,32 @@ class StatefulBatchTest(unittest.TestCase):
             self.assertEqual(body[0][1][0], 0x05)
 
 
+def define(name: str, source: Path) -> int:
+    """One of the assembler's `!NAME = $hex` defines, as a number."""
+    for line in source.read_text().splitlines():
+        head, _, tail = line.partition("=")
+        if head.strip() != name:
+            continue
+        return int(tail.strip().split()[0].lstrip("$"), 16)
+    raise AssertionError(f"{name} is not defined in {source.name}")
+
+
+class CounterAddressTest(unittest.TestCase):
+    """That the counters this reads and the counters the cartridge writes are one place."""
+
+    def test_the_counter_base_matches_the_cartridge(self) -> None:
+        self.assertEqual(replay.STATE, define("!R_STATE", ROOT / "asm" / "dsp2-replay.asm"))
+
+    def test_the_counters_sit_above_the_chips_own_block(self) -> None:
+        end = define("!STATE_END", ROOT / "asm" / "dsp2-state.asm")
+
+        self.assertGreaterEqual(replay.STATE, end)
+
+    def test_a_name_the_assembler_does_not_define_is_refused(self) -> None:
+        with self.assertRaises(AssertionError):
+            define("!NOT_A_DEFINE", ROOT / "asm" / "dsp2-replay.asm")
+
+
 class ResultTest(unittest.TestCase):
     def test_counters_are_read_from_the_dump(self) -> None:
         dump = bytearray(0x20000)
@@ -267,6 +309,17 @@ class WalkTest(unittest.TestCase):
 
         self.assertIsNone(found)
         self.assertIn("did not finish", said[-1])
+
+    def test_a_batch_the_emulator_could_not_run_ends_the_run(self) -> None:
+        said: list[Any] = []
+
+        def _fails(*_args: Any) -> Any:
+            raise replay.EmulatorFailed("the container died")
+
+        found = replay.walk(None, b"", [["one"]], _fails, said.append, int)
+
+        self.assertIsNone(found)
+        self.assertIn("did not run", said[-1])
 
     def test_a_batch_with_disagreements_is_kept_for_the_summary(self) -> None:
         found = replay.walk(
@@ -447,11 +500,47 @@ class ShellingOutTest(unittest.TestCase):
             (where / "replay-wram.bin").write_bytes(bytes(dump))
 
             script, found = replay.run_batch(
-                where, bytes(replay.IMAGE_BYTES), [(replay.KIND_WRITE, b"\x0f")], lambda _a: None
+                where,
+                bytes(replay.IMAGE_BYTES),
+                [(replay.KIND_WRITE, b"\x0f")],
+                keeping(where / "replay-wram.bin"),
             )
 
         self.assertTrue(script)
         self.assertTrue(found["finished"])
+
+    def test_a_non_zero_exit_from_the_emulator_is_a_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, self.assertRaises(replay.EmulatorFailed):
+            replay.run_batch(
+                Path(tmp),
+                bytes(replay.IMAGE_BYTES),
+                [(replay.KIND_WRITE, b"\x0f")],
+                lambda _a: Finished(1, "", "the container died"),
+            )
+
+    def test_a_run_that_leaves_no_dump_is_a_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, self.assertRaises(replay.EmulatorFailed):
+            replay.run_batch(
+                Path(tmp),
+                bytes(replay.IMAGE_BYTES),
+                [(replay.KIND_WRITE, b"\x0f")],
+                lambda _a: Finished(0, "", ""),
+            )
+
+    def test_the_dump_from_an_earlier_batch_is_not_read_as_this_one(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            stale = bytearray(0x20000)
+            stale[replay.STATE + replay.DONE] = replay.FINISHED
+            (where / "replay-wram.bin").write_bytes(bytes(stale))
+
+            with self.assertRaises(replay.EmulatorFailed):
+                replay.run_batch(
+                    where,
+                    bytes(replay.IMAGE_BYTES),
+                    [(replay.KIND_WRITE, b"\x0f")],
+                    lambda _a: Finished(0, "", ""),
+                )
 
 
 class RealShellTest(unittest.TestCase):

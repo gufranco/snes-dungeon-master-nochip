@@ -444,3 +444,11 @@ read_byte:
 
 incsrc "dsp2-ops.asm"
 incsrc "dsp2-block.asm"
+
+; The tables the operations read are included here rather than by each cartridge
+; that assembles this file. Four of the five harnesses had been assembling
+; without them since the tables were added, and every one failed at link time
+; with a missing label rather than producing something wrong, which is the good
+; failure. Including them beside the code that reads them makes the pair
+; impossible to separate.
+incsrc "dsp2-tables.asm"

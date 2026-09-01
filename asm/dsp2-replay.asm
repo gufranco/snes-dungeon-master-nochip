@@ -31,8 +31,15 @@ lorom
 !SCRIPT     = $028000           ; where the script starts, and it may run on
                                 ;   through every bank above this one
 
-!R_STATE    = $000D00           ; this cartridge's own variables, clear of the
-                                ;   software chip's block at $0900 to $0CFF
+!R_STATE    = $001000           ; this cartridge's own variables, above the whole
+                                ;   of the software chip's block. It used to sit
+                                ;   at $0D00, which the chip's block did not reach
+                                ;   until the merge tables were added there. The
+                                ;   collision was silent: the tables overwrote the
+                                ;   counters, so a run reported a fixed 353,637,138
+                                ;   wrong bytes whatever script it was given, and
+                                ;   the assert after the include is what now stops
+                                ;   the same thing happening again
 !R_PTR      = $00               ; 24 bit cursor into the script
 !R_BYTE     = $04               ; the script byte just read
 !R_COUNT    = $06               ; bytes left in the run being fed or checked
@@ -302,6 +309,11 @@ script_word:
 
 org !ROUTINES
 incsrc "dsp2-soft.asm"
+
+; The chip's block and this cartridge's counters share work RAM, and the block
+; has grown twice. Overlapping them costs nothing at assembly time and produces
+; a run whose counters are table bytes, which reads as the routines failing.
+assert !R_STATE >= !STATE_END, "the replay counters overlap the chip's state block"
 
 org $00FFC0
     db "SOFTWARE DSP2 REPLAY  "
