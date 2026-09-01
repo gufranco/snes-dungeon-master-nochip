@@ -128,6 +128,18 @@
       "reasoning": "The cartridge, the part's microcode and every image built from either are absent by rule, and everything published about them is a digest. That is why parts of the suite skip rather than fail on a machine holding neither, and why the checks that need one live in files kept out of the coverage measurement.",
       "wouldSettleIt": "n/a. This is a rule, not a limitation.",
       "namedInDocument": "Neither the cartridge nor the microcode is here"
+    },
+    {
+      "id": "two-fields-of-the-state-block-shared-a-byte",
+      "parts": ["placement"],
+      "severity": "high",
+      "status": "closed",
+      "documentSays": "n/a",
+      "referenceDoes": "n/a",
+      "packageFollows": "neither",
+      "reasoning": "The block is laid out by hand as a list of offsets and nothing checked that list against itself; the assembler cannot, because an offset is a number and two names for one number assemble without complaint. !S_OVERLAY was declared at $0E, which is !S_INBYTE, and the sixteen bit store that sets it reached into $0F, the bank a block transfer reads from. A transfer that overruns one command's payload carries on into the next and re-reads that bank, so a merge would have taken its continuation from wherever the overlay pointer's high byte pointed. Nothing in 4.6 million recorded transactions overruns, so it never fired. A second, benign overlap sat eight bytes inside the operations' scratch region. Both fields moved, stateblock.py now refuses any two that share a byte, and splitfeed.retail.test.py drives the overrun: against the old layout it reads bank $0A and stops, against the new one it answers what a single move answers.",
+      "wouldSettleIt": "n/a. Found, fixed, and held by a check that fails against the layout it replaced.",
+      "namedInDocument": "Two fields of the state block shared a byte"
     }
   ]
 }

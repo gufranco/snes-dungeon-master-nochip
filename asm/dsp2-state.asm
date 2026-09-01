@@ -16,9 +16,14 @@
 ; a 30,000 frame tour leaves 4,568 bytes untouched in 87 runs, and only one of
 ; them is usable: 4,078 bytes at $7E:083E.
 ;
-; What follows uses $7E:0900 to $7E:0CFF, which is 194 bytes into that run and
-; ends 2,860 bytes short of its end, so there is margin on both sides. The base
+; What follows uses $7E:0900 to $7E:0EFF, which is 194 bytes into that run and
+; ends 2,348 bytes short of its end, so there is margin on both sides. The base
 ; is 256 byte aligned so the direct page register can point straight at it.
+;
+; Every field below states its width, and stateblock.py reads those statements
+; and checks that no two of them share a byte. Two did. The assembler cannot
+; catch it: an offset is a number, and two names for one number assemble without
+; complaint.
 ;
 !STATE          = $000900       ; base of the block
 
@@ -40,9 +45,23 @@
 !S_XFER_PTR     = $10           ; 24 bit pointer the transfer indexes through
 !S_XFER_LEFT    = $13           ; bytes still to move, 16 bit
 !S_XFER_TOTAL   = $15           ; bytes the transfer was asked for, 16 bit
-!S_SAVE_A       = $17           ; the caller's registers, kept here rather than
-!S_SAVE_X       = $19           ;   on the stack so the transfer can add the
-!S_SAVE_Y       = $1B           ;   count to them before they go back
+!S_SAVE_A       = $17           ; the caller's accumulator, 16 bit
+!S_SAVE_X       = $19           ; and both index registers, 16 bit, kept here
+!S_SAVE_Y       = $1B           ;   rather than on the stack, 16 bit, so the
+                                ;   transfer can add the count to them before
+                                ;   they go back
+!S_OVERLAY      = $1D           ; where the overlay half of a merge payload
+                                ;   starts, 16 bit, so the loop can reach it
+                                ;   through the direct page rather than carrying
+                                ;   a second index it would have to save and
+                                ;   restore. It was declared at $0E for a while,
+                                ;   which is !S_INBYTE, and the sixteen bit store
+                                ;   that sets it reached into !S_XFER_BANK as
+                                ;   well. A transfer that splits re-reads that
+                                ;   bank after the operation runs, so a merge
+                                ;   would have taken its next chunk from whatever
+                                ;   the pointer's high byte held. Nothing in any
+                                ;   recording splits, so it never fired
 !S_MVN          = $20           ; a four byte MVN stub, built by dsp_init and
                                 ;   patched with its banks before each use. Code
                                 ;   in ROM cannot modify itself, and a block move
@@ -55,19 +74,18 @@
 !S_CHUNK        = $24           ; bytes the current block move covers, 16 bit,
                                 ;   kept out of !S_SCRATCH because an operation
                                 ;   runs in the middle of a transfer and owns that
-!S_SCRATCH      = $28           ; working room for the operations, $0928 to $09FF
-
-; Buffers, reached through DB = $00 by absolute addressing.
-!S_OVERLAY      = $0E           ; where the overlay half of a merge payload
-                                ;   starts, so the loop can reach it through the
-                                ;   direct page rather than carrying a second
-                                ;   index it would have to save and restore
-!S_TABLE_FOR    = $30           ; the transparent colour the merge tables were
+!S_TABLE_FOR    = $26           ; the transparent colour the merge tables were
                                 ;   built for, or $FF when they hold nothing. The
                                 ;   cartridge sets the colour 8,852 times in a
                                 ;   30,000 frame tour and changes it three times,
                                 ;   so comparing costs almost nothing and
-                                ;   rebuilding almost never happens
+                                ;   rebuilding almost never happens. It sat eight
+                                ;   bytes into !S_SCRATCH until the layout was
+                                ;   checked against itself, which no operation
+                                ;   happened to reach and any new one would have
+!S_SCRATCH      = $28           ; working room for the operations, $0928 to $09FF
+
+; Buffers, reached through DB = $00 by absolute addressing.
 
 !P_BUFFER       = $000A00       ; parameters, 512 bytes. A merge of the longest
                                 ;   declared length, 255, takes 2 x 255 = 510

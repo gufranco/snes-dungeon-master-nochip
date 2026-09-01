@@ -179,6 +179,7 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | [`build.py`](build.py) | Docker wrapper around a pinned asar |
 | [`patch.py`](patch.py) | redirects every site in place, each replacement the width of what it replaces |
 | [`sites.py`](sites.py) | where those sites are, and the filler the stubs go in |
+| [`stateblock.py`](stateblock.py) | reads the block's declared layout and refuses two fields that share a byte |
 | [`dsptrace.py`](dsptrace.py) | reads a recorded port trace back into transactions |
 | [`version.py`](version.py) | the release number, rewritten by [`scripts/set-version.sh`](scripts/set-version.sh) |
 | [`artifacts.manifest.json`](artifacts.manifest.json) | every dump this project reads, and what makes each one itself |

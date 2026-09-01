@@ -175,6 +175,20 @@ Two more ways the same harness could report a result it had not measured turned
 up beside it: the emulator's exit code was discarded, and the memory dump was
 read whether or not that run had written it. All three are fixed and guarded.
 
+**Two fields of the state block shared a byte.** The block is laid out by hand
+as a list of offsets, and nothing checked that list against itself: an offset is
+a number, and two names for one number assemble without complaint. `!S_OVERLAY`
+was declared at `$0E`, which is `!S_INBYTE`, and the sixteen bit store that sets
+it reached into `$0F`, which is the bank a block transfer reads from. A transfer
+that overruns one command's payload carries on into the next and re-reads that
+bank, so a merge would have taken its continuation from wherever the overlay
+pointer's high byte pointed. Nothing in 4.6 million recorded transactions
+overruns, which is why it never fired and why it needed a check rather than a
+reading. [`stateblock.py`](stateblock.py) now refuses any two fields that share a
+byte, and [`splitfeed.retail.test.py`](splitfeed.retail.test.py) drives the
+overrun: against the old layout it reads bank `$0A` and stops, against the new
+one it answers what a single move answers.
+
 **The part is a renderer, not an unpacker.** If it expanded stored graphics the
 conversion would be a build step: expand everything once into the image and the
 cartridge would never need an answer computed. Searching the retail dump for the

@@ -131,6 +131,12 @@ and booted to black.
 - **An eight bit immediate inside a sixteen bit region desynchronises the
   instruction stream** and the symptom is a stack that runs away, not an
   assembler error. Check the width the code is in before adding a `lda.b`.
+- **The state block's layout is checked against itself.** Every field in
+  [`dsp2-state.asm`](asm/dsp2-state.asm) states its width, and
+  [`stateblock.py`](stateblock.py) reads those statements and refuses two fields
+  that share a byte. The assembler cannot: an offset is a number, and two names
+  for one number assemble without complaint. Two did share, and one of them was
+  the bank a split transfer reads from. Adding a field means stating its width.
 - **An image with the routines placed is not a converted cartridge.** Assembling
   puts the replacement in the image; nothing calls it until
   [`patch.py`](patch.py) redirects the accesses and the header stops declaring a
