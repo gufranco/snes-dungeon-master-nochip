@@ -1,0 +1,133 @@
+{
+  "comment": "Where each fact stands, and what this package deliberately does not claim.",
+  "sources": {
+    "siblings": "Six members on the import path, each held to its own suite: snes-dsp, mos65xx, snes-mapper, snes-rom-image, snes-graphics and snes-driver.",
+    "cartridge": "The retail image named in artifacts.manifest.json, identified by four digests and not carried here.",
+    "microcode": "The DSP-2's own program, run by snes-dsp to produce an expected answer. Never carried here, and supplied by whoever runs the check.",
+    "tours": "Three seeded tours of 30,000 frames each, 89,999 frames in total, driven on the emulator with every byte in and out of the port recorded. They hold 3,336,773 chip transactions.",
+    "replay": "The recorded stream fed back to the 65816 routines on the processor, with every returned byte compared against what the cartridge's chip returned at that point.",
+    "cost": "tools/cost.py, which runs each command on the cycle counted processor model against recorded traffic and prices it against what the same exchange cost when a chip answered it."
+  },
+  "divergences": [
+    {
+      "id": "the-replacement-costs-about-one-extra-frame-per-frame",
+      "parts": ["speed"],
+      "severity": "high",
+      "status": "open",
+      "documentSays": "Nothing. No document says what a DSP-2 command cost the program that issued it.",
+      "referenceDoes": "The chip computed while the cartridge carried on, so from the program's side a command cost only the bytes pushed through the port.",
+      "packageFollows": "neither",
+      "reasoning": "Priced against the tours, the routines spend 63,912 cycles a frame where the chip path spent 7,600, so they add 56,311 to a frame that holds 59,561. Two commands carry almost all of it: 1,031,195 tile conversions at 2,570 cycles each and 2,023,023 merges at 1,207. The merge figure is the telling one, because a merge computes four bytes and the arithmetic for those four bytes is about 180 cycles. The rest is the cost of standing in for one instruction: saving the caller's state, pointing the data bank and direct page at the block, and putting it all back. There are about 120 of those interceptions in a frame and no arrangement of tables removes them.",
+      "wouldSettleIt": "Whether the converted cartridge holds sixty frames a second, which is a different question from the cycle sum and is answered by instrumenting the emulator to count frames that overrun their budget while a tour drives the patched image.",
+      "namedInDocument": "The replacement costs about one extra frame of processor time per frame"
+    },
+    {
+      "id": "the-recorded-traffic-is-three-tours-not-the-whole-game",
+      "parts": ["coverage"],
+      "severity": "medium",
+      "status": "narrowed",
+      "documentSays": "n/a",
+      "referenceDoes": "n/a",
+      "packageFollows": "recording",
+      "reasoning": "Every claim of correctness here rests on 3,336,773 transactions recorded from three seeded random walks. A command shape those walks never produced has never been checked. The tours disagree with each other enough to show the sampling is uneven: scale appears 10,422 times in the first, 1,068 in the second and 17,777 in the third. What bounds the risk is that the shapes are few, the six operations are each a closed function of their payload, and the replay of all three tours reproduces every byte.",
+      "wouldSettleIt": "A run that reaches every screen in the game, or a second recording made by someone playing rather than by a random walk.",
+      "namedInDocument": "The recorded traffic is three tours, not the whole game"
+    },
+    {
+      "id": "the-state-block-sits-where-three-tours-never-wrote",
+      "parts": ["placement"],
+      "severity": "medium",
+      "status": "narrowed",
+      "documentSays": "n/a",
+      "referenceDoes": "n/a",
+      "packageFollows": "recording",
+      "reasoning": "The block needs work RAM the game does not use, and the game's own use of work RAM is not documented anywhere. It was found by comparing the whole of work RAM against the previous frame after every frame of three 30,000 frame tours, which leaves 4,568 bytes untouched in 87 runs, only one of them long enough to hold the block. The block uses 1,536 bytes of that run, 194 bytes in from its start and 2,860 short of its end. An earlier instrument watched byte accesses only, missed everything this game moves by DMA, reported 37,245 bytes free, and put the block on top of a live table.",
+      "wouldSettleIt": "A disassembly of the game's own allocation, or a tour that reaches every screen. Neither is in hand.",
+      "namedInDocument": "The state block sits where three tours never wrote"
+    },
+    {
+      "id": "scale-declared-its-lengths-in-nibbles",
+      "parts": ["scale"],
+      "severity": "high",
+      "status": "closed",
+      "documentSays": "n/a",
+      "referenceDoes": "The chip reads the scale command's two declared lengths as counts of nibbles, so each covers half as many bytes.",
+      "packageFollows": "reference",
+      "reasoning": "Both the routine and the tool that parses the recorded traffic read the two lengths as byte counts. Because they shared the mistake, scale was not merely wrong: it was unverifiable. The harness fed it a payload of the wrong length and compared the result against an expectation of the wrong length, and the two agreed. It was found by reading the raw structure of a scale exchange, 63 writes followed by 40 reads, against what the parser claimed the lengths were. Both were corrected; scale now answers every recorded byte and its cost fell from 44,521 cycles to 13,490.",
+      "wouldSettleIt": "n/a. Measured and closed.",
+      "namedInDocument": "Scale declared its lengths in nibbles, and the parser shared the mistake"
+    },
+    {
+      "id": "the-merge-tables-were-placed-on-the-replay-harnesss-counters",
+      "parts": ["harness"],
+      "severity": "high",
+      "status": "closed",
+      "documentSays": "n/a",
+      "referenceDoes": "n/a",
+      "packageFollows": "neither",
+      "reasoning": "The replay cartridge keeps its counters in work RAM at $0D00, which nothing else reached until the merge lookup tables were placed there. The tables then overwrote the counters, and the byte the finish flag is read from happened to hold the value that means finished, so a run reported a fixed 353,637,138 wrong bytes for any script and reported them as a completed run. Two further ways the same harness could report a result it had not measured were found alongside it: the emulator's exit code was discarded, and the work RAM dump was read whether or not that run had written it. The counters moved above the whole of the chip's block, an assert holds them there, a test holds the address the tool reads against the address the cartridge writes, and a batch that cannot run is now a failure rather than the previous batch's numbers.",
+      "wouldSettleIt": "n/a. Found, fixed, and guarded three ways.",
+      "namedInDocument": "The replay harness reported numbers it had not measured"
+    },
+    {
+      "id": "the-chip-is-a-renderer-rather-than-a-decompressor",
+      "parts": ["approach"],
+      "severity": "medium",
+      "status": "closed",
+      "documentSays": "n/a",
+      "referenceDoes": "The six commands convert a bitmap to the console's tile format, set a transparent colour, merge, mirror, multiply and scale. None of them expands anything.",
+      "packageFollows": "reference",
+      "reasoning": "If the part unpacked stored graphics, the conversion would be a build step rather than a runtime one: expand everything once, put it in the image, and the cartridge would never need the answers computed. Searching the retail dump for the exact bytes the cartridge sends settles it. Every one of the mirror command's inputs is a run found in the dump, so mirror only ever mirrors fixed assets. Of the tile command's, 0.3% are, and of the merge command's, 1.2%. The two commands that matter are given a view composed in work RAM for wherever the player is standing, which exists nowhere in the image.",
+      "wouldSettleIt": "n/a. Measured and closed.",
+      "namedInDocument": "The part is a renderer, not an unpacker"
+    },
+    {
+      "id": "a-cache-of-recent-answers-does-not-pay",
+      "parts": ["approach"],
+      "severity": "low",
+      "status": "closed",
+      "documentSays": "n/a",
+      "referenceDoes": "n/a",
+      "packageFollows": "recording",
+      "reasoning": "Comparing two tours, 99.3% of tile calls and 99.2% of merge calls use an input the other tour had already seen, so a table of answers would cover nearly everything and the idea is worth testing rather than dismissing. It fails on the key. A sixteen byte prefix still fails to tell 154 of 1,767 distinct tile inputs apart, so a cheap key is not sound, and the repeats are spread across a whole run rather than clustered: a sixty four entry cache of recent inputs hits 2.7% on tile and 5.0% on merge.",
+      "wouldSettleIt": "n/a. Measured and closed.",
+      "namedInDocument": "A cache of recent answers does not pay"
+    },
+    {
+      "id": "a-sixteen-bit-table-index-cannot-be-reached-under-this-mapping",
+      "parts": ["speed"],
+      "severity": "medium",
+      "status": "closed",
+      "documentSays": "The cartridge is a LoROM, which maps 32 kilobytes of each bank, at $8000 to $FFFF.",
+      "packageFollows": "document",
+      "referenceDoes": "n/a",
+      "reasoning": "The obvious way to halve the tile conversion is to look up two input bytes at once, which needs a table indexed by a sixteen bit value. It cannot be built here whatever the image is grown to. Long indexed addressing adds a sixteen bit index register to a twenty four bit base, so an index runs to $FFFF, and 32 kilobytes into any base the address leaves the mapped half of the bank and lands in the system area rather than in the next 32 kilobytes of the table. A single lookup is therefore capped at a fifteen bit index under this mapping, and a sixteen bit one would need the cartridge remapped, which would move every address the game computes for itself. The conversion keeps its four byte wide lookups, which is the finest granularity available, and the eight rows are written out rather than looped because the count never varies.",
+      "wouldSettleIt": "n/a. Settled by the mapping.",
+      "namedInDocument": "A sixteen bit table index cannot be reached under this mapping"
+    },
+    {
+      "id": "nothing-here-models-the-chip",
+      "parts": ["boundary"],
+      "severity": "outOfScope",
+      "status": "notModelled",
+      "documentSays": "n/a",
+      "referenceDoes": "n/a",
+      "packageFollows": "neither",
+      "reasoning": "Every statement about what the DSP-2 returns is made by snes-dsp, which runs the part's own microcode, and every statement about the processor is made by mos65xx. What this package measures directly is how many cycles its own routines spend, and it measures that by running them on the processor model rather than by counting from a table.",
+      "wouldSettleIt": "n/a. This is a boundary, not an unknown.",
+      "namedInDocument": "Nothing here models hardware"
+    },
+    {
+      "id": "neither-the-cartridge-nor-the-microcode-is-here",
+      "parts": ["boundary"],
+      "severity": "outOfScope",
+      "status": "notADisagreement",
+      "documentSays": "n/a",
+      "referenceDoes": "n/a",
+      "packageFollows": "neither",
+      "reasoning": "The cartridge, the part's microcode and every image built from either are absent by rule, and everything published about them is a digest. That is why parts of the suite skip rather than fail on a machine holding neither, and why the checks that need one live in files kept out of the coverage measurement.",
+      "wouldSettleIt": "n/a. This is a rule, not a limitation.",
+      "namedInDocument": "Neither the cartridge nor the microcode is here"
+    }
+  ]
+}

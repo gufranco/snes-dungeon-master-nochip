@@ -1,0 +1,139 @@
+# Open questions
+
+What this project does not know for certain, and what it would take to find out.
+
+This member claims less about hardware than its size suggests. Every statement
+about what the DSP-2 returns is made by `snes-dsp`, which runs the part's own
+microcode, and every statement about the processor is made by `mos65xx`. What is
+left here is a question about coverage, a question about placement, and a
+question about speed, and the speed one is the one that matters.
+
+Every entry below is also in
+[`conformance/divergences.json`](conformance/divergences.json) with its status
+and severity, so a program can read what a person reads here.
+
+## The replacement costs about one extra frame of processor time per frame
+
+Priced against the cartridge's own recorded traffic, the routines spend **63,912
+cycles a frame** where the chip path spent **7,600**. A frame holds 59,561. So
+the conversion adds very nearly a whole frame of work to every frame, averaged
+over three tours that walk the dungeon continuously.
+
+Two commands carry almost all of it:
+
+| command | calls across three tours | cycles a frame, ours | cycles a frame, the chip path |
+|:--|--:|--:|--:|
+| tile | 1,031,195 | 29,985 | 5,190 |
+| merge | 2,023,023 | 28,120 | 2,113 |
+| scale | 29,267 | 4,400 | 233 |
+| everything else | 253,288 | 1,405 | 64 |
+
+The merge row is the one that says where the cost actually is. A merge computes
+four bytes, and the arithmetic for those four bytes is about 180 cycles of the
+1,207 it takes. The rest is the price of standing in for one instruction: saving
+what the caller had, pointing the data bank and the direct page at the state
+block, and putting it all back. There are about 120 of those interceptions in a
+frame. No arrangement of lookup tables removes them, because they are not
+computation.
+
+This is not a shortfall that closes with more optimisation of the same shape.
+Since this was first measured the figure has come down from 95,258 cycles a
+frame to 63,912, and every remaining idea that has been costed is worth low
+thousands rather than tens of thousands. Reaching the chip's own figure is not
+possible at all: the chip computed while the program that fed it carried on, so
+its work was free to the program in a way software never is.
+
+**What would settle it:** whether the converted cartridge holds sixty frames a
+second, which is a different question from the cycle sum and is not answered by
+it. The measurement is to instrument the emulator to count frames that overrun
+their budget while a tour drives the patched image, before and after.
+
+## The recorded traffic is three tours, not the whole game
+
+Every claim of correctness here rests on 3,336,773 transactions recorded from
+three seeded random walks of 30,000 frames each. A command shape those walks
+never produced has never been checked.
+
+The tours disagree with each other enough to show that the sampling is uneven:
+scale appears 10,422 times in the first, 1,068 in the second and 17,777 in the
+third. What bounds the risk is that the shapes are few, each of the six
+operations is a closed function of its payload, and replaying the recorded
+streams through the routines on the processor reproduces every byte the
+cartridge's chip returned.
+
+**What would settle it:** a run that reaches every screen in the game, or a
+second recording made by someone playing rather than by a random walk.
+
+## The state block sits where three tours never wrote
+
+The block needs 1,536 bytes of work RAM the game does not use, and the game's own
+use of work RAM is written down nowhere. It was found by comparing the whole of
+work RAM against the previous frame after every frame of three 30,000 frame
+tours. That leaves 4,568 bytes untouched across 87 runs, only one of which is
+long enough to hold the block, and the block sits 194 bytes into that run and
+2,860 bytes short of its end.
+
+It is listed because the first attempt was wrong in a way that looked right. An
+earlier instrument watched byte accesses only. This game moves work RAM by DMA,
+which that path does not see, so it reported 37,245 bytes free and the block went
+on top of a live table. The converted image drew a blank screen.
+
+**What would settle it:** a disassembly of the game's own allocation, or a tour
+that reaches every screen. Neither is in hand.
+
+## What is closed, and why it is worth saying
+
+**Scale declared its lengths in nibbles, and the parser shared the mistake.** The
+chip reads the scale command's two declared lengths as counts of nibbles. Both
+the routine and the tool that parses recorded traffic read them as byte counts,
+and because they shared the mistake, scale was not merely wrong: it was
+unverifiable. The harness fed it a payload of the wrong length and compared the
+answer against an expectation of the wrong length, and the two agreed with each
+other. It was found by reading the raw shape of a scale exchange, 63 writes then
+40 reads, against what the parser claimed. Both were corrected. Scale now answers
+every recorded byte and its cost fell from 44,521 cycles to 13,490.
+
+**The replay harness reported numbers it had not measured.** Its counters live in
+work RAM at an address nothing else reached until the merge lookup tables were
+placed there. The tables overwrote the counters, and the byte the finish flag is
+read from happened to hold the value that means finished, so a run reported the
+same 353,637,138 wrong bytes for any script and reported them as a completed run.
+Two more ways the same harness could report a result it had not measured turned
+up beside it: the emulator's exit code was discarded, and the memory dump was
+read whether or not that run had written it. All three are fixed and guarded.
+
+**The part is a renderer, not an unpacker.** If it expanded stored graphics the
+conversion would be a build step: expand everything once into the image and the
+cartridge would never need an answer computed. Searching the retail dump for the
+exact bytes the cartridge sends settles it. Every one of the mirror command's
+inputs is a run found in the dump. Of the tile command's, 0.3% are, and of the
+merge command's, 1.2%. The two commands that matter are handed a view composed in
+work RAM for wherever the player is standing, which exists nowhere in the image.
+
+**A cache of recent answers does not pay.** Across two tours, 99.3% of tile calls
+and 99.2% of merge calls use an input the other tour had already seen, so the
+idea is worth testing rather than dismissing. It fails on the key. A sixteen byte
+prefix still fails to tell 154 of 1,767 distinct tile inputs apart, and the
+repeats are spread across a whole run rather than clustered: a sixty four entry
+cache of recent inputs hits 2.7% on tile and 5.0% on merge.
+
+**A sixteen bit table index cannot be reached under this mapping.** The obvious
+way to halve the tile conversion is to look up two input bytes at once, which
+needs a table indexed by a sixteen bit value, and no amount of image growth
+provides one. Long indexed addressing adds a sixteen bit index to a twenty four
+bit base, and 32 kilobytes past any base the address leaves the mapped half of
+the bank and lands in the system area rather than in the rest of the table. A
+single lookup is capped at a fifteen bit index here, and lifting that would mean
+remapping the cartridge, which moves every address the game computes for itself.
+
+## Boundaries, so nobody mistakes them for gaps
+
+**Nothing here models hardware.** The six members on the import path do. The one
+thing this measures directly is how many cycles its own routines spend, and it
+measures that by running them on a processor model that drives a bus cycle by
+cycle rather than by counting from a table.
+
+**Neither the cartridge nor the microcode is here.** Nor is any image built from
+either. Everything published is a digest, which is why parts of the suite skip
+rather than fail on a machine holding neither, and why the checks that need one
+live in files kept out of the coverage measurement.

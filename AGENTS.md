@@ -46,13 +46,21 @@ every answer against what the chip returned, and prices the exchange against wha
 it cost when a chip answered it. Both figures print per command. A single total
 would hide which one regressed, which is the whole reason for the tool.
 
-Two things follow for anybody changing the assembly:
+Three things follow for anybody changing the assembly:
 
 - **Run the cost tool before and after.** A change that makes an operation
   clearer and slower is a change this project cannot take without saying so.
-- **The scaffolding is the cost now, not the arithmetic.** A block transfer spent
-  486 cycles before a byte moved, against the seven a byte the block move it
-  replaces charges. That is where the remaining work is.
+- **The scaffolding is the cost, not the arithmetic.** A merge computes four
+  bytes for about 180 cycles and the whole exchange takes 1,207. The rest is
+  standing in for one instruction: saving what the caller had, pointing the data
+  bank and the direct page at the state block, and putting it back. There are
+  about 120 of those interceptions in a frame.
+- **Know the ceiling before optimising.** The routines add 56,311 cycles to a
+  frame that holds 59,561, and the two commands that matter are already within a
+  few hundred cycles of what this shape can do.
+  [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries the measurements, including
+  the two ideas that look obvious and do not work: caching answers, and indexing
+  a table by two input bytes at once.
 
 ## The six models, and why there are six
 
@@ -90,8 +98,8 @@ Everything below must pass before a change is done. There is no partial credit.
 
 | gate | command |
 |---|---|
-| tests | `for t in *.test.py tools/*.test.py; do python3 "$t" \|\| break; done` |
-| coverage, which fails below 100% | `python3 -m coverage erase && for t in *.test.py tools/*.test.py; do python3 -m coverage run -a "$t"; done && python3 -m coverage report` |
+| tests | `for t in *.test.py tools/*.test.py conformance/*.test.py; do python3 "$t" \|\| break; done` |
+| coverage, which fails below 100% | `python3 -m coverage erase && for t in *.test.py tools/*.test.py conformance/*.test.py; do python3 -m coverage run -a "$t"; done && python3 -m coverage report` |
 | types | `mypy .` |
 | lint | `ruff check .` |
 | format | `ruff format --check .` |

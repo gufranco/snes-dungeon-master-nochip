@@ -88,7 +88,7 @@ jobs:
         run: |
           python3 -m coverage erase
           failed=0
-          for module in *.test.py tools/*.test.py; do
+          for module in *.test.py tools/*.test.py conformance/*.test.py; do
             echo "::group::${module}"
             python3 -m coverage run -a "${module}" || failed=1
             echo "::endgroup::"
