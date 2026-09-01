@@ -422,4 +422,5 @@ def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = S
 
 
 if __name__ == "__main__":  # pragma: no cover
+    sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
     raise SystemExit(main(sys.argv))

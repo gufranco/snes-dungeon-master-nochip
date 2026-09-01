@@ -489,4 +489,5 @@ def load_dsptrace(root: Path) -> Any:
 if __name__ == "__main__":
     import sys
 
+    sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
     raise SystemExit(main(sys.argv[1:]))
