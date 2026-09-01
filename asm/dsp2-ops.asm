@@ -56,42 +56,47 @@
 ; cleared beforehand, and the other three merge in place with TSB, which is one
 ; instruction where a load, an or and a store were three. That removes the two
 ; copies each row used to end with and two cycles from each of its six merges.
-macro tile_row(input, output)
-    lda.w !P_BUFFER+<input>+0   ; the row byte, and the one after it, which
-    and.w #$00FF                ;   the mask discards
+; A row's four bytes are read where the caller left them, through the same
+; pointer a merge uses, so the payload does not have to be copied into the
+; parameter buffer first. Reaching a byte costs four cycles more that way and
+; the copy charged seven, so a conversion comes out ninety six cycles ahead.
+;
+; The reads are sixteen bit, which is what the tables and the accumulators want,
+; and each takes the low half. That means every read but the last also touches
+; the byte after it, and the last one would touch the byte after the payload.
+; Inside the buffer that was harmless; in a caller's memory it is a read of a
+; byte nobody offered, so the final one is taken eight bits wide.
+macro tile_byte(output, table_offset, merge, narrow)
+if <narrow> == 1
+    sep #$20                    ; the payload's last byte, read without reaching
+    lda [!S_PARAM_PTR],y        ;   past what the transfer delivered
+    rep #$20
+else
+    lda [!S_PARAM_PTR],y
+endif
+    and.w #$00FF
     asl                         ; the tables hold words, so the index is doubled
     tax
-    lda.l tile_lo,x
+    iny
+    lda.l tile_lo+<table_offset>,x
+if <merge> == 1
+    tsb.w !O_BUFFER+<output>+0
+else
     sta.w !O_BUFFER+<output>+0  ; planes 0 and 1, in the order the output wants
-    lda.l tile_hi,x
+endif
+    lda.l tile_hi+<table_offset>,x
+if <merge> == 1
+    tsb.w !O_BUFFER+<output>+16
+else
     sta.w !O_BUFFER+<output>+16 ; planes 2 and 3
+endif
+endmacro
 
-    lda.w !P_BUFFER+<input>+1
-    and.w #$00FF
-    asl
-    tax
-    lda.l tile_lo+512,x
-    tsb.w !O_BUFFER+<output>+0
-    lda.l tile_hi+512,x
-    tsb.w !O_BUFFER+<output>+16
-
-    lda.w !P_BUFFER+<input>+2
-    and.w #$00FF
-    asl
-    tax
-    lda.l tile_lo+1024,x
-    tsb.w !O_BUFFER+<output>+0
-    lda.l tile_hi+1024,x
-    tsb.w !O_BUFFER+<output>+16
-
-    lda.w !P_BUFFER+<input>+3
-    and.w #$00FF
-    asl
-    tax
-    lda.l tile_lo+1536,x
-    tsb.w !O_BUFFER+<output>+0
-    lda.l tile_hi+1536,x
-    tsb.w !O_BUFFER+<output>+16
+macro tile_row(output, last)
+    %tile_byte(<output>, 0, 0, 0)
+    %tile_byte(<output>, 512, 1, 0)
+    %tile_byte(<output>, 1024, 1, 0)
+    %tile_byte(<output>, 1536, 1, <last>)
 endmacro
 
 op_tile:
@@ -100,14 +105,15 @@ op_tile:
                                 ;   accumulator, and switching per row cost more
                                 ;   than the switching saved
 
+    ldy.w #$0000                ; the payload is walked once, forward
     %tile_row(0, 0)
-    %tile_row(4, 2)
-    %tile_row(8, 4)
-    %tile_row(12, 6)
-    %tile_row(16, 8)
-    %tile_row(20, 10)
-    %tile_row(24, 12)
-    %tile_row(28, 14)
+    %tile_row(2, 0)
+    %tile_row(4, 0)
+    %tile_row(6, 0)
+    %tile_row(8, 0)
+    %tile_row(10, 0)
+    %tile_row(12, 0)
+    %tile_row(14, 1)
 
     lda.w #!TILE_BYTES
     sta !S_OUT_LEN

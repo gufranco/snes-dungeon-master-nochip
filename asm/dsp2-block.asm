@@ -216,9 +216,14 @@ feed_body:
     bne .copy                   ; something arrived before this, same reason
     sep #$20
     lda !S_COMMAND
-    cmp.b #!CMD_MERGE           ; only a merge reads its payload through a
-    rep #$20                    ;   pointer; every other operation names the
-    bne .copy                   ;   buffer in the instruction
+    cmp.b #!CMD_MERGE           ; the two that read their payload through a
+    beq .in_place               ;   pointer, which between them are 33 of the 36
+    cmp.b #!CMD_TILE            ;   commands a frame carries. The rest name the
+    beq .in_place               ;   buffer in the instruction and need it filled
+    rep #$20
+    bra .copy
+.in_place:
+    rep #$20
 
     ; The whole payload is already in the caller's memory, contiguous and
     ; complete, which is what every one of the 3.3 million transfers in three
