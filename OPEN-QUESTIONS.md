@@ -183,6 +183,38 @@ microcode knows and snes9x's reimplementation may not model. That is a question
 for `snes-dsp` rather than for this project, and until it is answered this tool
 is not a gate and nothing here rests on it.
 
+## Two commands answer differently outside anything the cartridge asks for
+
+Driving the routines and the part's microcode over the whole declared input
+space, rather than over recorded traffic, finds two places where they part. Both
+sit outside everything the recordings contain, and both are stated here because
+an untested region is worth naming even when nothing reaches it.
+
+**A merge longer than 80 bytes.** Each is fed the same payload and the same
+transparent colour on a fresh machine. They agree byte for byte at every
+declared length from 1 to 80 and disagree at every length from 81 to 199. Mirror
+agrees at all 199. The largest merge in 60,000 recorded exchanges declares 30,
+and only five distinct lengths appear at all, so nothing recorded comes near the
+boundary. What is on the other side of it is not established: the routines hold
+a 512 byte parameter buffer and so have an answer for every length the protocol
+can declare, and whether the part has one is a question about the part.
+
+**A multiply with the high bit set on either operand.** The routines compute an
+unsigned 16 by 16 product, which is checkable by hand: `$7C9A x $E531` is
+1,871,551,354, and they answer `7a 9b 8d 6f`. The microcode answers something
+else whenever bit 15 of either operand is set, and agrees on everything else,
+including every recorded multiply. Across 11,330 recorded multiplies not one
+operand has that bit set, so nothing observed distinguishes an unsigned product
+from a signed one, and the recordings cannot be made to. Fitting the microcode's
+answers to a rule was not attempted: that would be reading a chip's arithmetic
+out of an emulator, which is the one place this project does not take an answer
+from.
+
+**What would settle either:** the part's own documentation, or a run against
+hardware. Neither is in hand. What is in hand is that the shipped routines
+reproduce every byte of the recorded traffic, so no divergence here is reachable
+by playing the game.
+
 ## The state block sits where three tours never wrote
 
 The block needs 1,536 bytes of work RAM the game does not use, and the game's own
