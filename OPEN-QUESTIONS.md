@@ -150,13 +150,38 @@ What is established:
   than from a status poll, so a poll being counted as a data read is not the
   explanation.
 
-What is not established is where the disagreement comes from: the model, the
-recording, or how this tool drives the model. Until that is settled, nothing here
-rests on this check, and it is not a gate.
+Stepping the first disagreement through both settles the mechanism. It is
+alignment, not arithmetic.
 
-**What would settle it:** stepping one disagreeing exchange through both, from
-the command byte, and finding which of the two departs from the part's
-documented behaviour.
+The stream diverges at record 19, in the boot sequence. The cartridge writes the
+sync command five times, then a multiply of zero, and reads four bytes. It reads
+`00 00 00 00`; the model answers `00 00 10 10`. Fed that same multiply on a fresh
+model, the answer is `00 00 00 00`, and six multiplies taken from the recording
+agree byte for byte. The difference is the syncs: **the model produces a byte of
+output for command `$0F` and the cartridge's chip produces none.** Five syncs
+alone leave `0f ff ff ff ff ff` to be read. The project's own reading of the boot
+code says the same thing from the other side: it writes sync six times and reads
+nothing back.
+
+One byte per sync compounds across a stream that carries 180,975 of them.
+Discarding a byte after each `$0F` write drops the mismatches from 101,963 to
+60,401, and what is left is the same shape: the first tile disagreement has the
+model answering `22 e7 19 f9 06 7f 80 fd` where the cartridge answered
+`e7 19 f9 06 7f 80 fd 02`, which is the cartridge's own answer shifted one byte
+with a leftover in front.
+
+That byte-value hack is not the repair, and it is worth saying why: a payload
+byte can be `$0F` too, and discarding after one is what produces the next
+disagreement. Only the protocol can tell a sync from a payload byte, so a sound
+comparison has to be driven by transactions rather than by bytes.
+
+None of this touches the shipped routines, which are held against the recordings
+by [`tools/replay.py`](tools/replay.py) and reproduce 98,333,301 bytes.
+
+**What would settle it:** whether the part answers a sync at all, which the
+microcode knows and snes9x's reimplementation may not model. That is a question
+for `snes-dsp` rather than for this project, and until it is answered this tool
+is not a gate and nothing here rests on it.
 
 ## The state block sits where three tours never wrote
 

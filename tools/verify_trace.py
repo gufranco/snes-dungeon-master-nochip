@@ -30,6 +30,19 @@ import snesdsp  # noqa: E402
 PART = "dsp2"
 """The part this cartridge carries, and the microcode a check runs against."""
 
+CAVEAT = (
+    "  this comparison is not sound yet: the model answers a byte for the sync"
+    " command and the cartridge's chip answers none, so the read streams run out"
+    " of step. See OPEN-QUESTIONS.md. The routines are held by tools/replay.py."
+)
+"""Said with every result, because a number nobody can trust reads like one they can.
+
+What this reports is real and it is not evidence about the routines. It replays a
+raw byte stream against the part's microcode, and the two disagree about whether
+sync produces output, which puts every later read one byte out. The arithmetic
+agrees wherever it has been checked one transaction at a time.
+"""
+
 Result = namedtuple("Result", "path writes reads mismatches examples")
 
 
@@ -149,6 +162,7 @@ def main(
     reads = sum(result.reads for result in results)
     wrong = sum(result.mismatches for result in results)
     say(f"\n  {reads:,} bytes the cartridge returned, {wrong:,} the part did not reproduce")
+    say(CAVEAT)
     return 1 if wrong else 0
 
 

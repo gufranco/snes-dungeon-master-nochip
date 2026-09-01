@@ -208,6 +208,21 @@ class MainTest(unittest.TestCase):
 
         self.assertTrue(any("2 written" in one for one in said))
 
+    def test_a_result_carries_the_reason_it_cannot_be_read_as_evidence(self) -> None:
+        said: list[Any] = []
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp) / "trace.bin"
+            where.write_bytes(trace_bytes(writes=(0x09,), reads=(0x11,)))
+
+            verify.main(
+                ["verify_trace.py", str(where)],
+                build=puppets((0x11,)),
+                refuses=lambda: None,
+                say=said.append,
+            )
+
+        self.assertTrue(any("not sound yet" in one for one in said))
+
     def test_and_one_it_does_not_fails(self) -> None:
         said: list[Any] = []
         with tempfile.TemporaryDirectory() as tmp:
