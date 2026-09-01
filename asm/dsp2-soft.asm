@@ -448,9 +448,9 @@ command_byte:
 ; Exit:  A, X, Y clobbered. Widths left at A 8 bit, index 16 bit.
 ; ---------------------------------------------------------------------------
 run:
-    rep #$10
-    sep #$20
-    stz !S_STAGE
+    sep #$20                    ; the index registers are already sixteen bit at
+    stz !S_STAGE                ;   all five places this is reached from, so
+                                ;   widening them again bought nothing
     rep #$20
     stz !S_OUT_INDEX            ; the read cursor rewinds for every command, but
                                 ;   the count does not clear. A command that

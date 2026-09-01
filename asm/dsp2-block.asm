@@ -438,12 +438,13 @@ drain_body:
     ldy !S_SAVE_Y
     lda !S_XFER_TOTAL
     dec a
-    jsl !STATE+!S_MVN
-    pea $0000                   ; the move leaves DB holding the caller's bank
-    plb
-    plb
-    rep #$30
-
+    jsl !STATE+!S_MVN           ; which leaves the data bank holding the caller's,
+    rep #$30                    ;   and nothing between here and the epilogue
+                                ;   reads it: the cursor is worked out from the
+                                ;   index register and every field below is
+                                ;   reached through the direct page. The pull at
+                                ;   the exit puts the caller's own bank back
+                                ;   whatever this one holds
     txa                         ; as in the feed: X is one past the last byte
     sec                         ;   read, so the cursor is already there
     sbc.w #(!O_BUFFER&$FFFF)
