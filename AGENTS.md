@@ -56,7 +56,7 @@ Three things follow for anybody changing the assembly:
   standing in for one instruction: saving what the caller had, pointing the data
   bank and the direct page at the state block, and putting it back. There are
   about 120 of those interceptions in a frame.
-- **Know the ceiling before optimising.** The routines add 56,419 cycles to a
+- **Know the ceiling before optimising.** The routines add 55,567 cycles to a
   frame that holds 59,561, and the two commands that matter are already within a
   few hundred cycles of what this shape can do.
   [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries the measurements, including

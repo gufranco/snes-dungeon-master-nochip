@@ -453,7 +453,24 @@ op_scale:
     bra .walk
 
 .shrink:
+    lda !S_LEN1                 ; both declared lengths as one word, which is the
+    cmp !S_STEP_FOR             ;   whole of what the step depends on
+    bne .derive
+
+    lda !S_STEP                 ; the same pair as last time, so the divide that
+    sta !S_SCRATCH+26           ;   answers it has already been done
+    lda !S_STEP+2
+    sta !S_SCRATCH+28
+    bra .walk
+
+.derive:
+    lda !S_LEN1
+    sta !S_STEP_FOR
     jsr scale_step
+    lda !S_SCRATCH+26
+    sta !S_STEP
+    lda !S_SCRATCH+28
+    sta !S_STEP+2
 
 .walk:
     stz !S_SCRATCH+30           ; the cursor, fractional half

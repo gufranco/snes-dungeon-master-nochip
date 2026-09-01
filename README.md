@@ -44,7 +44,7 @@ than estimated.
 | pinned assembler container | builds |
 | the six operations in 65816 | answer every recorded byte, on the processor |
 | the finished cartridge | builds from a dump in one command, and boots with no coprocessor |
-| speed | 64,019 cycles a frame against 7,600 for the chip path, in a frame of 59,561 |
+| speed | 63,168 cycles a frame against 7,600 for the chip path, in a frame of 59,561 |
 
 ```bash
 python3 cartridge.py roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"

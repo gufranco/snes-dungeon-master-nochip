@@ -55,10 +55,20 @@ class ReadingTest(unittest.TestCase):
 
         self.assertEqual(found, {})
 
-    def test_the_scratch_region_reaches_the_end_of_the_page(self) -> None:
+    def test_the_scratch_region_reaches_the_end_of_the_page_by_default(self) -> None:
         found = stateblock.fields("!S_SCRATCH      = $28           ; working room\n")
 
         self.assertEqual(found["!S_SCRATCH"], (0x28, stateblock.PAGE - 0x28))
+
+    def test_the_scratch_region_stops_where_the_assembly_says_it_stops(self) -> None:
+        text = "!S_SCRATCH      = $28           ; working room\n!S_SCRATCH_END  = $F0\n"
+
+        self.assertEqual(stateblock.fields(text)["!S_SCRATCH"], (0x28, 0xF0 - 0x28))
+
+    def test_the_end_marker_is_not_itself_a_field(self) -> None:
+        text = "!S_SCRATCH      = $28           ; working room\n!S_SCRATCH_END  = $F0\n"
+
+        self.assertNotIn("!S_SCRATCH_END", stateblock.fields(text))
 
     def test_the_block_move_stub_is_an_instruction_rather_than_a_value(self) -> None:
         found = stateblock.fields("!S_MVN          = $20           ; a four byte MVN stub\n")

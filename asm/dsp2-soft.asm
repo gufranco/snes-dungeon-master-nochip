@@ -71,6 +71,10 @@ dsp_init:
     stz !S_SCRATCH+16           ; the transparent colour in its high nibble form,
                                 ;   which the table builder compares against
 
+    lda.w #$FFFF                ; no resampling step held yet. A pair of equal
+    sta !S_STEP_FOR             ;   lengths never reaches the code that reads
+                                ;   this, so it cannot be mistaken for one
+
     ldx.w #$0000                ; the parameter buffer is cleared as well. A
 .clear:                         ;   scale reads past the payload it was handed,
     stz.w !P_BUFFER,x           ;   by design, and takes whatever the last

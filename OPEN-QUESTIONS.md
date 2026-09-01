@@ -14,7 +14,7 @@ and severity, so a program can read what a person reads here.
 
 ## The replacement costs about one extra frame of processor time per frame
 
-Priced against the cartridge's own recorded traffic, the routines spend **64,019
+Priced against the cartridge's own recorded traffic, the routines spend **63,168
 cycles a frame** where the chip path spent **7,600**. A frame holds 59,561. So
 the conversion adds very nearly a whole frame of work to every frame, averaged
 over three tours that walk the dungeon continuously.
@@ -25,7 +25,7 @@ Two commands carry almost all of it:
 |:--|--:|--:|--:|
 | tile | 1,031,195 | 30,031 | 5,190 |
 | merge | 2,023,023 | 28,278 | 2,113 |
-| scale | 29,267 | 4,403 | 233 |
+| scale | 29,267 | 3,552 | 233 |
 | everything else | 253,288 | 1,307 | 64 |
 
 The figure is a weighted one, because the cartridge reaches the chip two ways and
@@ -35,7 +35,7 @@ four block movers the boot code installs in work RAM, whose bank operands the
 caller writes first; those became dispatchers that read the operands back and
 decide from them, and that costs 42 cycles a transfer. Sixty per cent of the
 traffic arrives that way. Priced through the direct path alone the total is
-62,239, which is the number to compare against when changing an operation and
+61,387, which is the number to compare against when changing an operation and
 the wrong one to quote as what the cartridge costs.
 
 The merge row is the one that says where the cost actually is. A merge computes
@@ -48,7 +48,7 @@ computation.
 
 This is not a shortfall that closes with more optimisation of the same shape.
 Since this was first measured the figure has come down from 95,258 cycles a
-frame to 64,019, and every remaining idea that has been costed is worth low
+frame to 63,168, and every remaining idea that has been costed is worth low
 thousands rather than tens of thousands. Reaching the chip's own figure is not
 possible at all: the chip computed while the program that fed it carried on, so
 its work was free to the program in a way software never is.
@@ -89,7 +89,7 @@ out. The retail path polls a status register in a loop until the chip answers,
 and how long that takes is not something a table can price, so
 [`tools/cost.py`](tools/cost.py) counts it for neither side. The replacement
 answers that poll immediately. Whatever the retail cartridge spent spinning is
-time the conversion gets back, and it does not appear in the 56,419.
+time the conversion gets back, and it does not appear in the 55,567.
 
 Two limits, both of which cap what this can say:
 

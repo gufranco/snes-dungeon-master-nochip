@@ -83,7 +83,23 @@
                                 ;   bytes into !S_SCRATCH until the layout was
                                 ;   checked against itself, which no operation
                                 ;   happened to reach and any new one would have
-!S_SCRATCH      = $28           ; working room for the operations, $0928 to $09FF
+!S_SCRATCH      = $28           ; working room for the operations, $0928 to $09EF
+!S_SCRATCH_END  = $F0           ; where that room stops, read by stateblock.py so
+                                ;   a field above it is not taken for a collision
+!S_STEP_FOR     = $F0           ; 16 bit. The two declared lengths the resampling
+                                ;   step below was worked out for, read as one
+                                ;   word because they are adjacent. $FFFF means
+                                ;   nothing is held: a scale only derives a step
+                                ;   when its output is shorter than its input, so
+                                ;   a pair of equal lengths never gets here
+!S_STEP         = $F2           ; 32 bit. That step, in 16.16 fixed point. The
+                                ;   division that produces it is a thirty two bit
+                                ;   restoring divide, thirty two iterations of
+                                ;   six shifts and a compare, and the cartridge
+                                ;   asks for the same answer over and over: one
+                                ;   30,000 frame tour makes 10,422 scale calls
+                                ;   with two distinct length pairs between them,
+                                ;   changing pair twice
 
 ; Buffers, reached through DB = $00 by absolute addressing.
 

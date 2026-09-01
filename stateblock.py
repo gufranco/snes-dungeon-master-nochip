@@ -38,6 +38,14 @@ STUB_BYTES = 4
 
 SCRATCH = "!S_SCRATCH"
 
+SCRATCH_END = "!S_SCRATCH_END"
+"""Where the operations' working room stops, when anything is declared above it.
+
+Without this the region is taken to run to the end of the page, which is what it
+did until a field wanted a home that had to survive between operations. It is a
+boundary rather than a field, so it is read and then dropped.
+"""
+
 EXPLICIT = {"!S_MVN": STUB_BYTES}
 """Fields whose width is not something a line about them would say.
 
@@ -65,8 +73,9 @@ def fields(text: str) -> dict[str, tuple[int, int]]:
                 if phrase in comment:
                     width = bytes_wide
         found[name] = (at, width)
+    stops = found.pop(SCRATCH_END, (PAGE, 0))[0]
     if SCRATCH in found:
-        found[SCRATCH] = (found[SCRATCH][0], PAGE - found[SCRATCH][0])
+        found[SCRATCH] = (found[SCRATCH][0], stops - found[SCRATCH][0])
     return found
 
 
