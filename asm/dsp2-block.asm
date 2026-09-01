@@ -29,7 +29,7 @@
 ; the count to them before they go back, and points DB and DP at the block.
 ;
 ; Entry: A 16 bit holding the count less one, X and Y 16 bit.
-; Exit:  DB = $00, DP = !STATE. !S_XFER_TOTAL and !S_XFER_LEFT hold the count.
+; Exit:  DB = $00, DP = !STATE. !S_XFER_TOTAL holds the count.
 ;        A, X clobbered. !S_XFER_BANK is not touched, so a caller that set it
 ;        before calling here still has it afterwards.
 ; ---------------------------------------------------------------------------
@@ -46,8 +46,10 @@ macro block_enter()
     stx !S_SAVE_X               ; both index registers store straight out, which
     sty !S_SAVE_Y               ;   they could not do through long addresses
     inc a                       ; MVN takes the count less one
-    sta !S_XFER_TOTAL
-    sta !S_XFER_LEFT
+    sta !S_XFER_TOTAL           ; the cursor is not set here. Only the two loops
+                                ;   read it and each zeroes it before its first
+                                ;   pass, so a value written here is overwritten
+                                ;   unread on every path there is
 
     sep #$20                    ; the block move stub is code living in work RAM,
     lda !S_MVN                  ;   and this game clears work RAM by DMA after the
@@ -202,7 +204,7 @@ dsp_drain_bank:
 ; Runs the transfer's bytes through the write state machine, reading them from
 ; the caller's source through a long pointer so any bank can be the source.
 ;
-; Entry: DB = $00, DP = !STATE, !S_XFER_BANK and !S_SAVE_X and !S_XFER_LEFT set.
+; Entry: DB = $00, DP = !STATE, !S_XFER_BANK and !S_SAVE_X and !S_XFER_TOTAL set.
 ; Exit:  A, X, Y clobbered. Widths left at A 16 bit, index 16 bit.
 ; ---------------------------------------------------------------------------
 feed:
@@ -348,7 +350,7 @@ feed:
 ; The mirror of the above: takes the transfer's bytes from the finished output
 ; and writes them through the caller's destination.
 ;
-; Entry: DB = $00, DP = !STATE, !S_XFER_BANK and !S_SAVE_Y and !S_XFER_LEFT set.
+; Entry: DB = $00, DP = !STATE, !S_XFER_BANK and !S_SAVE_Y and !S_XFER_TOTAL set.
 ; Exit:  A, X, Y clobbered. Widths left at A 16 bit, index 16 bit.
 ; ---------------------------------------------------------------------------
 drain:

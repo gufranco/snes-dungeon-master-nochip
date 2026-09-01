@@ -43,7 +43,7 @@
 !S_XFER_BANK    = $0F           ; the bank a block transfer reads or writes,
                                 ;   supplied by whichever entry point was called
 !S_XFER_PTR     = $10           ; 24 bit pointer the transfer indexes through
-!S_XFER_LEFT    = $13           ; bytes still to move, 16 bit
+!S_XFER_LEFT    = $13           ; bytes of a split run already moved, 16 bit
 !S_XFER_TOTAL   = $15           ; bytes the transfer was asked for, 16 bit
 !S_SAVE_A       = $17           ; the caller's accumulator, 16 bit
 !S_SAVE_X       = $19           ; and both index registers, 16 bit, kept here
