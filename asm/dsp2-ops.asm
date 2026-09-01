@@ -49,53 +49,49 @@
 ; vary: 28 cycles a row, 224 for a conversion, for eight repetitions of one
 ; macro. The cartridge asks for a conversion 1,031,195 times across three
 ; recorded tours, which is where the exchange goes from cheap to worth unrolling.
+; The four bytes of a row are gathered in the output itself rather than in a
+; pair of scratch words that are copied there at the end. Planes 0 and 1 are
+; adjacent in the output, so one sixteen bit access carries both, and planes 2
+; and 3 sit sixteen bytes along. The first byte stores, so nothing has to be
+; cleared beforehand, and the other three merge in place with TSB, which is one
+; instruction where a load, an or and a store were three. That removes the two
+; copies each row used to end with and two cycles from each of its six merges.
 macro tile_row(input, output)
     lda.w !P_BUFFER+<input>+0   ; the row byte, and the one after it, which
     and.w #$00FF                ;   the mask discards
     asl                         ; the tables hold words, so the index is doubled
     tax
     lda.l tile_lo,x
-    sta !S_SCRATCH+0            ; planes 0 and 1, in the order the output wants
+    sta.w !O_BUFFER+<output>+0  ; planes 0 and 1, in the order the output wants
     lda.l tile_hi,x
-    sta !S_SCRATCH+2            ; planes 2 and 3
+    sta.w !O_BUFFER+<output>+16 ; planes 2 and 3
 
     lda.w !P_BUFFER+<input>+1
     and.w #$00FF
     asl
     tax
     lda.l tile_lo+512,x
-    ora !S_SCRATCH+0
-    sta !S_SCRATCH+0
+    tsb.w !O_BUFFER+<output>+0
     lda.l tile_hi+512,x
-    ora !S_SCRATCH+2
-    sta !S_SCRATCH+2
+    tsb.w !O_BUFFER+<output>+16
 
     lda.w !P_BUFFER+<input>+2
     and.w #$00FF
     asl
     tax
     lda.l tile_lo+1024,x
-    ora !S_SCRATCH+0
-    sta !S_SCRATCH+0
+    tsb.w !O_BUFFER+<output>+0
     lda.l tile_hi+1024,x
-    ora !S_SCRATCH+2
-    sta !S_SCRATCH+2
+    tsb.w !O_BUFFER+<output>+16
 
     lda.w !P_BUFFER+<input>+3
     and.w #$00FF
     asl
     tax
     lda.l tile_lo+1536,x
-    ora !S_SCRATCH+0
-    sta !S_SCRATCH+0
+    tsb.w !O_BUFFER+<output>+0
     lda.l tile_hi+1536,x
-    ora !S_SCRATCH+2
-    sta !S_SCRATCH+2
-
-    lda !S_SCRATCH+0            ; planes 0 and 1 are adjacent in the output, so
-    sta.w !O_BUFFER+<output>+0  ;   one sixteen bit store places both
-    lda !S_SCRATCH+2
-    sta.w !O_BUFFER+<output>+16 ; and planes 2 and 3 sixteen bytes along
+    tsb.w !O_BUFFER+<output>+16
 endmacro
 
 op_tile:

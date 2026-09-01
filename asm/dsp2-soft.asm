@@ -304,17 +304,37 @@ length_byte:
     lda !S_COMMAND              ;   read into the same accumulator to test it
     cmp.b #!CMD_SCALE
     beq .scale
+    cmp.b #!CMD_MIRROR          ; how much payload the length implies is decided
+    beq .mirror                 ;   here, where the command has just been read,
+                                ;   rather than in a routine that reads it again
+                                ;   and asks the same two questions over
+    lda !S_SCRATCH              ; a merge, which takes two bitmaps
+    sta !S_LEN1
+    stz !S_WANT_LEN
+    rep #$20
+    and.w #$00FF
+    asl
+    bra .sized
+
+.mirror:
     lda !S_SCRATCH
     sta !S_LEN1
-    bra .done
-.scale:
-    lda !S_SCRATCH
-    sta !S_LEN2
-
-.done:
     stz !S_WANT_LEN
-    jsr payload_size            ; how many payload bytes this length implies,
-    rep #$20                    ;   returned 16 bit
+    rep #$20
+    and.w #$00FF
+    bra .sized
+
+.scale:
+    lda !S_SCRATCH              ; the second declared length is the output's, and
+    sta !S_LEN2                 ;   the payload is sized from the first
+    stz !S_WANT_LEN
+    lda !S_LEN1
+    rep #$20
+    and.w #$00FF
+    inc a
+    lsr
+
+.sized:
     sta !S_WANT_PARAM
     ora.w #$0000
     beq .empty
@@ -354,19 +374,37 @@ command_byte:
                                 ;   waiting. The cursor rewinds when the command
                                 ;   runs, which is where the chip rewinds it.
 
-    lda !S_COMMAND
-    cmp.b #!CMD_MERGE
+    lda !S_COMMAND              ; tested in the order the cartridge sends them,
+    cmp.b #!CMD_MERGE           ;   measured over three thousand frames of play:
+    beq .takes_one_length       ;   a merge 23 times a frame, a conversion 10,
+    cmp.b #!CMD_TILE            ;   a sync under two, and the remaining four
+    beq .tile                   ;   under one between them. A mirror never
+    cmp.b #!CMD_MIRROR          ;   appears at all in that span
     beq .takes_one_length
-    cmp.b #!CMD_MIRROR
-    beq .takes_one_length
+    cmp.b #!CMD_MULTIPLY
+    beq .multiply
+    cmp.b #!CMD_TRANSPARENT
+    beq .transparent
     cmp.b #!CMD_SCALE
     beq .takes_two_lengths
 
-    jsr fixed_input_size        ; the commands whose payload never varies,
-    rep #$20                    ;   returned 16 bit
+    rep #$20                    ; a sync, or a command this chip does not know
+    stz !S_WANT_PARAM
+    bra .nothing_to_collect
+
+.tile:                          ; the three whose payload never varies. Each is
+    lda.b #!TILE_BYTES          ;   its own branch rather than a second pass over
+    bra .collect                ;   the command byte in a routine of its own
+.multiply:
+    lda.b #!MULTIPLY_BYTES
+    bra .collect
+.transparent:
+    lda.b #$01
+
+.collect:
+    rep #$20
+    and.w #$00FF
     sta !S_WANT_PARAM
-    ora.w #$0000
-    beq .nothing_to_collect
     sep #$20
     lda.b #!STAGE_PARAM
     sta !S_STAGE
@@ -375,7 +413,7 @@ command_byte:
 
 .nothing_to_collect:
     sep #$20
-    stz !S_STAGE                ; a sync, or a command this chip does not know
+    stz !S_STAGE
     rep #$20
     stz !S_OUT_INDEX            ; which still rewinds the read cursor, so a
                                 ;   result read only in part can be read again
@@ -395,68 +433,6 @@ command_byte:
     lda.b #!STAGE_LENGTH
     sta !S_STAGE
     rep #$20
-    rts
-
-; ---------------------------------------------------------------------------
-; fixed_input_size
-;
-; The payload size of a command that declares no length.
-;
-; Entry: A 8 bit holding the command, DP = !STATE.
-; Exit:  A 8 bit holding the size, zero when the command collects nothing.
-; ---------------------------------------------------------------------------
-fixed_input_size:
-    cmp.b #!CMD_TILE
-    bne +
-    lda.b #!TILE_BYTES
-    bra .as_word
-+   cmp.b #!CMD_TRANSPARENT
-    bne +
-    lda.b #$01
-    bra .as_word
-+   cmp.b #!CMD_MULTIPLY
-    bne +
-    lda.b #!MULTIPLY_BYTES
-    bra .as_word
-+   lda.b #$00
-
-.as_word:
-    rep #$20
-    and.w #$00FF
-    rts
-
-; ---------------------------------------------------------------------------
-; payload_size
-;
-; The payload size implied by the lengths a command declared. A merge takes two
-; bitmaps of the declared length, a mirror one, and a scale takes half its input
-; length rounded up because that length counts pixels rather than bytes.
-;
-; Entry: DP = !STATE, the lengths in place, A and index registers 16 bit on entry.
-; Exit:  A 8 bit holding the size. The result never exceeds 510, so callers read
-;        it as 16 bit through the carry out of the merge case below.
-; ---------------------------------------------------------------------------
-payload_size:
-    sep #$20
-    lda !S_COMMAND
-    cmp.b #!CMD_MIRROR
-    bne +
-    lda !S_LEN1
-    rep #$20
-    and.w #$00FF
-    rts
-+   cmp.b #!CMD_SCALE
-    bne +
-    lda !S_LEN1
-    rep #$20
-    and.w #$00FF
-    inc a
-    lsr
-    rts
-+   lda !S_LEN1                 ; a merge, which takes two bitmaps
-    rep #$20
-    and.w #$00FF
-    asl
     rts
 
 ; ---------------------------------------------------------------------------
@@ -482,25 +458,25 @@ run:
                                 ;   own end.
     sep #$20
 
-    lda !S_COMMAND
-    cmp.b #!CMD_TILE
+    lda !S_COMMAND              ; in the same order as the one that decides what
+    cmp.b #!CMD_MERGE           ;   a command collects, and for the same reason:
+    bne +                       ;   every test a merge walks past is paid twenty
+    jmp op_merge                ;   three times a frame and a conversion's ten
++   cmp.b #!CMD_TILE
     bne +
     jmp op_tile
-+   cmp.b #!CMD_TRANSPARENT
-    bne +
-    jmp op_transparent
-+   cmp.b #!CMD_MERGE
-    bne +
-    jmp op_merge
-+   cmp.b #!CMD_MIRROR
-    bne +
-    jmp op_mirror
 +   cmp.b #!CMD_MULTIPLY
     bne +
     jmp op_multiply
++   cmp.b #!CMD_TRANSPARENT
+    bne +
+    jmp op_transparent
 +   cmp.b #!CMD_SCALE
     bne +
     jmp op_scale
++   cmp.b #!CMD_MIRROR
+    bne +
+    jmp op_mirror
 +   rts                         ; a command this chip does not know produces
                                 ;   nothing, as the reference does
 
