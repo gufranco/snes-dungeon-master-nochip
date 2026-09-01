@@ -32,8 +32,8 @@ You supply the retail dump. Nothing here contains game data, and nothing ever wi
 
 ## Status
 
-It builds and it answers correctly. It is slower than the chip, and by how much is measured rather
-than estimated.
+It builds and it answers correctly. It costs the processor about four times what the chip path cost,
+and draws the dungeon in the same number of frames.
 
 | part | state |
 |------|-------|
@@ -44,7 +44,7 @@ than estimated.
 | pinned assembler container | builds |
 | the six operations in 65816 | answer every recorded byte, on the processor |
 | the finished cartridge | builds from a dump in one command, and boots with no coprocessor |
-| speed | 63,168 cycles a frame against 7,600 for the chip path, in a frame of 59,561 |
+| speed | 59,874 cycles a frame against 14,385 for the chip path, in a frame of 59,561 |
 
 ```bash
 python3 cartridge.py roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"
@@ -52,9 +52,9 @@ python3 cartridge.py roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (no
 
 It assembles, points every access at the replacement, and rewrites the header so nothing declares a
 coprocessor. It refuses to write the file if either check finds anything left: an access still going
-to the chip, or a header mirror still declaring one. That refusal is the point. An image with the
-routines placed and the accesses not redirected boots and plays perfectly, because the emulator reads
-the header, provides a DSP-2 and serves every request itself.
+to the chip, or a header mirror still declaring one. An image with the routines placed and the
+accesses not redirected boots and plays perfectly, because the emulator reads the header, provides a
+DSP-2 and serves every request itself.
 
 **Correctness.** Four runs of 30,000 frames each were driven on the emulator with every byte in and
 out of the port recorded: three seeded random walks and one steady route. Feeding those streams back
@@ -62,18 +62,18 @@ through the routines, on the processor, walks 8,722,303 runs and checks 98,333,3
 the cartridge's own chip returned. None are wrong.
 
 **Speed.** The chip computed while the program that fed it carried on, so replacing it with code
-cannot be free, and per command the shortfall is large: the routines add most of a frame of processor
-time to each frame during continuous movement. Almost all of that is the cost of standing in for one
-instruction rather than the arithmetic.
+cannot be free. Weighted by how often the cartridge sends each command, the routines spend 59,874
+cycles a frame where the port traffic cost 14,385. That ratio has a floor under it: the retail figure
+counts the stores and block moves and not the time the game spent spinning on a status register
+waiting for an answer, which nobody here can measure.
 
-What it costs in practice is much less than that sum. Driving both cartridges along the same route
-and comparing every finished frame over 30,000 of them, eight minutes of continuous walking and
-turning, the conversion loses one second on the first dungeon draw and then does not lose another
-frame. 29,936 of the 30,000 frames were drawn the same.
-The likely reason is the one thing the per-command comparison leaves out: the retail path spins on a
-status register until the chip answers, and the replacement answers at once.
-[`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries both measurements, what each cannot say, and the two
-ideas that look obvious and do not work.
+What it costs a player is a separate measurement. Driving both cartridges along the same route for
+30,000 frames, eight minutes of walking and turning, 29,942 frames are drawn the same. The conversion
+reaches the title screen 55 frames later, and after that never falls a frame behind. Timing the
+dungeon redraw directly, over 139 of them, both cartridges settle in 26 frames and the conversion was
+slower on none: the game paces that redraw itself, and both the chip and the routines finish inside
+it. [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries both measurements, what each cannot say, and the
+two ideas that look obvious and do not work.
 
 ## The dump
 
@@ -137,9 +137,8 @@ looking.
 The 65816 model is also the instrument the replacement is measured with. It drives a bus cycle by
 cycle, so what a routine costs is the cycles it actually took rather than a sum from a table.
 
-A model that has never disagreed with something is not a model that is right, it is one that has
-never been asked. Several of those above were wrong the first time they were measured that way, and
-every one of those defects sat in the part that looked obviously correct.
+A model is worth what has disagreed with it. Several of those above were wrong the first time they
+were measured that way, and every one of those defects sat in the part that looked obviously correct.
 
 They also start dirty. Memory and registers hold arbitrary but reproducible values rather than
 zeroes, because real hardware does, and anything here that wants a cleared machine has to ask for
@@ -157,9 +156,8 @@ and the SHA-256 of each, and how much recorded traffic is here. It then asks eve
 report and files what comes back under that model's name, so the whole chain is in one place rather
 than one layer of it.
 
-Nothing is inferred and nothing is hidden. A check that fails says what it saw, and a check that
-itself throws is reported as what it threw rather than taking the report down with it. Paste all of
-it into an issue.
+A check that fails says what it saw, and a check that itself throws is reported as what it threw
+rather than taking the report down with it. Paste all of it into an issue.
 
 ## Repository guide
 
