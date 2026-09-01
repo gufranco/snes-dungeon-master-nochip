@@ -1,4 +1,5 @@
 import importlib.util
+import os
 import sys
 import tempfile
 import unittest
@@ -172,6 +173,20 @@ class CommandTest(unittest.TestCase):
         code = cost.main(["cost.py", "/nonexistent/rom.sfc", "/nonexistent/rom.sym"], said.append)
 
         self.assertEqual((code, "build" in said[0]), (2, True))
+
+    def test_symbols_older_than_the_cartridge_are_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            (where / "probe.sym").write_text("[labels]\n9C:E000 dsp_init\n")
+            (where / "probe.sfc").write_bytes(b"\x00")
+            os.utime(where / "probe.sym", (0, 0))
+            said: list[str] = []
+
+            code = cost.main(
+                ["cost.py", str(where / "probe.sfc"), str(where / "probe.sym")], said.append
+            )
+
+        self.assertEqual((code, "older" in said[0]), (2, True))
 
 
 def recorded() -> bytes:

@@ -42,19 +42,15 @@
 ; Entry: DB = $00, DP = !STATE, !P_BUFFER holds 32 bytes.
 ; Exit:  !O_BUFFER holds 32 bytes, !S_OUT_LEN = 32.
 ; ---------------------------------------------------------------------------
-op_tile:
-    ldy.w #$0000                ; Y walks the input, four bytes to a row
-    rep #$20                    ; sixteen bit for the whole conversion: every
-                                ;   table entry is a word and so is every
-                                ;   accumulator, and switching per row cost more
-                                ;   than the switching saved
-    stz !S_SCRATCH+4            ; the output cursor lives here rather than in X,
-                                ;   because X carries the table index all through
-                                ;   a row and saving it around each of the four
-                                ;   lookups cost nine cycles a byte
-
-.group:
-    lda.w !P_BUFFER+0,y         ; the row byte, and the one after it, which
+; The conversion is always eight rows and never any other number, so the rows
+; are written out rather than looped. A loop over eight passes spent an index
+; register on walking the input, a direct page word on the output cursor, and a
+; compare and a branch per row, all of which are constants once the count cannot
+; vary: 28 cycles a row, 224 for a conversion, for eight repetitions of one
+; macro. The cartridge asks for a conversion 1,031,195 times across three
+; recorded tours, which is where the exchange goes from cheap to worth unrolling.
+macro tile_row(input, output)
+    lda.w !P_BUFFER+<input>+0   ; the row byte, and the one after it, which
     and.w #$00FF                ;   the mask discards
     asl                         ; the tables hold words, so the index is doubled
     tax
@@ -63,7 +59,7 @@ op_tile:
     lda.l tile_hi,x
     sta !S_SCRATCH+2            ; planes 2 and 3
 
-    lda.w !P_BUFFER+1,y
+    lda.w !P_BUFFER+<input>+1
     and.w #$00FF
     asl
     tax
@@ -74,7 +70,7 @@ op_tile:
     ora !S_SCRATCH+2
     sta !S_SCRATCH+2
 
-    lda.w !P_BUFFER+2,y
+    lda.w !P_BUFFER+<input>+2
     and.w #$00FF
     asl
     tax
@@ -85,7 +81,7 @@ op_tile:
     ora !S_SCRATCH+2
     sta !S_SCRATCH+2
 
-    lda.w !P_BUFFER+3,y
+    lda.w !P_BUFFER+<input>+3
     and.w #$00FF
     asl
     tax
@@ -96,21 +92,26 @@ op_tile:
     ora !S_SCRATCH+2
     sta !S_SCRATCH+2
 
-    ldx !S_SCRATCH+4
     lda !S_SCRATCH+0            ; planes 0 and 1 are adjacent in the output, so
-    sta.w !O_BUFFER+0,x         ;   one sixteen bit store places both
+    sta.w !O_BUFFER+<output>+0  ;   one sixteen bit store places both
     lda !S_SCRATCH+2
-    sta.w !O_BUFFER+16,x        ; and planes 2 and 3 sixteen bytes along
-    inx
-    inx
-    stx !S_SCRATCH+4
+    sta.w !O_BUFFER+<output>+16 ; and planes 2 and 3 sixteen bytes along
+endmacro
 
-    iny
-    iny
-    iny
-    iny
-    cpy.w #!TILE_BYTES
-    bne .group
+op_tile:
+    rep #$20                    ; sixteen bit for the whole conversion: every
+                                ;   table entry is a word and so is every
+                                ;   accumulator, and switching per row cost more
+                                ;   than the switching saved
+
+    %tile_row(0, 0)
+    %tile_row(4, 2)
+    %tile_row(8, 4)
+    %tile_row(12, 6)
+    %tile_row(16, 8)
+    %tile_row(20, 10)
+    %tile_row(24, 12)
+    %tile_row(28, 14)
 
     lda.w #!TILE_BYTES
     sta !S_OUT_LEN

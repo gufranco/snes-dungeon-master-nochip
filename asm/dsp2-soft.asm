@@ -97,6 +97,14 @@ dsp_init:
 ;
 ; Stands in for a single byte written to the data port.
 ;
+; A command byte is the majority of what arrives here: 3,336,773 of the
+; 5,433,289 single byte writes across three recorded tours, because a payload
+; travels by block move and only the command and its declared lengths come one
+; at a time. A command byte decides fields in the state block and nothing else.
+; It reaches no buffer, so it needs neither the data bank pointed at bank zero
+; nor the index registers saved, and it can never finish a payload, so it can
+; never run an operation. That path therefore takes none of it.
+;
 ; Entry: A 8 bit holding the byte. Every register and flag as the caller had it.
 ; Exit:  everything restored, including the M and X widths and the carry.
 ; ---------------------------------------------------------------------------
@@ -105,15 +113,24 @@ dsp_write:
     sep #$20
     sta.l !STATE+!S_INBYTE      ; park the byte before the accumulator is saved
     rep #$30
-    phb
     phd
     pha
+    lda.w #!STATE
+    tcd
+
+    sep #$20
+    lda !S_STAGE
+    cmp.b #!STAGE_IDLE
+    beq .command
+
+    rep #$30                    ; a length or a payload byte, either of which can
+    phb                         ;   reach a buffer and finish an operation
     phx
     phy
-
-    jsr enter
+    pea $0000
+    plb
+    plb
     jsr write_byte
-
     rep #$30                    ; the widths are put back before the pulls. The
                                 ;   pushes were made with both sixteen bit, and
                                 ;   an operation leaves the accumulator eight, so
@@ -121,9 +138,17 @@ dsp_write:
                                 ;   two went on and every later pull is displaced
     ply
     plx
+    plb
+    bra .leave
+
+.command:
+    rep #$20
+    jsr command_byte
+
+.leave:
+    rep #$30
     pla
     pld
-    plb
     plp
     rtl
 
@@ -192,14 +217,13 @@ write_byte:
     sep #$20                    ; A 8 bit for every comparison in this routine,
     rep #$10                    ;   and the index registers 16 bit for the buffer
     lda !S_STAGE
-    cmp.b #!STAGE_IDLE
-    beq .command
     cmp.b #!STAGE_LENGTH
     beq .length
     cmp.b #!STAGE_PARAM
-    bne .command                ; a stage byte holding anything else is not a
-                                ;   state this machine ever wrote, so treat it
-                                ;   as idle rather than trusting it
+    beq .parameter
+    rep #$20                    ; idle, or a stage byte holding anything else,
+    jmp command_byte            ;   which is not a state this machine ever wrote
+                                ;   and is treated as idle rather than trusted
 
 .parameter:
     ldx !S_PARAM_INDEX
@@ -255,7 +279,22 @@ write_byte:
 .no_payload:
     jmp run
 
-.command:
+; ---------------------------------------------------------------------------
+; command_byte
+;
+; The first byte of a transaction, which names the operation and says what has
+; to arrive before it can run.
+;
+; This is its own routine rather than a branch inside the state machine because
+; it is the one step that touches nothing but the state block. It reads no
+; buffer, so the data bank can be anything, and it can never complete a payload,
+; so it can never run an operation. Its caller is free to save less.
+;
+; Entry: DP = !STATE, A and index registers 16 bit.
+; Exit:  A clobbered. Widths left at A 16 bit, index 16 bit.
+; ---------------------------------------------------------------------------
+command_byte:
+    sep #$20
     lda !S_INBYTE
     sta !S_COMMAND
     rep #$20

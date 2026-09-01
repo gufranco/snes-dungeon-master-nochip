@@ -145,6 +145,18 @@ def retail_cost(command: str, parameters: bytes, output: bytes) -> int:
     return stores * LONG_ACCESS_CYCLES + (len(parameters) + len(output)) * MOVE_CYCLES_PER_BYTE
 
 
+def stale(symbols_path: Path, rom_path: Path) -> bool:
+    """Whether the symbol table describes an older image than the one being measured.
+
+    The assembler emits the image and the table on separate passes, so a build
+    that ran without the second one leaves a table naming where every routine
+    used to be. Entered at those addresses the first routine runs off into the
+    stack and reports that it never returned, which reads as a fault in the code
+    rather than in the table it was found through.
+    """
+    return symbols_path.stat().st_mtime < rom_path.stat().st_mtime
+
+
 def machine(rom: bytes) -> tuple[Any, LoRom]:
     """A processor with the cartridge behind it, in native mode."""
     memory = LoRom(rom)
@@ -280,6 +292,10 @@ def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = S
 
     if not rom_path.exists() or not sym_path.exists():
         say(f"  build {rom_path.name} and its symbols first")
+        return 2
+
+    if stale(sym_path, rom_path):
+        say(f"  {sym_path.name} is older than {rom_path.name}; assemble them together")
         return 2
 
     import dsptrace

@@ -30,18 +30,24 @@
 ;
 ; Entry: A 16 bit holding the count less one, X and Y 16 bit.
 ; Exit:  DB = $00, DP = !STATE. !S_XFER_TOTAL and !S_XFER_LEFT hold the count.
-;        A, X clobbered.
+;        A, X clobbered. !S_XFER_BANK is not touched, so a caller that set it
+;        before calling here still has it afterwards.
 ; ---------------------------------------------------------------------------
 block_enter:
     pea $0000                   ; the banks come first, so everything below can
     plb                         ;   reach the block by direct page rather than
     plb                         ;   through long addressing or the stack. Bank
     pea.w !STATE                ;   $00 mirrors the work RAM the block lives in,
-    pld                         ;   so both views name the same bytes
+    pld                         ;   so both views name the same bytes. Neither
+                                ;   pull touches the accumulator, so the count
+                                ;   arrives here and is used below without being
+                                ;   parked in the block first
 
-    sta !S_SAVE_A               ; the count arrives in the accumulator
-    stx !S_SAVE_X               ; and both index registers store straight out,
-    sty !S_SAVE_Y               ;   which they could not do through long addresses
+    stx !S_SAVE_X               ; both index registers store straight out, which
+    sty !S_SAVE_Y               ;   they could not do through long addresses
+    inc a                       ; MVN takes the count less one
+    sta !S_XFER_TOTAL
+    sta !S_XFER_LEFT
 
     sep #$20                    ; the block move stub is code living in work RAM,
     lda !S_MVN                  ;   and this game clears work RAM by DMA after the
@@ -53,11 +59,6 @@ block_enter:
     sta !S_MVN+3
 .stub_stands:
     rep #$20
-
-    lda !S_SAVE_A
-    inc a                       ; MVN takes the count less one
-    sta !S_XFER_TOTAL
-    sta !S_XFER_LEFT
     rts
 
 ; ---------------------------------------------------------------------------
@@ -160,14 +161,9 @@ dsp_feed_bank:
     rep #$30
     phb
     phd
-    sta.l !STATE+!S_SAVE_A      ; keep the count before block_enter reloads it
-    lda.l !STATE+!S_XFER_BANK   ; and the bank, which block_enter does not touch
-    pha
-    lda.l !STATE+!S_SAVE_A
-    jsr block_enter
-    pla
-    sta !S_XFER_BANK
-
+    jsr block_enter             ; the bank the dispatcher wrote into the block is
+                                ;   still there: block_enter changes DB and DP,
+                                ;   which does not move the bytes either names
     jsr feed
     jsr block_leave
 
@@ -191,14 +187,7 @@ dsp_drain_bank:
     rep #$30
     phb
     phd
-    sta.l !STATE+!S_SAVE_A
-    lda.l !STATE+!S_XFER_BANK
-    pha
-    lda.l !STATE+!S_SAVE_A
-    jsr block_enter
-    pla
-    sta !S_XFER_BANK
-
+    jsr block_enter             ; as above: the dispatcher's bank survives
     jsr drain
     jsr block_leave
 
@@ -223,29 +212,25 @@ feed:
                                 ;   because the shared exit is now far enough away
                                 ;   that a relative branch cannot reach it
 .carries:
-    lda !S_SAVE_X
-    sta !S_XFER_PTR
-    sep #$20
-    lda !S_XFER_BANK
-    sta !S_XFER_PTR+2
-    rep #$20
-    stz !S_XFER_LEFT            ; bytes of the run delivered so far
-
     ; Every transfer the cartridge makes arrives while the machine is collecting
     ; a payload, and carries no more than that payload still wants. Measured
     ; across three recorded tours, not one of the 3.3 million transfers splits
     ; across a command boundary or overruns what was asked for. The loop below
     ; handles the split anyway, because a dump this has not been measured against
     ; may do it, but the whole run goes in one block move when it does not.
+    ;
+    ; So the pointer and the delivered count that only the loop reads are set up
+    ; inside it rather than here. The path that is always taken does not pay for
+    ; the path that never is.
     sep #$20
     lda !S_STAGE
     cmp.b #!STAGE_PARAM
     rep #$20
-    bne .chunk
+    bne .slow
     lda !S_WANT_PARAM
-    beq .chunk
+    beq .slow
     cmp !S_XFER_TOTAL
-    bcc .chunk                  ; less wanted than carried, so the run splits
+    bcc .slow                   ; less wanted than carried, so the run splits
 
     sep #$20
     lda !S_XFER_BANK
@@ -275,6 +260,15 @@ feed:
     rep #$30                    ;   here exactly as write_byte would have run it
 .fast_done:
     rts
+
+.slow:
+    lda !S_SAVE_X
+    sta !S_XFER_PTR
+    sep #$20
+    lda !S_XFER_BANK
+    sta !S_XFER_PTR+2
+    rep #$20
+    stz !S_XFER_LEFT            ; bytes of the run delivered so far
 
 .chunk:
     lda !S_XFER_LEFT
@@ -363,24 +357,17 @@ drain:
     rts                         ; a run of nothing, returned beside the test
                                 ;   because the shared exit is out of branch reach
 .carries:
-    lda !S_SAVE_Y
-    sta !S_XFER_PTR
-    sep #$20
-    lda !S_XFER_BANK
-    sta !S_XFER_PTR+2
-    rep #$20
-    stz !S_XFER_LEFT            ; bytes of the run taken so far
-
     ; The mirror of the shortcut in feed. Every drain the cartridge makes asks
     ; for no more than the operation produced, so the whole run is one block
     ; move. The loop below still handles a run that reaches past the result,
-    ; where the port answered with an idle byte rather than memory.
+    ; where the port answered with an idle byte rather than memory, and it sets
+    ; up the pointer and the taken count that only it reads.
     lda !S_OUT_LEN
     sec
     sbc !S_OUT_INDEX
-    bcc .chunk
+    bcc .slow
     cmp !S_XFER_TOTAL
-    bcc .chunk                  ; less produced than asked for, so it splits
+    bcc .slow                   ; less produced than asked for, so it splits
 
     sep #$20
     stz !S_MVN+2                ; from the output buffer's bank
@@ -406,6 +393,15 @@ drain:
     adc !S_XFER_TOTAL
     sta !S_OUT_INDEX
     rts
+
+.slow:
+    lda !S_SAVE_Y
+    sta !S_XFER_PTR
+    sep #$20
+    lda !S_XFER_BANK
+    sta !S_XFER_PTR+2
+    rep #$20
+    stz !S_XFER_LEFT            ; bytes of the run taken so far
 
 .chunk:
     lda !S_XFER_LEFT
