@@ -33,6 +33,14 @@ ROOT = Path(__file__).resolve().parent.parent
 EMULATOR = "dungeon-master-nochip/emu:dev"
 
 SCRIPT = "show.script"
+"""The input both cartridges are driven with, written by `tour.py --steady`.
+
+A random walk is the wrong input here. It presses often and in runs, so the two
+cartridges stop being the same playthrough as soon as one drifts, and driven by
+one this follows 3,403 frames of 9,000 and then reports nothing it can use. The
+steady route survives 11,936 of 12,000, and it is not a lighter load: it provokes
+more chip work over the same span than the walk does.
+"""
 
 HASHES_RETAIL = "pace-retail.txt"
 HASHES_CONVERTED = "pace-converted.txt"

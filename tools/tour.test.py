@@ -168,5 +168,56 @@ class EntryTest(unittest.TestCase):
         self.assertIn("usage", complained[0])
 
 
+class SteadyTest(unittest.TestCase):
+    """The route walked at one pace, for comparing two cartridges."""
+
+    def test_it_is_the_same_every_time(self) -> None:
+        self.assertEqual(tour.steady(frames=4000), tour.steady(frames=4000))
+
+    def test_it_clears_the_introduction_first(self) -> None:
+        steps = parse(tour.steady(frames=4000))
+
+        self.assertIn(("start",), [buttons for at, buttons in steps if at < tour.INTRO_FRAMES])
+
+    def test_it_both_steps_and_turns(self) -> None:
+        pressed = {
+            buttons[0]
+            for at, buttons in parse(tour.steady(frames=8000))
+            if buttons and at >= tour.INTRO_FRAMES
+        }
+
+        self.assertTrue({"up", "left", "right"} <= pressed)
+
+    def test_every_press_is_released(self) -> None:
+        steps = parse(tour.steady(frames=8000))
+
+        self.assertEqual(
+            len([one for one in steps if one[1]]), len([one for one in steps if not one[1]])
+        )
+
+    def test_it_presses_less_often_than_a_random_walk(self) -> None:
+        walked = len(parse(tour.build(frames=8000, seed=3)))
+
+        self.assertLess(len(parse(tour.steady(frames=8000))), walked)
+
+    def test_nothing_is_scheduled_past_the_requested_length(self) -> None:
+        for at, _buttons in parse(tour.steady(frames=4000)):
+            self.assertLess(at, 4000)
+
+    def test_a_run_with_no_room_after_the_introduction_still_renders(self) -> None:
+        self.assertTrue(tour.steady(frames=tour.INTRO_FRAMES + 10).endswith("\n"))
+
+
+class SteadyCommandTest(unittest.TestCase):
+    """Asking the command line for the steady route."""
+
+    def test_the_flag_selects_it(self) -> None:
+        said: list[str] = []
+
+        tour.main(["tour.py", "--frames", "4000", "--steady"], said.append)
+
+        self.assertEqual("".join(said), tour.steady(frames=4000))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

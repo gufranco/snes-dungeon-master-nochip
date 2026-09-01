@@ -66,9 +66,10 @@ cannot be free, and per command the shortfall is large: the routines add most of
 time to each frame during continuous movement. Almost all of that is the cost of standing in for one
 instruction rather than the arithmetic.
 
-What it costs in practice is much less than that sum. Driving both cartridges with the same input and
-comparing every finished frame, the conversion falls about a second behind on the first heavy scene,
-holds that through the next 1,300 frames without losing any more, and is level again by frame 3,039.
+What it costs in practice is much less than that sum. Driving both cartridges along the same route
+and comparing every finished frame over 12,000 of them, the conversion falls one second behind on the
+first dungeon draw, recovers by frame 3,048, and holds step for the remaining nine thousand. 11,936
+of the 12,000 frames were drawn the same.
 The likely reason is the one thing the per-command comparison leaves out: the retail path spins on a
 status register until the chip answers, and the replacement answers at once.
 [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries both measurements, what each cannot say, and the two

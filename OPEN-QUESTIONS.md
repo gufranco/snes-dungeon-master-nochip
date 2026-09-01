@@ -61,19 +61,26 @@ with the same input, the emulator digests every finished frame, and the picture
 the retail run showed at frame n is looked for in the converted run's stream. How
 much later it turns up is how far behind the conversion is.
 
-The lag does not grow. It appears once, holds, and later clears:
+The lag does not grow. Over 12,000 frames of walking and turning, in which the
+cartridge sends the chip about 34 million bytes, it appears once and clears:
 
 | from frame | frames behind |
 |--:|--:|
 | 0 | 0 |
-| 852 | 0 |
-| 1,278 | 61 |
-| 2,553 | 61 |
-| 3,039 | 0 |
+| 1,495 | 61 |
+| 3,048 | 0 |
+| 6,032 | 0 |
+| 10,508 | 0 |
 
-A conversion that is steadily slower falls further behind every frame. This one
-stalls about a second on the first heavy scene, keeps pace through the next
-1,300 frames without losing any more, and is level again by frame 3,039.
+11,936 of the 12,000 frames were drawn the same. A conversion that is steadily
+slower falls further behind every frame; this one stalls one second on the first
+dungeon draw, recovers, and holds step for the remaining nine thousand frames.
+
+The route is not a light one. Driven at one press every 48 frames it provokes
+33,994,917 chip events; the random walk the recordings came from provokes
+31,471,694 over the same span. Pressing more often changes nothing, because the
+game gates movement on its own step animation: at one press every 20 frames the
+count is 33,994,910 and the lag profile is identical.
 
 The most likely reason is the one thing the cycle comparison deliberately leaves
 out. The retail path polls a status register in a loop until the chip answers,
@@ -87,15 +94,15 @@ Two limits, both of which cap what this can say:
 - The emulator answers a chip command in no time at all, so the retail run here
   is faster than the cartridge ever was. The gap measured this way is an upper
   bound rather than the gap on hardware.
-- The input fires at fixed frame numbers, so once the runs drift apart the game
-  receives its buttons at different points in its own logic and the two are no
-  longer the same playthrough. That is why matching stops around frame 3,875 and
-  why 5,597 of the 9,000 frames were never drawn the same.
+- The input fires at fixed frame numbers, so once the runs drift far enough the
+  game receives its buttons at different points in its own logic and the two stop
+  being the same playthrough. A random walk crosses that line early: driven by
+  one, the comparison follows 3,403 frames of 9,000 and then says nothing. The
+  steady route exists for this reason and survives the whole run.
 
 **What would settle it:** real hardware, or an emulator whose coprocessor takes
-the time the part took. Both are out of reach here. What is in reach and worth
-doing is driving the comparison from a recorded input that reaches a heavier
-scene than a random walk does.
+the time the part took. Both are out of reach here, and what is measurable
+without them has been measured.
 
 ## The recorded traffic is three tours, not the whole game
 
