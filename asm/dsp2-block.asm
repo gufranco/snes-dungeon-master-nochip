@@ -224,11 +224,11 @@ feed_body:
     tay
     lda !S_XFER_TOTAL
     dec a                       ; a block move takes the count less one
-    jsl !STATE+!S_MVN
+    jsl !STATE+!S_MVN           ; which leaves Y one past the last byte written
 
-    lda !S_PARAM_INDEX
-    clc
-    adc !S_XFER_TOTAL
+    tya                         ; so the cursor is read out of Y rather than
+    sec                         ;   worked out again from where it started and
+    sbc.w #(!P_BUFFER&$FFFF)    ;   how far the move went
     sta !S_PARAM_INDEX
     lda !S_WANT_PARAM
     sec
@@ -372,9 +372,9 @@ drain_body:
     plb
     rep #$30
 
-    lda !S_OUT_INDEX
-    clc
-    adc !S_XFER_TOTAL
+    txa                         ; as in the feed: X is one past the last byte
+    sec                         ;   read, so the cursor is already there
+    sbc.w #(!O_BUFFER&$FFFF)
     sta !S_OUT_INDEX
 .finish:
     %block_leave()
