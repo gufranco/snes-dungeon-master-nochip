@@ -107,6 +107,7 @@ Everything below must pass before a change is done. There is no partial credit.
 | workflows | `actionlint` |
 | this machine | `python3 doctor.py` |
 | the cartridge | `python3 cartridge.py roms/<dump>.sfc build/<name>.sfc` |
+| how far behind it runs | `python3 tools/pace.py roms/<dump>.sfc build/<name>.sfc` |
 
 A change to the assembly adds two more: rebuild, then run
 [`tools/cost.py`](tools/cost.py) and read both columns, and run

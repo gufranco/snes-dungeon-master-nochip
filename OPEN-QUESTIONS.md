@@ -53,10 +53,49 @@ thousands rather than tens of thousands. Reaching the chip's own figure is not
 possible at all: the chip computed while the program that fed it carried on, so
 its work was free to the program in a way software never is.
 
-**What would settle it:** whether the converted cartridge holds sixty frames a
-second, which is a different question from the cycle sum and is not answered by
-it. The measurement is to instrument the emulator to count frames that overrun
-their budget while a tour drives the patched image, before and after.
+### What that costs in practice is much less than the sum suggests
+
+The sum is not the question a player has, so
+[`tools/pace.py`](tools/pace.py) asks the other one. Both cartridges are driven
+with the same input, the emulator digests every finished frame, and the picture
+the retail run showed at frame n is looked for in the converted run's stream. How
+much later it turns up is how far behind the conversion is.
+
+The lag does not grow. It appears once, holds, and later clears:
+
+| from frame | frames behind |
+|--:|--:|
+| 0 | 0 |
+| 852 | 0 |
+| 1,278 | 61 |
+| 2,553 | 61 |
+| 3,039 | 0 |
+
+A conversion that is steadily slower falls further behind every frame. This one
+stalls about a second on the first heavy scene, keeps pace through the next
+1,300 frames without losing any more, and is level again by frame 3,039.
+
+The most likely reason is the one thing the cycle comparison deliberately leaves
+out. The retail path polls a status register in a loop until the chip answers,
+and how long that takes is not something a table can price, so
+[`tools/cost.py`](tools/cost.py) counts it for neither side. The replacement
+answers that poll immediately. Whatever the retail cartridge spent spinning is
+time the conversion gets back, and it does not appear in the 56,419.
+
+Two limits, both of which cap what this can say:
+
+- The emulator answers a chip command in no time at all, so the retail run here
+  is faster than the cartridge ever was. The gap measured this way is an upper
+  bound rather than the gap on hardware.
+- The input fires at fixed frame numbers, so once the runs drift apart the game
+  receives its buttons at different points in its own logic and the two are no
+  longer the same playthrough. That is why matching stops around frame 3,875 and
+  why 5,597 of the 9,000 frames were never drawn the same.
+
+**What would settle it:** real hardware, or an emulator whose coprocessor takes
+the time the part took. Both are out of reach here. What is in reach and worth
+doing is driving the comparison from a recorded input that reaches a heavier
+scene than a random walk does.
 
 ## The recorded traffic is three tours, not the whole game
 

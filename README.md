@@ -62,11 +62,17 @@ walks 6,259,086 runs and checks 71,970,987 bytes against what the cartridge's ow
 are wrong.
 
 **Speed.** The chip computed while the program that fed it carried on, so replacing it with code
-cannot be free, and the shortfall is large: the routines add most of a frame of processor time to
-each frame during continuous movement. Almost all of that is the cost of standing in for one
-instruction rather than the arithmetic. [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries the numbers,
-what has already been tried, and what would settle whether the converted cartridge holds sixty frames
-a second.
+cannot be free, and per command the shortfall is large: the routines add most of a frame of processor
+time to each frame during continuous movement. Almost all of that is the cost of standing in for one
+instruction rather than the arithmetic.
+
+What it costs in practice is much less than that sum. Driving both cartridges with the same input and
+comparing every finished frame, the conversion falls about a second behind on the first heavy scene,
+holds that through the next 1,300 frames without losing any more, and is level again by frame 3,039.
+The likely reason is the one thing the per-command comparison leaves out: the retail path spins on a
+status register until the chip answers, and the replacement answers at once.
+[`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries both measurements, what each cannot say, and the two
+ideas that look obvious and do not work.
 
 ## The dump
 
@@ -180,6 +186,7 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | [`tools/replay.py`](tools/replay.py) | the recorded stream fed back through the routines, on the processor |
 | [`tools/verify_trace.py`](tools/verify_trace.py) | the recorded stream against the chip's own microcode |
 | [`tools/boot.py`](tools/boot.py) | drives the finished cartridge and fails if it still wants a chip |
+| [`tools/pace.py`](tools/pace.py) | drives both cartridges on one input and says how far behind the conversion runs |
 | [`conformance/`](conformance/) | the record of what is settled and what is not, with a test holding it to the prose |
 | [`asm/`](asm/) | assembly that goes into the ROM, with its own container pinning asar |
 | [`emu/`](emu/) | the harness everything is validated against |
@@ -201,6 +208,7 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | What each command costs | `python3 tools/cost.py` |
 | The recorded traffic through the routines | `python3 tools/replay.py build/trace-s1.bin` |
 | That the cartridge runs, and runs without a chip | `python3 tools/boot.py` |
+| How far behind the conversion runs | `python3 tools/pace.py roms/<dump>.sfc build/<name>.sfc` |
 
 The last three need a dump: the first needs the assembled image and its symbol table, the second a
 recorded trace as well, and the third the finished cartridge. All three report that they have nothing
