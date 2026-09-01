@@ -46,6 +46,9 @@ MOVE_CYCLES_PER_BYTE = 7
 RETURN = 0x00FFFF
 """Where a measured call is told to return to, so the run ends on a known fetch."""
 
+COLOUR_COMMAND = "transparent"
+"""The command whose every instance is replayed, because it sets state others read."""
+
 DECLARED_LENGTHS = {
     "sync": 0,
     "tile": 0,
@@ -315,6 +318,35 @@ def report(rows: dict[str, list[tuple[int, int, int, bool]]], say: Any = print) 
     return 0
 
 
+SETTLED_FRAME = 600
+"""The first frame a sample is taken from, which is where the game is playing.
+
+Sampling from the start measured the boot sequence and reported it as the cost
+of the game. Six hundred frames is ten seconds, which is past the title screen
+on every recording here.
+"""
+
+SCAN_LIMIT = 200_000
+"""How many exchanges a pass reads before it measures the ones it picked.
+
+Sixty consecutive exchanges are sixty exchanges of one moment. Taken that way,
+every one of the sixty merges declared a length of 4 and the whole sample
+spanned ten frames, while a merge over the following three thousand frames
+declares a mean of 17.41 and reaches 46. The report was answering what one
+instant costs and reading as though it answered what the command costs.
+
+Spacing the samples by frame does not fix it, because the cartridge issues 23
+merges in every frame and one taken per frame is one taken at the same point of
+the same drawing sequence. Spreading them evenly across everything read does:
+over forty thousand merges the mean length is 16.96, and every ninety-seventh
+of them averages 16.87.
+
+Two hundred thousand exchanges is about five and a half thousand frames, which
+is long enough to carry every command the recording issues at all. A command it
+carries fewer than sixty of is measured over what there is, and the count is in
+the report.
+"""
+
 SAMPLED = ("sync", "tile", "merge", "mirror", "multiply", "scale", "transparent")
 """Every command the cartridge sends, including the one that computes nothing.
 
@@ -327,6 +359,46 @@ question the report exists to answer.
 """
 
 
+def collect(trace: Any, after: int = SETTLED_FRAME, limit: int = SCAN_LIMIT) -> list[Any]:
+    """Every whole exchange the recording holds in the window, in the order it sent them."""
+    import dsptrace
+
+    found: list[Any] = []
+    for tx in dsptrace.transactions(dsptrace.records(trace)):
+        if not tx.complete or tx.frame < after:
+            continue
+        found.append(
+            (tx.name, tx.command, tuple(tx.lengths), bytes(tx.parameters), bytes(tx.output))
+        )
+        if len(found) >= limit:
+            break
+    return found
+
+
+def chosen(found: Any, wanted: int, colour: str = COLOUR_COMMAND) -> tuple[list[int], list[int]]:
+    """Which exchanges a pass replays, and which of those it records a cost for.
+
+    Every setting of the transparent colour is replayed whether or not it is
+    measured, because a merge answers according to the colour a previous command
+    set and a pass that skipped the one that changed it would price every merge
+    after it against the wrong pair of tables.
+    """
+    places: defaultdict[str, list[int]] = defaultdict(list)
+    for index, one in enumerate(found):
+        places[one[0]].append(index)
+
+    replay: set[int] = set()
+    record: set[int] = set()
+    for name, at in places.items():
+        if name == colour:
+            replay.update(at)
+        stride = max(1, len(at) // wanted)
+        taken = at[::stride][:wanted]
+        record.update(taken)
+        replay.update(taken)
+    return sorted(replay), sorted(record)
+
+
 def sweep(
     rom: bytes,
     names: dict[str, int],
@@ -334,6 +406,7 @@ def sweep(
     wanted: int,
     wanted_commands: tuple[str, ...],
     dispatched: bool,
+    after: int = SETTLED_FRAME,
 ) -> dict[str, list[tuple[int, int, bool]]]:
     """One ordered pass over the sample, through one of the two entry paths.
 
@@ -344,28 +417,20 @@ def sweep(
     tables only when the colour changed, so a repeat measures the early exit and
     reports the dispatched path as 212 cycles faster than the direct one.
     """
-    import dsptrace
+    found = collect(trace, after)
+    replay, record = chosen(found, wanted)
+    keep = set(record)
 
-    seen: defaultdict[str, int] = defaultdict(int)
     rows: defaultdict[str, list[tuple[int, int, bool]]] = defaultdict(list)
     cpu, memory = machine(rom)
     enter(cpu, names["dsp_init"])
-    for tx in dsptrace.transactions(dsptrace.records(trace)):
-        if not tx.complete:
+    for index in replay:
+        name, command, lengths, parameters, output = found[index]
+        spent = measure(cpu, memory, names, command, lengths, parameters, len(output), dispatched)
+        if index not in keep:
             continue
-        if seen[tx.name] >= wanted:
-            if all(seen[one] >= wanted for one in wanted_commands):
-                break
-            continue
-        seen[tx.name] += 1
-
-        exchange = (tx.command, tuple(tx.lengths), bytes(tx.parameters), len(tx.output))
-        spent = measure(cpu, memory, names, *exchange, dispatched=dispatched)
-        got = produced(memory, len(tx.output))
-
-        rows[tx.name].append(
-            (spent, retail_cost(tx.name, tx.parameters, tx.output), got == bytes(tx.output))
-        )
+        got = produced(memory, len(output))
+        rows[name].append((spent, retail_cost(name, parameters, output), got == output))
     return rows
 
 

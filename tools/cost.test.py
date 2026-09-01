@@ -206,8 +206,16 @@ class CommandTest(unittest.TestCase):
         self.assertEqual((code, "older" in said[0]), (2, True))
 
 
-def recorded() -> bytes:
+SPREAD = 25
+"""Frames between one recorded access and the next, so a spaced sample takes them."""
+
+
+def recorded(frame: int = 900) -> bytes:
     """A trace holding one whole exchange, so a run has something to measure.
+
+    The frame is past the boot sequence by default, because a run measures what
+    the game asks for once it is playing and passes over what it asks for before
+    that.
 
     The transparent command is used because it is the shortest the cartridge
     ever sends: one command byte and one parameter, with nothing to read back.
@@ -229,9 +237,9 @@ def recorded() -> bytes:
         (0x0A, dsptrace.KIND_WRITE),
     ]
     blob = bytearray()
-    for byte, kind in rows:
+    for step, (byte, kind) in enumerate(rows):
         blob += dsptrace.RECORD.pack(
-            1, 0x008000, 0, 0, kind, byte, b"\x00" * 8, 0x00, 0x30, b"\x00" * 4
+            frame + step * SPREAD, 0x008000, 0, 0, kind, byte, b"\x00" * 8, 0x00, 0x30, b"\x00" * 4
         )
     return bytes(blob)
 
@@ -349,6 +357,88 @@ class ProducedTest(unittest.TestCase):
         self.assertEqual(cost.produced(memory, 0), b"")
 
 
+class CollectTest(unittest.TestCase):
+    """What a pass reads out of the recording before it picks anything."""
+
+    def a_trace(self) -> Any:
+        import tempfile
+
+        where = Path(tempfile.mkdtemp())
+        trace = where / "trace.bin"
+        trace.write_bytes(recorded())
+        return trace
+
+    def test_it_reads_the_whole_exchanges_the_window_holds(self) -> None:
+        found = cost.collect(self.a_trace())
+
+        self.assertEqual(
+            [one[0] for one in found],
+            ["sync", "transparent", "sync", "transparent", "transparent"],
+        )
+
+    def test_it_stops_at_the_bound_it_was_given(self) -> None:
+        found = cost.collect(self.a_trace(), limit=1)
+
+        self.assertEqual(len(found), 1)
+
+    def test_nothing_before_the_settled_frame_is_read(self) -> None:
+        found = cost.collect(self.a_trace(), after=100_000)
+
+        self.assertEqual(found, [])
+
+
+class ChosenTest(unittest.TestCase):
+    """Which of the exchanges a pass reads it actually measures."""
+
+    def a_window(self, merges: int, colours: int, scales: int) -> list[Any]:
+        found = [("merge", 0) for _ in range(merges)]
+        found += [("transparent", 0) for _ in range(colours)]
+        found += [("scale", 0) for _ in range(scales)]
+        return found
+
+    def test_a_plentiful_command_is_spread_over_the_whole_window(self) -> None:
+        found = self.a_window(merges=1000, colours=0, scales=0)
+
+        _replay, record = cost.chosen(found, wanted=10)
+
+        self.assertGreater(max(record) - min(record), 800)
+
+    def test_it_measures_no_more_of_it_than_asked_for(self) -> None:
+        found = self.a_window(merges=1000, colours=0, scales=0)
+
+        _replay, record = cost.chosen(found, wanted=10)
+
+        self.assertEqual(len(record), 10)
+
+    def test_a_command_the_window_barely_carries_is_taken_whole(self) -> None:
+        found = self.a_window(merges=0, colours=0, scales=3)
+
+        _replay, record = cost.chosen(found, wanted=10)
+
+        self.assertEqual(len(record), 3)
+
+    def test_every_colour_is_replayed_whether_or_not_it_is_measured(self) -> None:
+        found = self.a_window(merges=0, colours=40, scales=0)
+
+        replay, record = cost.chosen(found, wanted=5)
+
+        self.assertEqual((len(replay), len(record)), (40, 5))
+
+    def test_what_is_measured_is_always_replayed(self) -> None:
+        found = self.a_window(merges=500, colours=20, scales=4)
+
+        replay, record = cost.chosen(found, wanted=10)
+
+        self.assertTrue(set(record) <= set(replay))
+
+    def test_the_order_the_cartridge_used_is_kept(self) -> None:
+        found = self.a_window(merges=500, colours=20, scales=4)
+
+        replay, _record = cost.chosen(found, wanted=10)
+
+        self.assertEqual(replay, sorted(replay))
+
+
 class WholeRunTest(unittest.TestCase):
     """The command line, over a cartridge and a trace made for the occasion."""
 
@@ -403,6 +493,24 @@ class WholeRunTest(unittest.TestCase):
         cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append)
 
         self.assertTrue(any(one.strip().startswith("sync") for one in said))
+
+    def test_the_boot_sequence_is_not_what_gets_measured(self) -> None:
+        rom, sym, trace = self.setUpFiles()
+        trace.write_bytes(recorded(frame=0))
+        said: list[str] = []
+
+        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append)
+
+        self.assertFalse(any("transparent" in one for one in said))
+
+    def test_an_exchange_once_the_game_is_playing_is_measured(self) -> None:
+        rom, sym, trace = self.setUpFiles()
+        trace.write_bytes(recorded(frame=cost.SETTLED_FRAME))
+        said: list[str] = []
+
+        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append)
+
+        self.assertTrue(any("transparent" in one for one in said))
 
     def test_an_exchange_the_trace_never_finished_is_left_out(self) -> None:
         import dsptrace
