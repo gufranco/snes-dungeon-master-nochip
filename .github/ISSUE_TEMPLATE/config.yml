@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Where do I get the game or the microcode?
-    url: https://github.com/gufranco/dungeon-master-nochip#faq
+    url: https://github.com/gufranco/snes-dungeon-master-nochip#faq
     about: Not from here, and nobody here will tell you. Dump what you own.
   - name: The coprocessor model
     url: https://github.com/gufranco/snes-dsp-python

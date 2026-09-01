@@ -221,8 +221,8 @@ def batches_of(runs: Any, room: int) -> list[Any]:
 
 IMAGE_BYTES = 0x400000
 FRAMES = 4000000
-ASSEMBLER = "dungeon-master-nochip/asar:1.81"
-EMULATOR = "dungeon-master-nochip/emu:dev"
+ASSEMBLER = "snes-dungeon-master-nochip/asar:1.81"
+EMULATOR = "snes-dungeon-master-nochip/emu:dev"
 
 
 def _number(dump: bytes, offset: int, width: int) -> int:

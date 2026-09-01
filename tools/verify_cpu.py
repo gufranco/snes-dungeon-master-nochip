@@ -12,8 +12,8 @@ CASES_ASM = BUILD / "cpu-cases.asm"
 CASES_ROM = BUILD / "cpu-cases.sfc"
 CASES_DUMP = BUILD / "cpu-cases-wram.bin"
 
-ASAR_IMAGE = "dungeon-master-nochip/asar:1.81"
-EMU_IMAGE = "dungeon-master-nochip/emu:dev"
+ASAR_IMAGE = "snes-dungeon-master-nochip/asar:1.81"
+EMU_IMAGE = "snes-dungeon-master-nochip/emu:dev"
 
 RESULT_BASE = 0x7F0000
 RESULT_STRIDE = 16

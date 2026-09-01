@@ -5,7 +5,7 @@
 **Tooling to build a Dungeon Master ROM with the coprocessor designed out, so it runs from any flash
 cartridge that can hold it.**
 
-[![licence](https://img.shields.io/github/license/gufranco/dungeon-master-nochip)](LICENSE)
+[![licence](https://img.shields.io/github/license/gufranco/snes-dungeon-master-nochip)](LICENSE)
 
 </div>
 
@@ -116,7 +116,7 @@ run with no network access, and run as a non-root user.
 ## The hardware this is checked against
 
 ```bash
-git clone --recurse-submodules https://github.com/gufranco/dungeon-master-nochip.git
+git clone --recurse-submodules https://github.com/gufranco/snes-dungeon-master-nochip.git
 ```
 
 The models this project measures itself against are not written here. Each is its own repository,

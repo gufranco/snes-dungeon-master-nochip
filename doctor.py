@@ -44,7 +44,7 @@ identify = importlib.import_module("identify")
 
 OLDEST_PYTHON = (3, 12)
 
-PROJECT = "dungeon-master-nochip"
+PROJECT = "snes-dungeon-master-nochip"
 
 PART = "dsp2"
 """The coprocessor this cartridge carries, and the microcode a check runs against."""

@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 ASM_DIR = ROOT / "asm"
-IMAGE = "dungeon-master-nochip/asar:1.81"
+IMAGE = "snes-dungeon-master-nochip/asar:1.81"
 
 
 def build_image_command() -> list[str]:

@@ -44,7 +44,7 @@ def _load_beside(name: str) -> Any:
 
 tour = _load_beside("tour")
 
-EMULATOR = "dungeon-master-nochip/emu:dev"
+EMULATOR = "snes-dungeon-master-nochip/emu:dev"
 
 SCRIPT = "pace.script"
 """The input both cartridges are driven with, which this writes before each run.

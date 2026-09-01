@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: dungeon-master-nochip
+title: snes-dungeon-master-nochip
 message: >-
   If you use this work, or the measurements it publishes, please cite it.
 type: software
@@ -7,8 +7,8 @@ authors:
   - given-names: Gustavo
     family-names: Franco
     alias: gufranco
-repository-code: https://github.com/gufranco/dungeon-master-nochip
-url: https://github.com/gufranco/dungeon-master-nochip
+repository-code: https://github.com/gufranco/snes-dungeon-master-nochip
+url: https://github.com/gufranco/snes-dungeon-master-nochip
 abstract: >-
   Removes the DSP-2 from Dungeon Master for the Super Nintendo by replacing what
   the coprocessor computed with 65816 routines that run on the console itself.
