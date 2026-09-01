@@ -1,4 +1,4 @@
-VERSION = "1.6.7"
+VERSION = "1.6.8"
 
 UNRELEASED = "0.0.0"
 EXTENSION = ".sfc"
