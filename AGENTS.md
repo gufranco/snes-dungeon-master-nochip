@@ -105,6 +105,7 @@ Everything below must pass before a change is done. There is no partial credit.
 | format | `ruff format --check .` |
 | workflows | `actionlint` |
 | this machine | `python3 doctor.py` |
+| the cartridge | `python3 cartridge.py roms/<dump>.sfc build/<name>.sfc` |
 
 A change to the assembly adds one more: rebuild, then run
 [`tools/cost.py`](tools/cost.py) and read both columns.
@@ -122,6 +123,14 @@ A change to the assembly adds one more: rebuild, then run
 - **An eight bit immediate inside a sixteen bit region desynchronises the
   instruction stream** and the symptom is a stack that runs away, not an
   assembler error. Check the width the code is in before adding a `lda.b`.
+- **An image with the routines placed is not a converted cartridge.** Assembling
+  puts the replacement in the image; nothing calls it until
+  [`patch.py`](patch.py) redirects the accesses and the header stops declaring a
+  coprocessor. The half-done image boots and plays, because the emulator reads
+  that header and provides the chip. What tells you is the emulator's own line:
+  `dsp=2` with millions of chip events on a run that should have none. Build
+  through [`cartridge.py`](cartridge.py), which does both steps and refuses to
+  write the file if either check finds anything left.
 - **Placement in work RAM is measured, never guessed.** The state block sits in a
   run of 4,078 bytes that three thirty thousand frame tours never touched, found
   by comparing the whole of work RAM against the previous frame after every

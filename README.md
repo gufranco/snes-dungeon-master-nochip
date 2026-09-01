@@ -43,7 +43,18 @@ than estimated.
 | address arithmetic for the image | works, against a library of real cartridges |
 | pinned assembler container | builds |
 | the six operations in 65816 | answer every recorded byte, on the processor |
+| the finished cartridge | builds from a dump in one command, and boots with no coprocessor |
 | speed | 63,912 cycles a frame against 7,600 for the chip path, in a frame of 59,561 |
+
+```bash
+python3 cartridge.py roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"
+```
+
+It assembles, points every access at the replacement, and rewrites the header so nothing declares a
+coprocessor. It refuses to write the file if either check finds anything left: an access still going
+to the chip, or a header mirror still declaring one. That refusal is the point. An image with the
+routines placed and the accesses not redirected boots and plays perfectly, because the emulator reads
+the header, provides a DSP-2 and serves every request itself.
 
 **Correctness.** Three seeded tours of 30,000 frames were driven on the emulator with every byte in
 and out of the port recorded. Feeding those streams back through the routines, on the processor,
@@ -157,6 +168,7 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | [`snes-rom-image-python/`](snes-rom-image-python/) | image handling, held to that same library |
 | [`snes-graphics-python/`](snes-graphics-python/) | the tile format the conversion produces |
 | [`snes-driver-python/`](snes-driver-python/) | where the cartridge's own code reaches the part |
+| [`cartridge.py`](cartridge.py) | a dump in, a cartridge that needs no coprocessor out |
 | [`build.py`](build.py) | Docker wrapper around a pinned asar |
 | [`patch.py`](patch.py) | redirects every site in place, each replacement the width of what it replaces |
 | [`sites.py`](sites.py) | where those sites are, and the filler the stubs go in |

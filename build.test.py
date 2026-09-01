@@ -29,6 +29,15 @@ def _recording(seen: list[Any]) -> Callable[[list[str]], int]:
     return _run
 
 
+class StagedPathTest(unittest.TestCase):
+    """Where the assembler's output lands."""
+
+    def test_it_lands_beside_the_source_being_assembled(self) -> None:
+        found = bd.staged_path("/somewhere/asm/nochip.asm", "out.sfc")
+
+        self.assertEqual(found, Path("/somewhere/asm/out.sfc"))
+
+
 class ImageTest(unittest.TestCase):
     def test_the_image_tag_is_pinned_not_latest(self) -> None:
         self.assertNotIn(":latest", bd.IMAGE)
@@ -58,6 +67,12 @@ class CommandTest(unittest.TestCase):
         args = bd.patch_command(Path("/w"), "p.asm", "rom.sfc")
 
         self.assertIn("--network=none", args)
+
+    def test_the_label_table_is_asked_for_beside_the_image(self) -> None:
+        args = bd.patch_command(Path("/w"), "p.asm", "rom.sfc")
+
+        self.assertIn("--symbols=wla", args)
+        self.assertIn("--symbols-path=rom.sym", args)
 
     def test_paths_are_passed_as_names_not_host_paths(self) -> None:
         args = bd.patch_command(Path("/some/host/dir"), "patch.asm", "rom.sfc")

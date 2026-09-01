@@ -20,6 +20,12 @@ def build_image_command() -> list[str]:
 
 
 def patch_command(work_dir: Path | str, patch_name: str, rom_name: str) -> list[str]:
+    """What assembling shells out to, asking for the label table as well.
+
+    The table is emitted on a pass of its own and only when asked for, so a
+    build without this flag leaves whatever the last one wrote. Anything that
+    then enters a routine by name enters it where it used to be.
+    """
     return [
         "docker",
         "run",
@@ -28,9 +34,20 @@ def patch_command(work_dir: Path | str, patch_name: str, rom_name: str) -> list[
         "--volume",
         f"{work_dir}:/work",
         IMAGE,
+        "--symbols=wla",
+        f"--symbols-path={Path(rom_name).with_suffix('.sym').name}",
         patch_name,
         rom_name,
     ]
+
+
+def staged_path(patch: Path | str, output_name: str) -> Path:
+    """Where the assembler's output lands, which is beside the source it assembles.
+
+    The container mounts that directory and nothing else, so the image is
+    written there rather than wherever the caller wants it afterwards.
+    """
+    return Path(patch).resolve().parent / output_name
 
 
 def stage_rom(source: Path | str, work_dir: Path | str, output_name: str) -> Path:
