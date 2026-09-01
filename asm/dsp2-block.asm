@@ -109,13 +109,9 @@ dsp_feed_wram:
     lda.b #$7E
     sta !S_XFER_BANK
     rep #$20
-    jsr feed
-    %block_leave()
-
-    pld
-    plb
-    plp
-    rtl
+    jmp feed_body               ; the body and the exit are shared with the
+                                ;   dispatched entry below, which reaches them by
+                                ;   falling into them
 
 ; ---------------------------------------------------------------------------
 ; dsp_drain_wram
@@ -140,13 +136,7 @@ dsp_drain_wram:
     lda.b #$7E
     sta !S_XFER_BANK
     rep #$20
-    jsr drain
-    %block_leave()
-
-    pld
-    plb
-    plp
-    rtl
+    jmp drain_body              ; as above
 
 ; ---------------------------------------------------------------------------
 ; dsp_feed_bank
@@ -166,13 +156,7 @@ dsp_feed_bank:
     %block_enter()             ; the bank the dispatcher wrote into the block is
                                 ;   still there: block_enter changes DB and DP,
                                 ;   which does not move the bytes either names
-    jsr feed
-    %block_leave()
-
-    pld
-    plb
-    plp
-    rtl
+    jmp feed_body
 
 ; ---------------------------------------------------------------------------
 ; dsp_drain_bank
@@ -190,13 +174,7 @@ dsp_drain_bank:
     phb
     phd
     %block_enter()             ; as above: the dispatcher's bank survives
-    jsr drain
-    %block_leave()
-
-    pld
-    plb
-    plp
-    rtl
+    jmp drain_body
 
 ; ---------------------------------------------------------------------------
 ; feed
@@ -207,12 +185,11 @@ dsp_drain_bank:
 ; Entry: DB = $00, DP = !STATE, !S_XFER_BANK and !S_SAVE_X and !S_XFER_TOTAL set.
 ; Exit:  A, X, Y clobbered. Widths left at A 16 bit, index 16 bit.
 ; ---------------------------------------------------------------------------
-feed:
+feed_body:
     lda !S_XFER_TOTAL
     bne .carries
-    rts                         ; a run of nothing, which the return handles here
-                                ;   because the shared exit is now far enough away
-                                ;   that a relative branch cannot reach it
+    jmp .finish                 ; a run of nothing, which still has the caller's
+                                ;   registers to put back before it returns
 .carries:
     ; Every transfer the cartridge makes arrives while the machine is collecting
     ; a payload, and carries no more than that payload still wants. Measured
@@ -261,7 +238,12 @@ feed:
     jsr run                     ; the payload is complete, so the operation runs
     rep #$30                    ;   here exactly as write_byte would have run it
 .fast_done:
-    rts
+.finish:
+    %block_leave()
+    pld
+    plb
+    plp
+    rtl
 
 .slow:
     lda !S_SAVE_X
@@ -342,7 +324,7 @@ feed:
     bra .chunk
 
 .done:
-    rts
+    jmp .finish
 
 ; ---------------------------------------------------------------------------
 ; drain
@@ -353,11 +335,11 @@ feed:
 ; Entry: DB = $00, DP = !STATE, !S_XFER_BANK and !S_SAVE_Y and !S_XFER_TOTAL set.
 ; Exit:  A, X, Y clobbered. Widths left at A 16 bit, index 16 bit.
 ; ---------------------------------------------------------------------------
-drain:
+drain_body:
     lda !S_XFER_TOTAL
     bne .carries
-    rts                         ; a run of nothing, returned beside the test
-                                ;   because the shared exit is out of branch reach
+    jmp .finish                 ; a run of nothing, which still has the caller's
+                                ;   registers to put back before it returns
 .carries:
     ; The mirror of the shortcut in feed. Every drain the cartridge makes asks
     ; for no more than the operation produced, so the whole run is one block
@@ -394,7 +376,12 @@ drain:
     clc
     adc !S_XFER_TOTAL
     sta !S_OUT_INDEX
-    rts
+.finish:
+    %block_leave()
+    pld
+    plb
+    plp
+    rtl
 
 .slow:
     lda !S_SAVE_Y
@@ -467,4 +454,4 @@ drain:
     bra .chunk
 
 .done:
-    rts
+    jmp .finish
