@@ -56,6 +56,7 @@ GATES = (
     Gate("cost", ["python3", "tools/cost.py"], needs_image=True),
     Gate("split feed", ["python3", "splitfeed.retail.test.py"], needs_image=True),
     Gate("scale step", ["python3", "scalestep.retail.test.py"], needs_image=True),
+    Gate("similarity", ["python3", "similarity.retail.test.py"], needs_image=True),
 )
 
 

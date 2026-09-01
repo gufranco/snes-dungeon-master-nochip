@@ -180,6 +180,7 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | [`patch.py`](patch.py) | redirects every site in place, each replacement the width of what it replaces |
 | [`sites.py`](sites.py) | where those sites are, and the filler the stubs go in |
 | [`stateblock.py`](stateblock.py) | reads the block's declared layout and refuses two fields that share a byte |
+| [`similarity.py`](similarity.py) | every byte the finished cartridge does not share with the dump, and which region owns it |
 | [`check.py`](check.py) | every gate in one pass, each pinned to the version the runner installs |
 | [`assembled.py`](assembled.py) | the image the measurements read, and whether it predates its sources |
 | [`dsptrace.py`](dsptrace.py) | reads a recorded port trace back into transactions |
@@ -217,10 +218,12 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | That the cartridge runs, and runs without a chip | `python3 tools/boot.py` |
 | That the game still leaves the state block's work RAM alone | `python3 tools/placement.py` |
 | How far behind the conversion runs | `python3 tools/pace.py roms/<dump>.sfc build/<name>.sfc` |
+| That nothing outside a declared region moved | `python3 similarity.py roms/<dump>.sfc build/<name>.sfc` |
 
-The last three need a dump: the first needs the assembled image and its symbol table, the second a
-recorded trace as well, and the third the finished cartridge. All three report that they have nothing
-to run rather than passing.
+The last six need a dump, and each needs something built from it as well: `cost.py` the assembled
+image and its symbol table, `replay.py` a recorded trace on top of those, `boot.py` the finished
+cartridge, `placement.py` the dump alone, and `pace.py` and `similarity.py` both cartridges at once.
+Every one of them reports that it has nothing to run rather than passing.
 
 ### Conventions
 
