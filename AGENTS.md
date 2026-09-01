@@ -107,8 +107,13 @@ Everything below must pass before a change is done. There is no partial credit.
 | this machine | `python3 doctor.py` |
 | the cartridge | `python3 cartridge.py roms/<dump>.sfc build/<name>.sfc` |
 
-A change to the assembly adds one more: rebuild, then run
-[`tools/cost.py`](tools/cost.py) and read both columns.
+A change to the assembly adds two more: rebuild, then run
+[`tools/cost.py`](tools/cost.py) and read both columns, and run
+[`tools/boot.py`](tools/boot.py), which drives the finished cartridge and fails
+if the header still declares a coprocessor, if anything asked one for something,
+if the run stopped early, or if the screen never lit. The last of those is not
+padding: the first wrong placement of the state block passed every other check
+and booted to black.
 
 ## Conventions that are only true here
 

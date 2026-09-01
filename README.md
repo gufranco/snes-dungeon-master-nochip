@@ -179,6 +179,7 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | [`tools/cost.py`](tools/cost.py) | what each command costs, on the processor, against what the chip path cost |
 | [`tools/replay.py`](tools/replay.py) | the recorded stream fed back through the routines, on the processor |
 | [`tools/verify_trace.py`](tools/verify_trace.py) | the recorded stream against the chip's own microcode |
+| [`tools/boot.py`](tools/boot.py) | drives the finished cartridge and fails if it still wants a chip |
 | [`conformance/`](conformance/) | the record of what is settled and what is not, with a test holding it to the prose |
 | [`asm/`](asm/) | assembly that goes into the ROM, with its own container pinning asar |
 | [`emu/`](emu/) | the harness everything is validated against |
@@ -199,9 +200,11 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | Shell | `shellcheck --severity=style --shell=bash scripts/*.sh` |
 | What each command costs | `python3 tools/cost.py` |
 | The recorded traffic through the routines | `python3 tools/replay.py build/trace-s1.bin` |
+| That the cartridge runs, and runs without a chip | `python3 tools/boot.py` |
 
-The last two need a dump: the first needs the assembled image and its symbol table, and the second
-needs a recorded trace as well. Both report that they have nothing to run rather than passing.
+The last three need a dump: the first needs the assembled image and its symbol table, the second a
+recorded trace as well, and the third the finished cartridge. All three report that they have nothing
+to run rather than passing.
 
 ### Conventions
 
