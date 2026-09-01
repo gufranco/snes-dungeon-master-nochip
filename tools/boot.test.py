@@ -152,6 +152,39 @@ class RealShellTest(unittest.TestCase):
         self.assertEqual(found.returncode, 0)
 
 
+class InputTest(unittest.TestCase):
+    """The input the run is driven with, which the run writes for itself."""
+
+    def test_the_script_is_there_before_the_emulator_starts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            cartridge = where / "dm.sfc"
+            cartridge.write_bytes(b"\x00")
+            present: list[bool] = []
+
+            def _run(_args: Any) -> Any:
+                present.append((where / boot.SCRIPT).exists())
+                return Finished(0, CLEAN, "")
+
+            boot.main(["boot.py", str(cartridge), "8000"], lambda _l: None, execute=_run)
+
+        self.assertEqual(present, [True])
+
+    def test_it_presses_start_to_get_past_the_title(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            cartridge = where / "dm.sfc"
+            cartridge.write_bytes(b"\x00")
+
+            boot.main(
+                ["boot.py", str(cartridge), "8000"],
+                lambda _l: None,
+                execute=lambda _a: Finished(0, CLEAN, ""),
+            )
+
+            self.assertIn("start", (where / boot.SCRIPT).read_text())
+
+
 class ShellingOutTest(unittest.TestCase):
     """The command that reaches the emulator."""
 

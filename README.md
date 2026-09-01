@@ -67,9 +67,9 @@ time to each frame during continuous movement. Almost all of that is the cost of
 instruction rather than the arithmetic.
 
 What it costs in practice is much less than that sum. Driving both cartridges along the same route
-and comparing every finished frame over 12,000 of them, the conversion falls one second behind on the
-first dungeon draw, recovers by frame 3,048, and holds step for the remaining nine thousand. 11,936
-of the 12,000 frames were drawn the same.
+and comparing every finished frame over 30,000 of them, eight minutes of continuous walking and
+turning, the conversion loses one second on the first dungeon draw and then does not lose another
+frame. 29,936 of the 30,000 frames were drawn the same.
 The likely reason is the one thing the per-command comparison leaves out: the retail path spins on a
 status register until the chip answers, and the replacement answers at once.
 [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries both measurements, what each cannot say, and the two

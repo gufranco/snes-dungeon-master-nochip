@@ -14,6 +14,7 @@ there because the other three all pass on an image that boots to a black screen,
 which is what the first wrong placement of the state block produced.
 """
 
+import importlib.util
 import re
 import subprocess
 import sys
@@ -23,14 +24,33 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 
+
+def _load_beside(name: str) -> Any:
+    """A module that sits next to this one, loaded the way the tools load each other."""
+    where = Path(__file__).resolve().parent / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, where)
+    assert spec is not None and spec.loader is not None, "no loader for that path"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+tour = _load_beside("tour")
+
 EMULATOR = "dungeon-master-nochip/emu:dev"
 
 DEFAULT_CARTRIDGE = ROOT / "build" / "Dungeon Master (USA) (nochip).sfc"
 
 DEFAULT_FRAMES = 8000
 
-SCRIPT = "show.script"
-"""The input the run is driven with, which walks past the title into the dungeon."""
+SCRIPT = "boot.script"
+"""The input the run is driven with, which this writes before the run.
+
+It used to be a file the caller was expected to have put there, which nothing in
+this repository produced. Without it the cartridge sits on the title screen for
+the whole run, and a check that only asks whether the screen lit would have
+passed on that.
+"""
 
 DARK = 1.0
 """Below this the screen never lit, whatever else the run reported."""
@@ -106,6 +126,7 @@ def main(
         say(f"  no cartridge at {cartridge}; build it first with cartridge.py")
         return 2
 
+    (cartridge.parent / SCRIPT).write_text(tour.steady(frames))
     finished = execute(run_command(cartridge.parent, cartridge.name, frames))
     if finished.returncode:
         say(f"  the emulator did not run: {finished.stderr or finished.stdout}")

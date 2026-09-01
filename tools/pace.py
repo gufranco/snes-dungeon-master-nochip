@@ -22,6 +22,7 @@ happen; if it starts to, this reports that it could follow almost nothing rather
 than reporting a small lag.
 """
 
+import importlib.util
 import subprocess
 import sys
 from collections.abc import Callable
@@ -30,16 +31,34 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 
+
+def _load_beside(name: str) -> Any:
+    """A module that sits next to this one, loaded the way the tools load each other."""
+    where = Path(__file__).resolve().parent / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, where)
+    assert spec is not None and spec.loader is not None, "no loader for that path"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+tour = _load_beside("tour")
+
 EMULATOR = "dungeon-master-nochip/emu:dev"
 
-SCRIPT = "show.script"
-"""The input both cartridges are driven with, written by `tour.py --steady`.
+SCRIPT = "pace.script"
+"""The input both cartridges are driven with, which this writes before each run.
 
-A random walk is the wrong input here. It presses often and in runs, so the two
-cartridges stop being the same playthrough as soon as one drifts, and driven by
-one this follows 3,403 frames of 9,000 and then reports nothing it can use. The
-steady route survives 11,936 of 12,000, and it is not a lighter load: it provokes
-more chip work over the same span than the walk does.
+It used to be a file the caller was expected to have put there, which nothing in
+this repository produced. A fresh clone therefore ran both cartridges with no
+input at all, left them on the title screen, and compared two runs that agreed
+perfectly because neither did anything.
+
+A random walk would be the wrong input even when present. It presses often and
+in runs, so the two cartridges stop being the same playthrough as soon as one
+drifts, and driven by one this follows 3,403 frames of 9,000 and then reports
+nothing it can use. The steady route survives 29,936 of 30,000, and it is not a
+lighter load: it provokes more chip work over the same span than the walk does.
 """
 
 HASHES_RETAIL = "pace-retail.txt"
@@ -170,6 +189,7 @@ def main(
         return 2
 
     work = converted.parent
+    (work / SCRIPT).write_text(tour.steady(frames))
     for cartridge, hashes in ((retail, HASHES_RETAIL), (converted, HASHES_CONVERTED)):
         finished = execute(run_command(work, cartridge.name, hashes, frames))
         if finished.returncode:

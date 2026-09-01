@@ -61,24 +61,26 @@ with the same input, the emulator digests every finished frame, and the picture
 the retail run showed at frame n is looked for in the converted run's stream. How
 much later it turns up is how far behind the conversion is.
 
-The lag does not grow. Over 12,000 frames of walking and turning, in which the
-cartridge sends the chip about 34 million bytes, it appears once and clears:
+The lag does not grow. Over 30,000 frames of walking and turning, eight minutes
+of play in which the cartridge sends the chip about 85 million bytes, it appears
+once and clears:
 
 | from frame | frames behind |
 |--:|--:|
-| 0 | 0 |
-| 1,495 | 61 |
-| 3,048 | 0 |
-| 6,032 | 0 |
-| 10,508 | 0 |
+| 0 | 61 |
+| 3,806 | 0 |
+| 11,290 | 0 |
+| 18,774 | 0 |
+| 26,258 | 0 |
 
-11,936 of the 12,000 frames were drawn the same. A conversion that is steadily
-slower falls further behind every frame; this one stalls one second on the first
-dungeon draw, recovers, and holds step for the remaining nine thousand frames.
+**29,936 of the 30,000 frames were drawn the same.** A conversion that is
+steadily slower falls further behind every frame. This one loses one second on
+the first dungeon draw and then does not lose another frame for the remaining
+twenty six thousand.
 
-The route is not a light one. Driven at one press every 48 frames it provokes
-33,994,917 chip events; the random walk the recordings came from provokes
-31,471,694 over the same span. Pressing more often changes nothing, because the
+The route is not a light one. Over 12,000 frames it provokes 33,994,917 chip
+events; the random walk the recordings came from provokes 31,471,694 over the
+same span. Pressing more often changes nothing, because the
 game gates movement on its own step animation: at one press every 20 frames the
 count is 33,994,910 and the lag profile is identical.
 

@@ -182,6 +182,30 @@ class RealShellTest(unittest.TestCase):
         self.assertEqual(found.returncode, 0)
 
 
+class InputTest(unittest.TestCase):
+    """The input both cartridges are driven with, which the run writes for itself."""
+
+    def test_the_same_script_is_there_before_either_starts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            retail, converted = where / "a.sfc", where / "b.sfc"
+            retail.write_bytes(b"\x00")
+            converted.write_bytes(b"\x00")
+            present: list[bool] = []
+
+            def _run(args: list[str]) -> Any:
+                present.append((where / pace.SCRIPT).exists())
+                name = pace.HASHES_RETAIL if "a.sfc" in args else pace.HASHES_CONVERTED
+                written(where / name, ["aa"])
+                return Finished(0, "", "")
+
+            pace.main(
+                ["pace.py", str(retail), str(converted), "3000"], lambda _l: None, execute=_run
+            )
+
+        self.assertEqual(present, [True, True])
+
+
 class ShellingOutTest(unittest.TestCase):
     """The command that reaches the emulator."""
 
