@@ -135,31 +135,31 @@ class ReportTest(unittest.TestCase):
     def test_a_command_no_slower_than_retail_passes(self) -> None:
         said: list[str] = []
 
-        code = cost.report({"tile": [(100, 200, True)]}, said.append)
+        code = cost.report({"tile": [(100, 140, 200, True)]}, said.append)
 
         self.assertEqual((code, "0.50x" in "\n".join(said)), (0, True))
 
     def test_a_command_slower_than_retail_fails(self) -> None:
-        code = cost.report({"tile": [(400, 200, True)]}, lambda _l: None)
+        code = cost.report({"tile": [(400, 440, 200, True)]}, lambda _l: None)
 
         self.assertEqual(code, 1)
 
     def test_the_line_names_how_many_answers_were_right(self) -> None:
         said: list[str] = []
 
-        cost.report({"tile": [(100, 200, True), (100, 200, False)]}, said.append)
+        cost.report({"tile": [(100, 140, 200, True), (100, 140, 200, False)]}, said.append)
 
         self.assertIn("1/2", "\n".join(said))
 
     def test_every_command_gets_a_line(self) -> None:
         said: list[str] = []
 
-        cost.report({"tile": [(1, 2, True)], "merge": [(1, 2, True)]}, said.append)
+        cost.report({"tile": [(1, 2, 3, True)], "merge": [(1, 2, 3, True)]}, said.append)
 
         self.assertEqual(len(said), 3)
 
     def test_a_retail_cost_of_nothing_is_not_a_division(self) -> None:
-        code = cost.report({"sync": [(10, 0, True)]}, lambda _l: None)
+        code = cost.report({"sync": [(10, 12, 0, True)]}, lambda _l: None)
 
         self.assertEqual(code, 0)
 
@@ -283,6 +283,7 @@ class MeasureTest(unittest.TestCase):
             "dsp_write": 0x9CE000,
             "dsp_feed_wram": 0x9CE000,
             "dsp_drain_wram": 0x9CE000,
+            "tramp_0084": 0x9CE000,
         }
 
     def machine(self) -> Any:
@@ -340,7 +341,7 @@ class WholeRunTest(unittest.TestCase):
         rom.write_bytes(cartridge({0x9CE000: bytes([RTL])}))
         (where / "probe.sym").write_text(
             "[labels]\n9C:E000 dsp_init\n9C:E000 dsp_write\n"
-            "9C:E000 dsp_feed_wram\n9C:E000 dsp_drain_wram\n"
+            "9C:E000 dsp_feed_wram\n9C:E000 dsp_drain_wram\n9C:E000 tramp_0084\n"
         )
         trace = where / "trace.bin"
         trace.write_bytes(recorded())

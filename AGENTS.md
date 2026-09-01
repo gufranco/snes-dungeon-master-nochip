@@ -51,11 +51,12 @@ Three things follow for anybody changing the assembly:
 - **Run the cost tool before and after.** A change that makes an operation
   clearer and slower is a change this project cannot take without saying so.
 - **The scaffolding is the cost, not the arithmetic.** A merge computes four
-  bytes for about 180 cycles and the whole exchange takes 1,207. The rest is
+  bytes for about 180 cycles and the whole exchange takes 1,207, or 1,292 when
+  it arrives through a dispatcher, which most of the traffic does. The rest is
   standing in for one instruction: saving what the caller had, pointing the data
   bank and the direct page at the state block, and putting it back. There are
   about 120 of those interceptions in a frame.
-- **Know the ceiling before optimising.** The routines add 56,311 cycles to a
+- **Know the ceiling before optimising.** The routines add 56,419 cycles to a
   frame that holds 59,561, and the two commands that matter are already within a
   few hundred cycles of what this shape can do.
   [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries the measurements, including

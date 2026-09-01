@@ -194,6 +194,40 @@ DESTINATION = 0x7E5000
 """Where the harness drains a result to, standing in for the game's own buffer."""
 
 
+TRAMPOLINE = 0x0084
+"""The work RAM block mover this prices the dispatched path through.
+
+The cartridge reaches the chip two ways. Eighteen sites in bank $00 name their
+banks in the instruction and become a call straight to a transfer. The rest go
+through one of four block movers the boot code installs in work RAM, whose bank
+operands the caller writes first, and those became dispatchers that read the
+operands back and decide from them. Measured across a tour, 24 of the 40 million
+port transactions arrive that way, so pricing only the direct path understates
+what most of the traffic costs.
+"""
+
+DISPATCHED = "tramp_0084"
+
+DESTINATION_OPERAND = TRAMPOLINE + 1
+SOURCE_OPERAND = TRAMPOLINE + 2
+
+PORT_BANK = 0x3F
+WORK_RAM_BANK = 0x7E
+
+
+def through(names: dict[str, int], dispatched: bool) -> tuple[int, int]:
+    """The entry points a transfer takes, direct or through a dispatcher."""
+    if dispatched:
+        return names[DISPATCHED], names[DISPATCHED]
+    return names["dsp_feed_wram"], names["dsp_drain_wram"]
+
+
+def point(memory: LoRom, destination: int, source: int) -> None:
+    """The operand bytes a dispatcher reads back to decide what it stands in for."""
+    memory.write8(DESTINATION_OPERAND, destination)
+    memory.write8(SOURCE_OPERAND, source)
+
+
 def measure(
     cpu: Any,
     memory: LoRom,
@@ -202,6 +236,7 @@ def measure(
     lengths: tuple[int, ...],
     payload: bytes,
     output_length: int,
+    dispatched: bool = False,
 ) -> int:
     """Cycles the replacement spends on one whole exchange.
 
@@ -211,6 +246,7 @@ def measure(
     Measuring the payload a byte at a time would count a path the game does not
     take and charge the replacement for it.
     """
+    feed, drain = through(names, dispatched)
     total = 0
     for byte in bytes([command]) + bytes(lengths):
         cpu.set_acc(byte)
@@ -218,20 +254,22 @@ def measure(
 
     if payload:
         memory.wram[SOURCE & 0xFFFF : (SOURCE & 0xFFFF) + len(payload)] = payload
+        point(memory, PORT_BANK, WORK_RAM_BANK)
         cpu.m8 = False
         cpu.x8 = False
         cpu.a = len(payload) - 1
         cpu.x = SOURCE & 0xFFFF
         cpu.y = 0x0000
-        total += enter(cpu, names["dsp_feed_wram"])
+        total += enter(cpu, feed)
 
     if output_length:
+        point(memory, WORK_RAM_BANK, PORT_BANK)
         cpu.m8 = False
         cpu.x8 = False
         cpu.a = output_length - 1
         cpu.x = 0x0000
         cpu.y = DESTINATION & 0xFFFF
-        total += enter(cpu, names["dsp_drain_wram"])
+        total += enter(cpu, drain)
     return total
 
 
@@ -241,21 +279,31 @@ def produced(memory: LoRom, length: int) -> bytes:
     return bytes(memory.wram[at : at + length])
 
 
-def report(rows: dict[str, list[tuple[int, int, bool]]], say: Any = print) -> int:
-    """One line per command, and a non-zero status when any of them is slower."""
-    say(f"  {'command':<12}{'calls':>7}{'ours':>10}{'retail':>9}{'ratio':>8}  correct")
+def report(rows: dict[str, list[tuple[int, int, int, bool]]], say: Any = print) -> int:
+    """One line per command, and a non-zero status when any of them is slower.
+
+    The two columns of ours are the two ways the cartridge reaches the chip. The
+    direct one is the eighteen sites in bank $00 that name their banks in the
+    instruction; the dispatched one goes through a block mover in work RAM whose
+    operands the caller writes first, and most of the traffic goes that way.
+    """
+    say(
+        f"  {'command':<12}{'calls':>7}{'direct':>9}{'dispatched':>12}"
+        f"{'retail':>9}{'ratio':>8}  correct"
+    )
     slower = 0
     for name in sorted(rows):
         entries = rows[name]
-        ours = sum(one for one, _, _ in entries) / len(entries)
-        theirs = sum(two for _, two, _ in entries) / len(entries)
-        right = sum(1 for _, _, ok in entries if ok)
+        ours = sum(one for one, _, _, _ in entries) / len(entries)
+        dispatched = sum(two for _, two, _, _ in entries) / len(entries)
+        theirs = sum(three for _, _, three, _ in entries) / len(entries)
+        right = sum(1 for _, _, _, ok in entries if ok)
         ratio = ours / theirs if theirs else 0.0
         if ratio > 1.0:
             slower += 1
         say(
-            f"  {name:<12}{len(entries):>7}{ours:>10.0f}{theirs:>9.0f}{ratio:>7.2f}x"
-            f"  {right}/{len(entries)}"
+            f"  {name:<12}{len(entries):>7}{ours:>9.0f}{dispatched:>12.0f}"
+            f"{theirs:>9.0f}{ratio:>7.2f}x  {right}/{len(entries)}"
         )
     return 1 if slower else 0
 
@@ -272,36 +320,24 @@ question the report exists to answer.
 """
 
 
-def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = SAMPLED) -> int:
-    """Measure every command against a sample of the cartridge's own traffic.
+def sweep(
+    rom: bytes,
+    names: dict[str, int],
+    trace: Any,
+    wanted: int,
+    wanted_commands: tuple[str, ...],
+    dispatched: bool,
+) -> dict[str, list[tuple[int, int, bool]]]:
+    """One ordered pass over the sample, through one of the two entry paths.
 
-    Sampling stops once every command named has been seen the requested number
-    of times, because a trace holds millions of exchanges and the cost of one
-    command does not change with how many of them are measured.
-
-    One machine runs the whole sample, in the order the cartridge issued it,
-    because two of the commands answer differently depending on what came
-    before: a merge reads the transparent colour a previous command set, so
-    starting each exchange from a fresh chip would measure it against a colour
-    the cartridge never chose.
+    A pass gets a machine of its own and replays the sample from the start,
+    rather than measuring each exchange twice on one machine. Two of the
+    operations answer differently depending on what came before, and one of them
+    is cheaper the second time: setting the transparent colour rebuilds a pair of
+    tables only when the colour changed, so a repeat measures the early exit and
+    reports the dispatched path as 212 cycles faster than the direct one.
     """
-    rom_path = ROOT / "asm" / "dm-sym.sfc" if len(argv) < 2 else Path(argv[1])
-    sym_path = rom_path.with_suffix(".sym") if len(argv) < 3 else Path(argv[2])
-    trace = ROOT / "build" / "trace-s1.bin" if len(argv) < 4 else Path(argv[3])
-    wanted = 60 if len(argv) < 5 else int(argv[4])
-
-    if not rom_path.exists() or not sym_path.exists():
-        say(f"  build {rom_path.name} and its symbols first")
-        return 2
-
-    if stale(sym_path, rom_path):
-        say(f"  {sym_path.name} is older than {rom_path.name}; assemble them together")
-        return 2
-
     import dsptrace
-
-    rom = rom_path.read_bytes()
-    names = symbols(sym_path.read_text())
 
     seen: defaultdict[str, int] = defaultdict(int)
     rows: defaultdict[str, list[tuple[int, int, bool]]] = defaultdict(list)
@@ -316,21 +352,66 @@ def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = S
             continue
         seen[tx.name] += 1
 
-        spent = measure(
-            cpu,
-            memory,
-            names,
-            tx.command,
-            tuple(tx.lengths),
-            bytes(tx.parameters),
-            len(tx.output),
-        )
+        exchange = (tx.command, tuple(tx.lengths), bytes(tx.parameters), len(tx.output))
+        spent = measure(cpu, memory, names, *exchange, dispatched=dispatched)
         got = produced(memory, len(tx.output))
+
         rows[tx.name].append(
             (spent, retail_cost(tx.name, tx.parameters, tx.output), got == bytes(tx.output))
         )
+    return rows
 
-    return report(rows, say)
+
+def joined(
+    direct: dict[str, list[tuple[int, int, bool]]],
+    dispatched: dict[str, list[tuple[int, int, bool]]],
+) -> dict[str, list[tuple[int, int, int, bool]]]:
+    """The two passes side by side, one row per exchange."""
+    return {
+        name: [
+            (one[0], two[0], one[1], one[2] and two[2])
+            for one, two in zip(entries, dispatched.get(name, []), strict=True)
+        ]
+        for name, entries in direct.items()
+    }
+
+
+def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = SAMPLED) -> int:
+    """Measure every command against a sample of the cartridge's own traffic.
+
+    Sampling stops once every command named has been seen the requested number
+    of times, because a trace holds millions of exchanges and the cost of one
+    command does not change with how many of them are measured.
+
+    Each pass runs the whole sample in the order the cartridge issued it, because
+    two of the commands answer differently depending on what came before: a merge
+    reads the transparent colour a previous command set, so starting each
+    exchange from a fresh chip would measure it against a colour the cartridge
+    never chose.
+    """
+    rom_path = ROOT / "asm" / "dm-sym.sfc" if len(argv) < 2 else Path(argv[1])
+    sym_path = rom_path.with_suffix(".sym") if len(argv) < 3 else Path(argv[2])
+    trace = ROOT / "build" / "trace-s1.bin" if len(argv) < 4 else Path(argv[3])
+    wanted = 60 if len(argv) < 5 else int(argv[4])
+
+    if not rom_path.exists() or not sym_path.exists():
+        say(f"  build {rom_path.name} and its symbols first")
+        return 2
+
+    if stale(sym_path, rom_path):
+        say(f"  {sym_path.name} is older than {rom_path.name}; assemble them together")
+        return 2
+
+    rom = rom_path.read_bytes()
+    names = symbols(sym_path.read_text())
+
+    return report(
+        joined(
+            sweep(rom, names, trace, wanted, wanted_commands, dispatched=False),
+            sweep(rom, names, trace, wanted, wanted_commands, dispatched=True),
+        ),
+        say,
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover
