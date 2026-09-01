@@ -128,6 +128,36 @@ operation is a closed function of its payload.
 **What would settle it:** a run that reaches every screen in the game, or a
 recording made by someone playing rather than by a generated route.
 
+## The trace verifier has never agreed with the recordings
+
+[`tools/verify_trace.py`](tools/verify_trace.py) replays a recorded stream
+against the part's own microcode, through `snes-dsp`. It is described here and in
+the README as the check that says the recordings are faithful. Bounded to the
+first 200,000 records of a trace it reports **51,414 of 75,349 reads not
+reproduced**, and the same figures for two different tours, so it is the boot
+sequence and has nothing to do with which route was walked.
+
+It had never been seen, because a whole trace takes longer than the run was ever
+given: three hours of processor time on the last attempt, killed, with no output.
+The tool now reports as it goes and takes a bound, which is how this surfaced.
+
+What is established:
+
+- The shipped routines reproduce every recorded byte. That is checked a different
+  way, by [`tools/replay.py`](tools/replay.py), which feeds the same streams to
+  the 65816 code on the processor: 98,333,301 bytes, none wrong.
+- Almost every recorded read comes from a block move draining the port rather
+  than from a status poll, so a poll being counted as a data read is not the
+  explanation.
+
+What is not established is where the disagreement comes from: the model, the
+recording, or how this tool drives the model. Until that is settled, nothing here
+rests on this check, and it is not a gate.
+
+**What would settle it:** stepping one disagreeing exchange through both, from
+the command byte, and finding which of the two departs from the part's
+documented behaviour.
+
 ## The state block sits where three tours never wrote
 
 The block needs 1,536 bytes of work RAM the game does not use, and the game's own

@@ -180,6 +180,8 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | [`patch.py`](patch.py) | redirects every site in place, each replacement the width of what it replaces |
 | [`sites.py`](sites.py) | where those sites are, and the filler the stubs go in |
 | [`stateblock.py`](stateblock.py) | reads the block's declared layout and refuses two fields that share a byte |
+| [`check.py`](check.py) | every gate in one pass, each pinned to the version the runner installs |
+| [`assembled.py`](assembled.py) | the image the measurements read, and whether it predates its sources |
 | [`dsptrace.py`](dsptrace.py) | reads a recorded port trace back into transactions |
 | [`version.py`](version.py) | the release number, rewritten by [`scripts/set-version.sh`](scripts/set-version.sh) |
 | [`artifacts.manifest.json`](artifacts.manifest.json) | every dump this project reads, and what makes each one itself |
@@ -200,6 +202,8 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 
 | What | Command |
 |:-----|:--------|
+| Everything below, in one pass | `python3 check.py` |
+| The same without the container | `python3 check.py --quick` |
 | Every test | `for t in *.test.py tools/*.test.py conformance/*.test.py; do python3 "$t" \|\| break; done` |
 | Coverage, which fails below 100% | `python3 -m coverage erase && for t in *.test.py tools/*.test.py conformance/*.test.py; do python3 -m coverage run -a "$t"; done && python3 -m coverage report` |
 | What is on this machine | `python3 doctor.py` |

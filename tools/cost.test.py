@@ -132,17 +132,34 @@ class RetailCostTest(unittest.TestCase):
 class ReportTest(unittest.TestCase):
     """The comparison, and the status it reports."""
 
-    def test_a_command_no_slower_than_retail_passes(self) -> None:
+    def test_a_command_slower_than_retail_still_passes(self) -> None:
         said: list[str] = []
 
-        code = cost.report({"tile": [(100, 140, 200, True)]}, said.append)
+        code = cost.report({"tile": [(400, 440, 200, True)]}, said.append)
 
-        self.assertEqual((code, "0.50x" in "\n".join(said)), (0, True))
+        self.assertEqual((code, "2.00x" in "\n".join(said)), (0, True))
 
-    def test_a_command_slower_than_retail_fails(self) -> None:
-        code = cost.report({"tile": [(400, 440, 200, True)]}, lambda _l: None)
+    def test_the_ratio_is_reported_either_way(self) -> None:
+        said: list[str] = []
+
+        cost.report({"tile": [(100, 140, 200, True)]}, said.append)
+
+        self.assertIn("0.50x", "\n".join(said))
+
+    def test_a_command_that_answered_wrongly_fails(self) -> None:
+        said: list[str] = []
+
+        code = cost.report({"tile": [(100, 140, 200, False)]}, said.append)
 
         self.assertEqual(code, 1)
+        self.assertTrue(any("did not match" in one for one in said))
+
+    def test_and_says_how_many_of_them_did(self) -> None:
+        said: list[str] = []
+
+        cost.report({"tile": [(1, 2, 3, False)], "merge": [(1, 2, 3, False)]}, said.append)
+
+        self.assertTrue(any("2 answers" in one for one in said))
 
     def test_the_line_names_how_many_answers_were_right(self) -> None:
         said: list[str] = []

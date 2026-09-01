@@ -56,7 +56,25 @@ def _ok(self: Any) -> bool:
 Result.ok = property(_ok)  # type: ignore[attr-defined]
 
 
-def check(path: Any, build: Any = chip) -> Any:
+PROGRESS = 2_000_000
+"""Records between one word about where the run is and the next.
+
+A trace holds sixty million of them and the part answers each one by running its
+own microcode, so a single trace takes hours. Reporting only at the end means a
+run that is killed for taking too long produces nothing at all, which is what
+happened: three hours of processor time, no output, nothing learned. Roughly two
+million records is a line every few minutes.
+"""
+
+
+def check(
+    path: Any,
+    build: Any = chip,
+    say: Callable[[str], None] | None = None,
+    every: int = PROGRESS,
+    limit: int = 0,
+) -> Any:
+    """A whole trace, or as much of it as asked for, replayed against the part."""
     path = Path(path)
     if not path.exists():
         return None
@@ -69,14 +87,19 @@ def check(path: Any, build: Any = chip) -> Any:
         if record.kind == dsptrace.KIND_WRITE:
             part.write(record.byte)
             writes += 1
-            continue
+        else:
+            produced = part.read()
+            reads += 1
+            if produced != record.byte:
+                mismatches += 1
+                if len(examples) < EXAMPLE_LIMIT:
+                    examples.append((record.frame, record.pc, record.byte, produced))
 
-        produced = part.read()
-        reads += 1
-        if produced != record.byte:
-            mismatches += 1
-            if len(examples) < EXAMPLE_LIMIT:
-                examples.append((record.frame, record.pc, record.byte, produced))
+        seen = writes + reads
+        if say is not None and seen % every == 0:
+            say(f"  {path.name}: {seen:,} records, {mismatches:,} wrong so far")
+        if limit and seen >= limit:
+            break
 
     return Result(path=path, writes=writes, reads=reads, mismatches=mismatches, examples=examples)
 
@@ -104,11 +127,15 @@ def main(
         say(f"  nothing to check: {reason}")
         return 2
 
-    wanted = argv[1:] or [str(ROOT / name) for name in DEFAULT_TRACES]
+    rest = argv[1:]
+    limit = 0
+    if rest and rest[0].isdigit():
+        limit = int(rest.pop(0))
+    wanted = rest or [str(ROOT / name) for name in DEFAULT_TRACES]
 
     results: list[Any] = []
     for path in wanted:
-        result = check(path, build)
+        result = check(path, build, say=say, limit=limit)
         if result is None:
             say(f"  {Path(path).name}: no trace, skipped")
             continue

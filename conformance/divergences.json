@@ -140,6 +140,18 @@
       "reasoning": "The block is laid out by hand as a list of offsets and nothing checked that list against itself; the assembler cannot, because an offset is a number and two names for one number assemble without complaint. !S_OVERLAY was declared at $0E, which is !S_INBYTE, and the sixteen bit store that sets it reached into $0F, the bank a block transfer reads from. A transfer that overruns one command's payload carries on into the next and re-reads that bank, so a merge would have taken its continuation from wherever the overlay pointer's high byte pointed. Nothing in 4.6 million recorded transactions overruns, so it never fired. A second, benign overlap sat eight bytes inside the operations' scratch region. Both fields moved, stateblock.py now refuses any two that share a byte, and splitfeed.retail.test.py drives the overrun: against the old layout it reads bank $0A and stops, against the new one it answers what a single move answers.",
       "wouldSettleIt": "n/a. Found, fixed, and held by a check that fails against the layout it replaced.",
       "namedInDocument": "Two fields of the state block shared a byte"
+    },
+    {
+      "id": "the-trace-verifier-has-never-agreed-with-the-recordings",
+      "parts": ["harness"],
+      "severity": "high",
+      "status": "open",
+      "documentSays": "n/a",
+      "referenceDoes": "n/a",
+      "packageFollows": "neither",
+      "reasoning": "tools/verify_trace.py replays a recorded stream against the part's own microcode through snes-dsp, and is described as the check that says the recordings are faithful. Bounded to the first 200,000 records it reports 51,414 of 75,349 reads not reproduced, with identical figures for two different tours, so it is the boot sequence rather than the route. It had never been seen because a whole trace outlasts any run it was given: three hours of processor time on the last attempt, killed, with no output. Adding progress reporting and a bound is what surfaced it. The shipped routines are not in question: replaying the same streams through the 65816 code on the processor checks 98,333,301 bytes with none wrong. Almost every recorded read comes from a block move draining the port rather than a status poll, so a poll counted as a data read is not the explanation. Where the disagreement comes from, the model or the recording or how this tool drives the model, is not established, and nothing here rests on this check.",
+      "wouldSettleIt": "Stepping one disagreeing exchange through both, from the command byte, and finding which of the two departs from the part's documented behaviour.",
+      "namedInDocument": "The trace verifier has never agreed with the recordings"
     }
   ]
 }

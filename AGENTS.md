@@ -95,7 +95,21 @@ it runs the other, so no single run can exercise both.
 
 ## Gates
 
-Everything below must pass before a change is done. There is no partial credit.
+Everything below must pass before a change is done. There is no partial credit,
+and one command runs all of it:
+
+```bash
+python3 check.py            # every gate, including the ones that need the dump
+python3 check.py --quick    # only the ones that do not shell into a container
+```
+
+It assembles the measurement image first when it is missing or older than any
+assembly source, names each gate as it passes or fails, and runs the rest rather
+than stopping at the first. Every tool it runs is pinned to the version the
+runner installs, because reporting coverage with a newer build than the one that
+recorded it named four lines uncovered that were not.
+
+The gates it runs, for reference:
 
 | gate | command |
 |---|---|

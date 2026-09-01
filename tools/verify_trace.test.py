@@ -193,6 +193,21 @@ class MainTest(unittest.TestCase):
 
         self.assertEqual(code, 0)
 
+    def test_a_leading_number_bounds_the_run_rather_than_naming_a_trace(self) -> None:
+        said: list[Any] = []
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp) / "trace.bin"
+            where.write_bytes(trace_bytes(writes=(0x09, 0x0A, 0x0B), reads=(0x11,)))
+
+            verify.main(
+                ["verify_trace.py", "2", str(where)],
+                build=puppets((0x11,)),
+                refuses=lambda: None,
+                say=said.append,
+            )
+
+        self.assertTrue(any("2 written" in one for one in said))
+
     def test_and_one_it_does_not_fails(self) -> None:
         said: list[Any] = []
         with tempfile.TemporaryDirectory() as tmp:
@@ -208,6 +223,49 @@ class MainTest(unittest.TestCase):
 
         self.assertEqual(code, 1)
         self.assertIn("did not reproduce", " ".join(said))
+
+
+class ProgressTest(unittest.TestCase):
+    """A run long enough to outlive a session has to say where it has got to."""
+
+    @override
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self.tmp.name) / "trace.bin"
+        self.addCleanup(self.tmp.cleanup)
+        self.path.write_bytes(trace_bytes(writes=tuple(range(60))))
+
+    def test_it_reports_as_it_goes(self) -> None:
+        said: list[str] = []
+
+        verify.check(self.path, puppets(), say=said.append, every=20)
+
+        self.assertEqual(len(said), 3)
+
+    def test_what_it_says_names_the_trace_and_how_far_it_has_read(self) -> None:
+        said: list[str] = []
+
+        verify.check(self.path, puppets(), say=said.append, every=20)
+
+        self.assertIn("trace.bin", said[0])
+        self.assertIn("20", said[0])
+
+    def test_a_run_shorter_than_a_step_says_nothing_before_its_result(self) -> None:
+        said: list[str] = []
+
+        verify.check(self.path, puppets(), say=said.append, every=1000)
+
+        self.assertEqual(said, [])
+
+    def test_a_limit_stops_the_run_where_it_was_told_to(self) -> None:
+        found = verify.check(self.path, puppets(), limit=10)
+
+        self.assertEqual(found.writes + found.reads, 10)
+
+    def test_no_limit_reads_the_whole_trace(self) -> None:
+        found = verify.check(self.path, puppets())
+
+        self.assertEqual(found.writes + found.reads, 60)
 
 
 if __name__ == "__main__":
