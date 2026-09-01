@@ -45,23 +45,25 @@
 !S_XFER_PTR     = $10           ; 24 bit pointer the transfer indexes through
 !S_XFER_LEFT    = $13           ; bytes of a split run already moved, 16 bit
 !S_XFER_TOTAL   = $15           ; bytes the transfer was asked for, 16 bit
-!S_SAVE_A       = $17           ; the caller's accumulator, 16 bit
-!S_SAVE_X       = $19           ; and both index registers, 16 bit, kept here
+!S_SAVE_X       = $19           ; both index registers, 16 bit, kept here
 !S_SAVE_Y       = $1B           ;   rather than on the stack, 16 bit, so the
                                 ;   transfer can add the count to them before
                                 ;   they go back
-!S_OVERLAY      = $1D           ; where the overlay half of a merge payload
-                                ;   starts, 16 bit, so the loop can reach it
-                                ;   through the direct page rather than carrying
-                                ;   a second index it would have to save and
-                                ;   restore. It was declared at $0E for a while,
-                                ;   which is !S_INBYTE, and the sixteen bit store
-                                ;   that sets it reached into !S_XFER_BANK as
-                                ;   well. A transfer that splits re-reads that
-                                ;   bank after the operation runs, so a merge
-                                ;   would have taken its next chunk from whatever
-                                ;   the pointer's high byte held. Nothing in any
-                                ;   recording splits, so it never fired
+!S_OVERLAY_PTR  = $1D           ; 24 bit. Where the overlay half of a merge
+                                ;   payload starts, as a long pointer so the loop
+                                ;   can reach it wherever it is: in the parameter
+                                ;   buffer when the payload was collected there,
+                                ;   or in the caller's own memory when a transfer
+                                ;   delivered the whole of it at once and there
+                                ;   was no reason to copy it first. It was
+                                ;   declared at $0E for a while, which is
+                                ;   !S_INBYTE, and the store that sets it reached
+                                ;   into !S_XFER_BANK as well. A transfer that
+                                ;   splits re-reads that bank after the operation
+                                ;   runs, so a merge would have taken its next
+                                ;   chunk from whatever the pointer's high byte
+                                ;   held. Nothing in any recording splits, so it
+                                ;   never fired
 !S_MVN          = $20           ; a four byte MVN stub, built by dsp_init and
                                 ;   patched with its banks before each use. Code
                                 ;   in ROM cannot modify itself, and a block move
@@ -92,6 +94,12 @@
                                 ;   nothing is held: a scale only derives a step
                                 ;   when its output is shorter than its input, so
                                 ;   a pair of equal lengths never gets here
+!S_PARAM_PTR    = $F6           ; 24 bit. Where a merge reads its payload from.
+                                ;   It names the parameter buffer for every
+                                ;   command that collects one, and the caller's
+                                ;   own memory when a single transfer carried the
+                                ;   whole payload, which is what every transfer
+                                ;   in three recorded tours does
 !S_STEP         = $F2           ; 32 bit. That step, in 16.16 fixed point. The
                                 ;   division that produces it is a thirty two bit
                                 ;   restoring divide, thirty two iterations of

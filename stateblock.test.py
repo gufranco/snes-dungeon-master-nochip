@@ -121,7 +121,14 @@ class BlockTest(unittest.TestCase):
         declared = stateblock.fields(stateblock.SOURCE.read_text())
 
         self.assertIn("!S_INBYTE", declared)
-        self.assertIn("!S_OVERLAY", declared)
+        self.assertIn("!S_OVERLAY_PTR", declared)
+        self.assertIn("!S_PARAM_PTR", declared)
+
+    def test_a_pointer_a_long_read_goes_through_is_declared_as_one(self) -> None:
+        declared = stateblock.fields(stateblock.SOURCE.read_text())
+
+        for name in ("!S_PARAM_PTR", "!S_OVERLAY_PTR", "!S_XFER_PTR"):
+            self.assertEqual(declared[name][1], 3, name)
 
 
 if __name__ == "__main__":

@@ -210,7 +210,37 @@ feed_body:
     beq .slow
     cmp !S_XFER_TOTAL
     bcc .slow                   ; less wanted than carried, so the run splits
+    bne .copy                   ; more wanted than carried, so this is not the
+                                ;   whole payload and the rest has to join it
+    lda !S_PARAM_INDEX
+    bne .copy                   ; something arrived before this, same reason
+    sep #$20
+    lda !S_COMMAND
+    cmp.b #!CMD_MERGE           ; only a merge reads its payload through a
+    rep #$20                    ;   pointer; every other operation names the
+    bne .copy                   ;   buffer in the instruction
 
+    ; The whole payload is already in the caller's memory, contiguous and
+    ; complete, which is what every one of the 3.3 million transfers in three
+    ; recorded tours delivers. Copying it into the parameter buffer only to read
+    ; it back costs seven cycles a byte for the move and buys a four cycle read
+    ; in place of a six cycle one. Pointing the operation at it instead is worth
+    ; eleven cycles for every byte of a merge, and a merge is 23 of the 36
+    ; commands the cartridge sends in a frame.
+    lda !S_SAVE_X
+    sta !S_PARAM_PTR
+    sep #$20
+    lda !S_XFER_BANK
+    sta !S_PARAM_PTR+2
+    rep #$20
+    lda !S_XFER_TOTAL           ; the payload is complete, so the cursor lands
+    sta !S_PARAM_INDEX          ;   where the move would have left it
+    stz !S_WANT_PARAM
+    jsr run
+    rep #$30
+    jmp .finish
+
+.copy:
     sep #$20
     lda !S_XFER_BANK
     sta !S_MVN+2                ; the stub reads from the caller's bank

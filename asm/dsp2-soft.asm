@@ -368,11 +368,14 @@ command_byte:
     sta !S_COMMAND
     rep #$20
     stz !S_PARAM_INDEX          ; the output is not touched here. A command byte
-    sep #$20                    ;   arriving does not spend the previous result,
-                                ;   and reads between the command and its last
-                                ;   parameter still drain what was already
-                                ;   waiting. The cursor rewinds when the command
+    lda.w #(!P_BUFFER&$FFFF)    ;   arriving does not spend the previous result,
+    sta !S_PARAM_PTR            ;   and reads between the command and its last
+    sep #$20                    ;   parameter still drain what was already
+    stz !S_PARAM_PTR+2          ;   waiting. The cursor rewinds when the command
                                 ;   runs, which is where the chip rewinds it.
+                                ; The payload is read out of the buffer it is
+                                ;   collected in unless a transfer says the whole
+                                ;   of it arrived somewhere else at once.
 
     lda !S_COMMAND              ; tested in the order the cartridge sends them,
     cmp.b #!CMD_MERGE           ;   measured over three thousand frames of play:

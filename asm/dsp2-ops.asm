@@ -227,8 +227,14 @@ op_merge:
     and.w #$00FF
     sta !S_OUT_LEN
     clc                         ; the overlay follows the background, so its base
-    adc.w #(!P_BUFFER&$FFFF)    ;   is one length along. Reaching it through the
-    sta !S_OVERLAY              ;   direct page leaves both index registers free
+    adc !S_PARAM_PTR            ;   is one length along whatever the payload is
+    sta !S_OVERLAY_PTR          ;   being read from
+    sep #$20
+    lda !S_PARAM_PTR+2          ; the carry out of that add belongs to the bank,
+    adc.b #$00                  ;   because a caller's buffer can sit anywhere
+    sta !S_OVERLAY_PTR+2
+    rep #$20
+
     ldy !S_OUT_LEN              ; the walk runs down rather than up, so its end
     dey                         ;   is the sign bit of the index and no compare
     lda.w #$0000                ;   against the length is needed. Every byte is
@@ -239,10 +245,10 @@ op_merge:
                                 ;   once so that every later transfer to X
                                 ;   carries the overlay byte alone.
 .byte:
-    lda (!S_OVERLAY),y          ; the overlay byte decides for both its nibbles
+    lda [!S_OVERLAY_PTR],y      ; the overlay byte decides for both its nibbles
     tax
     lda.w !MERGE_MASK,x         ; where it was transparent, and only there
-    and.w !P_BUFFER,y           ;   the background shows through
+    and [!S_PARAM_PTR],y        ;   the background shows through
     ora.w !MERGE_KEEP,x         ; everywhere else the overlay stands
     sta.w !O_BUFFER,y
     dey
