@@ -51,15 +51,34 @@ macro block_enter()
                                 ;   pass, so a value written here is overwritten
                                 ;   unread on every path there is
 
-    sep #$20                    ; the block move stub is code living in work RAM,
-    lda !S_MVN                  ;   and this game clears work RAM by DMA after the
-    cmp.b #$54                  ;   boot code has already sent its first commands,
-    beq ?stub_stands            ;   so it cannot be written once and trusted. It is
-    lda.b #$54                  ;   checked instead of rewritten: a load and a
-    sta !S_MVN                  ;   compare against four stores, on a path taken
-    lda.b #$6B                  ;   twice for every command the cartridge issues
+endmacro
+
+; ---------------------------------------------------------------------------
+; stub_stands
+;
+; The block move stub is code living in work RAM, and this game clears work RAM
+; by DMA after the boot code has already sent its first commands, so it cannot
+; be written once and trusted. It is checked instead of rewritten: a load and a
+; compare against four stores.
+;
+; It sat in block_enter, which every entry point runs. Two of the six commands
+; now read their payload where the caller left it and never reach for the stub
+; at all, and between them they are 33 of the 36 commands a frame carries, so
+; the check moved to the three places that do use it.
+;
+; Entry: DP = !STATE, A 16 bit.
+; Exit:  the stub stands. A clobbered, widths unchanged.
+; ---------------------------------------------------------------------------
+macro stub_stands()
+    sep #$20
+    lda !S_MVN
+    cmp.b #$54
+    beq ?stands
+    lda.b #$54
+    sta !S_MVN
+    lda.b #$6B
     sta !S_MVN+3
-?stub_stands:
+?stands:
     rep #$20
 endmacro
 
@@ -87,6 +106,16 @@ macro block_leave()
     tay
     lda.w #$FFFF
 endmacro
+
+; ---------------------------------------------------------------------------
+; mvn_stub
+;
+; The check above, as something callable, for the one path where inlining it
+; costs more than the call.
+; ---------------------------------------------------------------------------
+mvn_stub:
+    %stub_stands()
+    rts
 
 ; ---------------------------------------------------------------------------
 ; dsp_feed_wram
@@ -201,29 +230,32 @@ feed_body:
     ; So the pointer and the delivered count that only the loop reads are set up
     ; inside it rather than here. The path that is always taken does not pay for
     ; the path that never is.
-    sep #$20
-    lda !S_STAGE
-    cmp.b #!STAGE_PARAM
-    rep #$20
+    lda !S_STAGE                ; the stage and the command sit side by side, so
+    cmp.w #((!CMD_MERGE<<8)|!STAGE_PARAM)   ; one sixteen bit compare asks both
+    beq .in_place               ;   questions at once and neither answer costs a
+    cmp.w #((!CMD_TILE<<8)|!STAGE_PARAM)    ;   change of accumulator width. The
+    beq .in_place               ;   two named here read their payload through a
+                                ;   pointer and are 33 of the 36 commands a frame
+                                ;   carries; the rest name the buffer in the
+                                ;   instruction and need it filled
+    and.w #$00FF
+    cmp.w #!STAGE_PARAM
     bne .slow
     lda !S_WANT_PARAM
     beq .slow
     cmp !S_XFER_TOTAL
     bcc .slow                   ; less wanted than carried, so the run splits
-    bne .copy                   ; more wanted than carried, so this is not the
-                                ;   whole payload and the rest has to join it
-    lda !S_PARAM_INDEX
-    bne .copy                   ; something arrived before this, same reason
-    sep #$20
-    lda !S_COMMAND
-    cmp.b #!CMD_MERGE           ; the two that read their payload through a
-    beq .in_place               ;   pointer, which between them are 33 of the 36
-    cmp.b #!CMD_TILE            ;   commands a frame carries. The rest name the
-    beq .in_place               ;   buffer in the instruction and need it filled
-    rep #$20
     bra .copy
+
 .in_place:
-    rep #$20
+    lda !S_WANT_PARAM
+    beq .slow
+    cmp !S_XFER_TOTAL
+    bcc .slow                   ; as above, and then two more that have to hold
+    bne .copy                   ;   before the payload can be read in place: the
+                                ;   run has to be the whole of what is wanted
+    lda !S_PARAM_INDEX
+    bne .copy                   ;   and nothing can have arrived before it
 
     ; The whole payload is already in the caller's memory, contiguous and
     ; complete, which is what every one of the 3.3 million transfers in three
@@ -246,7 +278,10 @@ feed_body:
     jmp .finish
 
 .copy:
-    sep #$20
+    jsr mvn_stub                ; called rather than inlined here, because the
+    sep #$20                    ;   fourteen bytes it takes put the split path
+                                ;   out of reach of the branches above. This path
+                                ;   carries 0.64 of the 36 commands a frame
     lda !S_XFER_BANK
     sta !S_MVN+2                ; the stub reads from the caller's bank
     stz !S_MVN+1                ;   and writes into the parameter buffer's
@@ -281,6 +316,7 @@ feed_body:
     rtl
 
 .slow:
+    %stub_stands()
     lda !S_SAVE_X
     sta !S_XFER_PTR
     sep #$20
@@ -371,6 +407,7 @@ feed_body:
 ; Exit:  A, X, Y clobbered. Widths left at A 16 bit, index 16 bit.
 ; ---------------------------------------------------------------------------
 drain_body:
+    %stub_stands()
     lda !S_XFER_TOTAL
     bne .carries
     jmp .finish                 ; a run of nothing, which still has the caller's
