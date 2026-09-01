@@ -106,21 +106,27 @@ Two limits, both of which cap what this can say:
 the time the part took. Both are out of reach here, and what is measurable
 without them has been measured.
 
-## The recorded traffic is three tours, not the whole game
+## The recorded traffic is four recordings, not the whole game
 
-Every claim of correctness here rests on 3,336,773 transactions recorded from
-three seeded random walks of 30,000 frames each. A command shape those walks
-never produced has never been checked.
+Every claim of correctness here rests on 4,636,076 transactions recorded from
+four runs: three seeded random walks of 30,000 frames each, and one steady route
+of the same length. A command shape none of them produced has never been checked.
 
-The tours disagree with each other enough to show that the sampling is uneven:
-scale appears 10,422 times in the first, 1,068 in the second and 17,777 in the
-third. What bounds the risk is that the shapes are few, each of the six
-operations is a closed function of its payload, and replaying the recorded
-streams through the routines on the processor reproduces every byte the
-cartridge's chip returned.
+Replaying all four through the routines, on the processor, checks **98,333,301
+bytes** against what the cartridge's own chip returned. None are wrong.
+
+What the fourth recording shows is why this question stays open. It is a
+different shape of workload, not merely more of the same: over 30,000 frames it
+produces 848,987 merges and 372,624 tile conversions and **not one mirror or
+scale**. The three walks produce both, and unevenly at that: scale appears 10,422
+times in the first, 1,068 in the second and 17,777 in the third.
+
+So no single input reaches all six commands, and the coverage argument rests on
+the union of four. What bounds the risk is that the shapes are few and each
+operation is a closed function of its payload.
 
 **What would settle it:** a run that reaches every screen in the game, or a
-second recording made by someone playing rather than by a random walk.
+recording made by someone playing rather than by a generated route.
 
 ## The state block sits where three tours never wrote
 

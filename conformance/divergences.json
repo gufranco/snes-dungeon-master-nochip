@@ -22,16 +22,16 @@
       "namedInDocument": "The replacement costs about one extra frame of processor time per frame"
     },
     {
-      "id": "the-recorded-traffic-is-three-tours-not-the-whole-game",
+      "id": "the-recorded-traffic-is-four-recordings-not-the-whole-game",
       "parts": ["coverage"],
       "severity": "medium",
       "status": "narrowed",
       "documentSays": "n/a",
       "referenceDoes": "n/a",
       "packageFollows": "recording",
-      "reasoning": "Every claim of correctness here rests on 3,336,773 transactions recorded from three seeded random walks. A command shape those walks never produced has never been checked. The tours disagree with each other enough to show the sampling is uneven: scale appears 10,422 times in the first, 1,068 in the second and 17,777 in the third. What bounds the risk is that the shapes are few, the six operations are each a closed function of their payload, and the replay of all three tours reproduces every byte.",
-      "wouldSettleIt": "A run that reaches every screen in the game, or a second recording made by someone playing rather than by a random walk.",
-      "namedInDocument": "The recorded traffic is three tours, not the whole game"
+      "reasoning": "Every claim of correctness rests on 4,636,076 transactions from four runs: three seeded random walks of 30,000 frames each and one steady route of the same length. Replaying all four through the routines on the processor checks 98,333,301 bytes against what the cartridge's own chip returned, none wrong. The fourth recording is what shows why the question stays open rather than closing it: it is a different shape of workload, producing 848,987 merges and 372,624 tile conversions and not one mirror or scale over 30,000 frames. The walks produce both, unevenly: scale appears 10,422 times in the first, 1,068 in the second and 17,777 in the third. No single input reaches all six commands, so the coverage argument rests on the union of four. What bounds the risk is that the shapes are few and each operation is a closed function of its payload.",
+      "wouldSettleIt": "A run that reaches every screen in the game, or a recording made by someone playing rather than by a generated route.",
+      "namedInDocument": "The recorded traffic is four recordings, not the whole game"
     },
     {
       "id": "the-state-block-sits-where-three-tours-never-wrote",

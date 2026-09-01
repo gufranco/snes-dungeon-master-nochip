@@ -56,10 +56,10 @@ to the chip, or a header mirror still declaring one. That refusal is the point. 
 routines placed and the accesses not redirected boots and plays perfectly, because the emulator reads
 the header, provides a DSP-2 and serves every request itself.
 
-**Correctness.** Three seeded tours of 30,000 frames were driven on the emulator with every byte in
-and out of the port recorded. Feeding those streams back through the routines, on the processor,
-walks 6,259,086 runs and checks 71,970,987 bytes against what the cartridge's own chip returned. None
-are wrong.
+**Correctness.** Four runs of 30,000 frames each were driven on the emulator with every byte in and
+out of the port recorded: three seeded random walks and one steady route. Feeding those streams back
+through the routines, on the processor, walks 8,722,303 runs and checks 98,333,301 bytes against what
+the cartridge's own chip returned. None are wrong.
 
 **Speed.** The chip computed while the program that fed it carried on, so replacing it with code
 cannot be free, and per command the shortfall is large: the routines add most of a frame of processor
