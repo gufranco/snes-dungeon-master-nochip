@@ -17,26 +17,45 @@ Dungeon Master is the only SNES cartridge that carries a DSP-2. The chip convert
 bitmap graphics into the console's own tile format, scales them for the dungeon view, composites them
 against a transparent colour, and multiplies. Without it the game does not draw.
 
-This project computes ahead of time everything the chip computes from fixed inputs, stores the results
-in a larger image, and redirects the code that used to ask the chip so it reads the finished bytes
-instead. The three operations that take run-time operands become native 65816. The result is an
-ordinary SNES ROM with no coprocessor to emulate.
+This project reimplements all six of the chip's commands in 65816 and points the cartridge's own
+instructions at them. Every access is redirected in place and every replacement is the same width as
+the instruction it replaces, so nothing in the image moves and no address the game computes for
+itself changes meaning. The result is an ordinary SNES ROM with no coprocessor to emulate.
+
+Computing the answers ahead of time and storing them was the first plan, and measurement ruled it
+out. The part is a renderer rather than an unpacker: what it is asked to convert is the dungeon view
+as composed for wherever the player is standing, so there is no fixed set of answers to compute.
+Searching the retail dump for the exact bytes the cartridge sends finds every one of the mirror
+command's inputs, 1.2% of the merge command's, and 0.3% of the tile command's.
 
 You supply the retail dump. Nothing here contains game data, and nothing ever will.
 
 ## Status
 
-Not buildable yet. The analysis tooling and the scaffolding are in place; the conversion is not. This
-section says what runs, and it will say more as more does.
+It builds and it answers correctly. It is slower than the chip, and by how much is measured rather
+than estimated.
 
 | part | state |
 |------|-------|
 | dump identification | works |
 | 65816 disassembly and interpretation | works, against a per-opcode suite |
 | the DSP-2's own behaviour | works, against the chip's reference implementation |
-| address arithmetic for the expanded image | works, against a library of real cartridges |
+| address arithmetic for the image | works, against a library of real cartridges |
 | pinned assembler container | builds |
-| the conversion itself | not started |
+| the six operations in 65816 | answer every recorded byte, on the processor |
+| speed | 63,912 cycles a frame against 7,600 for the chip path, in a frame of 59,561 |
+
+**Correctness.** Three seeded tours of 30,000 frames were driven on the emulator with every byte in
+and out of the port recorded. Feeding those streams back through the routines, on the processor,
+walks 6,259,086 runs and checks 71,970,987 bytes against what the cartridge's own chip returned. None
+are wrong.
+
+**Speed.** The chip computed while the program that fed it carried on, so replacing it with code
+cannot be free, and the shortfall is large: the routines add most of a frame of processor time to
+each frame during continuous movement. Almost all of that is the cost of standing in for one
+instruction rather than the arithmetic. [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries the numbers,
+what has already been tried, and what would settle whether the converted cartridge holds sixty frames
+a second.
 
 ## The dump
 
@@ -94,9 +113,14 @@ looking.
 | [DSP-2](https://github.com/gufranco/snes-dsp-python) | the chip's own reference implementation |
 | [cartridge map](https://github.com/gufranco/snes-mapper-python) | every header combination in a real cartridge library |
 | [ROM image](https://github.com/gufranco/snes-rom-image-python) | the whole of that same library, rewritten and checked |
+| [tile format](https://github.com/gufranco/snes-graphics-python) | the console's own bitplane layout, held to recorded output |
+| [driver](https://github.com/gufranco/snes-driver-python) | where in the cartridge's code it reaches the part |
+
+The 65816 model is also the instrument the replacement is measured with. It drives a bus cycle by
+cycle, so what a routine costs is the cycles it actually took rather than a sum from a table.
 
 A model that has never disagreed with something is not a model that is right, it is one that has
-never been asked. Three of the four above were wrong the first time they were measured that way, and
+never been asked. Several of those above were wrong the first time they were measured that way, and
 every one of those defects sat in the part that looked obviously correct.
 
 They also start dirty. Memory and registers hold arbitrary but reproducible values rather than
@@ -131,10 +155,19 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | [`snes-dsp-python/`](snes-dsp-python/) | the DSP-2, running the chip's own microcode |
 | [`snes-mapper-python/`](snes-mapper-python/) | the cartridge map, held to a library of real cartridges |
 | [`snes-rom-image-python/`](snes-rom-image-python/) | image handling, held to that same library |
+| [`snes-graphics-python/`](snes-graphics-python/) | the tile format the conversion produces |
+| [`snes-driver-python/`](snes-driver-python/) | where the cartridge's own code reaches the part |
 | [`build.py`](build.py) | Docker wrapper around a pinned asar |
+| [`patch.py`](patch.py) | redirects every site in place, each replacement the width of what it replaces |
+| [`sites.py`](sites.py) | where those sites are, and the filler the stubs go in |
+| [`dsptrace.py`](dsptrace.py) | reads a recorded port trace back into transactions |
 | [`version.py`](version.py) | the release number, rewritten by [`scripts/set-version.sh`](scripts/set-version.sh) |
 | [`artifacts.manifest.json`](artifacts.manifest.json) | every dump this project reads, and what makes each one itself |
 | [`tools/identify.py`](tools/identify.py) | checks a dump, and says what is wrong when it is |
+| [`tools/cost.py`](tools/cost.py) | what each command costs, on the processor, against what the chip path cost |
+| [`tools/replay.py`](tools/replay.py) | the recorded stream fed back through the routines, on the processor |
+| [`tools/verify_trace.py`](tools/verify_trace.py) | the recorded stream against the chip's own microcode |
+| [`conformance/`](conformance/) | the record of what is settled and what is not, with a test holding it to the prose |
 | [`asm/`](asm/) | assembly that goes into the ROM, with its own container pinning asar |
 | [`emu/`](emu/) | the harness everything is validated against |
 | [`ref/`](ref/) | the pinned reference the conversion is checked against |
@@ -144,13 +177,19 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 
 | What | Command |
 |:-----|:--------|
-| Every test | `for t in *.test.py tools/*.test.py; do python3 "$t" \|\| break; done` |
-| Coverage, which fails below 100% | `python3 -m coverage erase && for t in *.test.py tools/*.test.py; do python3 -m coverage run -a "$t"; done && python3 -m coverage report` |
+| Every test | `for t in *.test.py tools/*.test.py conformance/*.test.py; do python3 "$t" \|\| break; done` |
+| Coverage, which fails below 100% | `python3 -m coverage erase && for t in *.test.py tools/*.test.py conformance/*.test.py; do python3 -m coverage run -a "$t"; done && python3 -m coverage report` |
 | What is on this machine | `python3 doctor.py` |
 | Lint | `ruff check .` |
+| Types | `mypy .` |
 | Format | `ruff format --check .` |
 | Workflows | `actionlint` |
 | Shell | `shellcheck --severity=style --shell=bash scripts/*.sh` |
+| What each command costs | `python3 tools/cost.py` |
+| The recorded traffic through the routines | `python3 tools/replay.py build/trace-s1.bin` |
+
+The last two need a dump: the first needs the assembled image and its symbol table, and the second
+needs a recorded trace as well. Both report that they have nothing to run rather than passing.
 
 ### Conventions
 
@@ -178,6 +217,15 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
   since any bitmap scales to something of exactly the size requested.
 - **The build depends on nothing outside this repository.** A fresh clone plus a dump is enough, with
   no network and no second checkout.
+- **Speed is a number, never an adjective.** Every claim about how fast something is comes from
+  [`tools/cost.py`](tools/cost.py), which runs the routine on the processor model against recorded
+  traffic and prices it against what the same exchange cost when a chip answered it. Both figures
+  print per command, because a single total would hide which one regressed.
+- **What is not known is written down.** [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries every place
+  a claim here is narrower than it looks, with the measurement that would settle it, and
+  [`conformance/divergences.json`](conformance/divergences.json) carries the same record in a form a
+  program can read. A test holds the two together so an entry cannot be added to one and forgotten in
+  the other.
 
 ## Contributing
 
