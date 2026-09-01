@@ -233,11 +233,15 @@ op_merge:
     clc                         ; the overlay follows the background, so its base
     adc.w #(!P_BUFFER&$FFFF)    ;   is one length along. Reaching it through the
     sta !S_OVERLAY              ;   direct page leaves both index registers free
-    lda.w #$0000                ; the high byte of the accumulator is cleared once
-    sep #$20                    ;   so that every later transfer to X carries the
-                                ;   overlay byte alone and nothing above it
-    ldy.w #$0000
-
+    ldy !S_OUT_LEN              ; the walk runs down rather than up, so its end
+    dey                         ;   is the sign bit of the index and no compare
+    lda.w #$0000                ;   against the length is needed. Every byte is
+    sep #$20                    ;   decided by its own two nibbles and nothing
+                                ;   else, so the order they are visited in does
+                                ;   not reach the result.
+                                ; The high byte of the accumulator is cleared
+                                ;   once so that every later transfer to X
+                                ;   carries the overlay byte alone.
 .byte:
     lda (!S_OVERLAY),y          ; the overlay byte decides for both its nibbles
     tax
@@ -245,9 +249,8 @@ op_merge:
     and.w !P_BUFFER,y           ;   the background shows through
     ora.w !MERGE_KEEP,x         ; everywhere else the overlay stands
     sta.w !O_BUFFER,y
-    iny
-    cpy !S_OUT_LEN
-    bne .byte
+    dey
+    bpl .byte
     rts
 
 .empty:
@@ -294,10 +297,9 @@ op_mirror:
     sta.w !O_BUFFER,x
 
     iny
-    dex
-    cpy !S_OUT_LEN
-    bne .byte
-    rts
+    dex                         ; the output index runs down to its own sign
+    bpl .byte                   ;   bit, which the input index reaching the
+    rts                         ;   length would say no sooner and no cheaper
 
 .empty:
     rep #$20

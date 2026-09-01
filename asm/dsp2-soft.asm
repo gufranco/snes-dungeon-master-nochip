@@ -97,6 +97,31 @@ dsp_init:
     rtl
 
 ; ---------------------------------------------------------------------------
+; with_context
+;
+; Runs a routine that may reach a buffer or finish an operation, with the data
+; bank pointed at bank zero and both index registers put back afterwards.
+;
+; The widths are set back to sixteen before the pulls. The pushes were made with
+; both sixteen bit, and an operation leaves the accumulator eight, so without it
+; the pull takes one byte where two went on and every later pull is displaced.
+; ---------------------------------------------------------------------------
+macro with_context(routine)
+    rep #$30
+    phb
+    phx
+    phy
+    pea $0000
+    plb
+    plb
+    jsr <routine>
+    rep #$30
+    ply
+    plx
+    plb
+endmacro
+
+; ---------------------------------------------------------------------------
 ; dsp_write
 ;
 ; Stands in for a single byte written to the data port.
@@ -126,24 +151,18 @@ dsp_write:
     lda !S_STAGE
     cmp.b #!STAGE_IDLE
     beq .command
+    cmp.b #!STAGE_LENGTH
+    beq .length
 
-    rep #$30                    ; a length or a payload byte, either of which can
-    phb                         ;   reach a buffer and finish an operation
-    phx
-    phy
-    pea $0000
-    plb
-    plb
-    jsr write_byte
-    rep #$30                    ; the widths are put back before the pulls. The
-                                ;   pushes were made with both sixteen bit, and
-                                ;   an operation leaves the accumulator eight, so
-                                ;   without this the pull takes one byte where
-                                ;   two went on and every later pull is displaced
-    ply
-    plx
-    plb
-    bra .leave
+    %with_context(write_byte)   ; a payload byte, which reaches a buffer and can
+    bra .leave                  ;   finish an operation
+
+.length:
+    jsr length_byte             ; a declared length, which reaches nothing but
+    bcc .leave                  ;   the block and so needs none of the above
+
+    %with_context(run)          ; unless it declared nothing, which completes the
+    bra .leave                  ;   payload before any of it arrives
 
 .command:
     rep #$20
@@ -245,43 +264,69 @@ write_byte:
     rts
 
 .length:
+    jsr length_byte             ; one implementation, whichever way the byte
+    bcc +                       ;   arrived: a single store or a block move that
+    jmp run                     ;   split across the boundary
++   rts
+
+; ---------------------------------------------------------------------------
+; length_byte
+;
+; A declared length, which says how much payload has to arrive before the
+; command can run.
+;
+; Its own routine for the reason command_byte is: it reads no buffer and writes
+; none, so the data bank can be anything and neither index register is touched,
+; and a caller is free to save less. The one case that does need the full
+; context is a length of zero, where the payload is complete before any of it
+; arrives and the operation runs at once. That is reported through the carry
+; rather than run here, so the saving stays off the path that never needs it.
+;
+; Entry: DP = !STATE, A 8 bit, index registers 16 bit.
+; Exit:  carry set when the operation still has to run. A clobbered, X and Y
+;        untouched. Widths left at A 16 bit, index 16 bit.
+; ---------------------------------------------------------------------------
+length_byte:
     lda !S_WANT_LEN
     cmp.b #$02
-    bne .second_length
+    bne .second
     lda !S_INBYTE               ; the scale command declares its input length
     sta !S_LEN1                 ;   first and its output length second
     lda.b #$01
     sta !S_WANT_LEN
     rep #$20
+    clc
     rts
 
-.second_length:
+.second:
     lda !S_INBYTE
     sta !S_SCRATCH              ; park the byte, because the command has to be
     lda !S_COMMAND              ;   read into the same accumulator to test it
     cmp.b #!CMD_SCALE
-    beq .scale_length
+    beq .scale
     lda !S_SCRATCH
     sta !S_LEN1
-    bra .lengths_done
-.scale_length:
+    bra .done
+.scale:
     lda !S_SCRATCH
     sta !S_LEN2
 
-.lengths_done:
+.done:
     stz !S_WANT_LEN
     jsr payload_size            ; how many payload bytes this length implies,
     rep #$20                    ;   returned 16 bit
     sta !S_WANT_PARAM
     ora.w #$0000
-    beq .no_payload
+    beq .empty
     sep #$20
     lda.b #!STAGE_PARAM
     sta !S_STAGE
     rep #$20
+    clc
     rts
-.no_payload:
-    jmp run
+.empty:
+    sec
+    rts
 
 ; ---------------------------------------------------------------------------
 ; command_byte

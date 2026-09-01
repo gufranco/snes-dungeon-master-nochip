@@ -33,7 +33,7 @@
 ;        A, X clobbered. !S_XFER_BANK is not touched, so a caller that set it
 ;        before calling here still has it afterwards.
 ; ---------------------------------------------------------------------------
-block_enter:
+macro block_enter()
     pea $0000                   ; the banks come first, so everything below can
     plb                         ;   reach the block by direct page rather than
     plb                         ;   through long addressing or the stack. Bank
@@ -52,14 +52,14 @@ block_enter:
     sep #$20                    ; the block move stub is code living in work RAM,
     lda !S_MVN                  ;   and this game clears work RAM by DMA after the
     cmp.b #$54                  ;   boot code has already sent its first commands,
-    beq .stub_stands            ;   so it cannot be written once and trusted. It is
+    beq ?stub_stands            ;   so it cannot be written once and trusted. It is
     lda.b #$54                  ;   checked instead of rewritten: a load and a
     sta !S_MVN                  ;   compare against four stores, on a path taken
     lda.b #$6B                  ;   twice for every command the cartridge issues
     sta !S_MVN+3
-.stub_stands:
+?stub_stands:
     rep #$20
-    rts
+endmacro
 
 ; ---------------------------------------------------------------------------
 ; block_leave
@@ -71,7 +71,7 @@ block_enter:
 ; Exit:  X and Y advanced, A = $FFFF. DB and DP still the block's, and the
 ;        entry point restores those.
 ; ---------------------------------------------------------------------------
-block_leave:
+macro block_leave()
     rep #$30                    ; an operation may have run in the middle of the
                                 ;   transfer and left the accumulator eight bits
                                 ;   wide, and everything below is sixteen
@@ -84,7 +84,7 @@ block_leave:
     adc !S_XFER_TOTAL
     tay
     lda.w #$FFFF
-    rts
+endmacro
 
 ; ---------------------------------------------------------------------------
 ; dsp_feed_wram
@@ -101,14 +101,14 @@ dsp_feed_wram:
     rep #$30
     phb
     phd
-    jsr block_enter
+    %block_enter()
 
     sep #$20
     lda.b #$7E
     sta !S_XFER_BANK
     rep #$20
     jsr feed
-    jsr block_leave
+    %block_leave()
 
     pld
     plb
@@ -132,14 +132,14 @@ dsp_drain_wram:
     rep #$30
     phb
     phd
-    jsr block_enter
+    %block_enter()
 
     sep #$20
     lda.b #$7E
     sta !S_XFER_BANK
     rep #$20
     jsr drain
-    jsr block_leave
+    %block_leave()
 
     pld
     plb
@@ -161,11 +161,11 @@ dsp_feed_bank:
     rep #$30
     phb
     phd
-    jsr block_enter             ; the bank the dispatcher wrote into the block is
+    %block_enter()             ; the bank the dispatcher wrote into the block is
                                 ;   still there: block_enter changes DB and DP,
                                 ;   which does not move the bytes either names
     jsr feed
-    jsr block_leave
+    %block_leave()
 
     pld
     plb
@@ -187,9 +187,9 @@ dsp_drain_bank:
     rep #$30
     phb
     phd
-    jsr block_enter             ; as above: the dispatcher's bank survives
+    %block_enter()             ; as above: the dispatcher's bank survives
     jsr drain
-    jsr block_leave
+    %block_leave()
 
     pld
     plb
