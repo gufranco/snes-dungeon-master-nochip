@@ -504,10 +504,53 @@ class ShellingOutTest(unittest.TestCase):
                 bytes(replay.IMAGE_BYTES),
                 [(replay.KIND_WRITE, b"\x0f")],
                 keeping(where / "replay-wram.bin"),
+                lambda _d, _o: True,
             )
 
         self.assertTrue(script)
         self.assertTrue(found["finished"])
+
+    def test_a_dump_that_arrives_late_is_waited_for(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dump = Path(tmp) / "replay-wram.bin"
+            ticks = iter([0.0, 1.0, 2.0, 3.0])
+
+            found = replay.await_dump(
+                dump, -1, lambda _s: dump.write_bytes(b"x"), lambda: next(ticks)
+            )
+
+        self.assertTrue(found)
+
+    def test_a_dump_that_never_arrives_is_given_up_on(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dump = Path(tmp) / "replay-wram.bin"
+            ticks = iter([0.0, replay.DUMP_WAIT_SECONDS + 1.0])
+
+            found = replay.await_dump(dump, -1, lambda _s: None, lambda: next(ticks))
+
+        self.assertFalse(found)
+
+    def test_a_dump_this_run_did_not_write_is_not_taken_for_one_it_did(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dump = Path(tmp) / "replay-wram.bin"
+            dump.write_bytes(b"x")
+            ticks = iter([0.0, replay.DUMP_WAIT_SECONDS + 1.0])
+
+            found = replay.await_dump(
+                dump, dump.stat().st_mtime_ns, lambda _s: None, lambda: next(ticks)
+            )
+
+        self.assertFalse(found)
+
+    def test_a_dump_already_newer_is_not_waited_for(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dump = Path(tmp) / "replay-wram.bin"
+            dump.write_bytes(b"x")
+            waits: list[float] = []
+
+            found = replay.await_dump(dump, -1, waits.append, lambda: 0.0)
+
+        self.assertEqual((found, waits), (True, []))
 
     def test_a_non_zero_exit_from_the_emulator_is_a_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, self.assertRaises(replay.EmulatorFailed):
@@ -525,6 +568,7 @@ class ShellingOutTest(unittest.TestCase):
                 bytes(replay.IMAGE_BYTES),
                 [(replay.KIND_WRITE, b"\x0f")],
                 lambda _a: Finished(0, "", ""),
+                lambda _d, _o: False,
             )
 
     def test_the_dump_from_an_earlier_batch_is_not_read_as_this_one(self) -> None:
@@ -540,6 +584,7 @@ class ShellingOutTest(unittest.TestCase):
                     bytes(replay.IMAGE_BYTES),
                     [(replay.KIND_WRITE, b"\x0f")],
                     lambda _a: Finished(0, "", ""),
+                    lambda _d, _o: False,
                 )
 
 

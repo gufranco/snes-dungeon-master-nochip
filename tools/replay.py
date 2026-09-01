@@ -300,24 +300,68 @@ class EmulatorFailed(Exception):
     """A batch that never ran, which is a failed check rather than a skipped one."""
 
 
-def run_batch(build: Path, skeleton: Any, batch: Any, execute: Any = _shell_out) -> Any:
+DUMP_WAIT_SECONDS = 5.0
+DUMP_POLL_SECONDS = 0.05
+
+
+def written_after(dump: Path, older_than: int) -> bool:
+    """Whether the dump on disk is newer than the moment this run started."""
+    return dump.exists() and dump.stat().st_mtime_ns > older_than
+
+
+def await_dump(dump: Path, older_than: int, sleep: Any = None, clock: Any = None) -> bool:
+    """Whether this run wrote the dump, rather than an earlier one leaving it there.
+
+    The check is on the time it was written rather than on its presence, because
+    the file is never removed between runs. Removing it looked like the obvious
+    way to keep one batch's numbers out of the next, and it is the one thing that
+    does not work here: the emulator writes the dump from inside a container
+    through a shared directory, and a container cannot reliably create a name
+    this machine has just deleted. The first attempt after a delete succeeds and
+    later ones fail, and they fail silently, because the emulator's dump routine
+    returns without a word when it cannot open the file. Overwriting an existing
+    name works every time.
+    """
+    import time
+
+    sleep = time.sleep if sleep is None else sleep
+    clock = time.monotonic if clock is None else clock
+
+    deadline = clock() + DUMP_WAIT_SECONDS
+    while not written_after(dump, older_than):
+        if clock() >= deadline:
+            return False
+        sleep(DUMP_POLL_SECONDS)
+    return True
+
+
+def run_batch(
+    build: Path,
+    skeleton: Any,
+    batch: Any,
+    execute: Any = _shell_out,
+    appeared: Any = await_dump,
+) -> Any:
     """One batch walked by the cartridge, and the counters it left behind.
 
-    The dump is removed before the run and its absence afterwards is a failure,
-    because the alternative is reading the previous batch's dump and reporting it
-    as this one's. The exit code is read for the same reason: it used to be
+    A dump this run did not write is a failure rather than a result, because the
+    alternative is reading the previous batch's counters and reporting them as
+    this one's. The exit code is read for the same reason: it used to be
     discarded, so a container that could not start produced a clean result.
     """
     script = script_for(batch)
     dump = build / "replay-wram.bin"
-    dump.unlink(missing_ok=True)
+    before = dump.stat().st_mtime_ns if dump.exists() else -1
     (build / "replay.sfc").write_bytes(place_script(skeleton, script))
 
     finished = execute(run_command(build))
     if finished.returncode:
         raise EmulatorFailed(finished.stderr or finished.stdout)
-    if not dump.exists():
-        raise EmulatorFailed("the run left no work RAM dump")
+    if not appeared(dump, before):
+        told = (finished.stdout or "").strip().splitlines()
+        raise EmulatorFailed(
+            f"this run wrote no work RAM dump; it said {told[-1] if told else 'nothing'}"
+        )
     return script, read_counters(dump.read_bytes())
 
 

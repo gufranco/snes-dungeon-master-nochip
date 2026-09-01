@@ -1,3 +1,4 @@
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -468,6 +469,7 @@ static void dump_wram(const char *path)
 {
     FILE *out = fopen(path, "wb");
     if (!out) {
+        fprintf(stderr, "could not open %s for the work RAM dump: %s\n", path, strerror(errno));
         return;
     }
     fwrite(Memory.RAM, 1, 0x20000, out);
