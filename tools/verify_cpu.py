@@ -401,6 +401,8 @@ def run_in_python(cases: Any, rom: bytes) -> list[Any]:
     found: list[Any] = []
     for case in cases:
         cpu = emu65816.Cpu(MODEL, memory)
+        cpu.reset()
+        cpu.set_emulation(False)
         cpu.d = case["d"]
         cpu.db = case["db"]
         cpu.x = case["x"]

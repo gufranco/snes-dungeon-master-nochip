@@ -131,6 +131,42 @@ class PowerOnTest(unittest.TestCase):
             self.assertEqual(case["db"], 0x7E)
 
 
+class NativeModeTest(unittest.TestCase):
+    """The model runs a case the way the cartridge does.
+
+    The cartridge leaves emulation mode before its first case. A model left in
+    it cannot hold either width bit clear, because the register forces both, so
+    every case declaring a sixteen bit accumulator or index came back saying
+    eight and the comparison read as the model disagreeing about arithmetic.
+    """
+
+    def a_case(self, status: int) -> dict[str, Any]:
+        return {
+            "bytes": [0xEA],
+            "p": status,
+            "a": 0x1234,
+            "x": 0x5678,
+            "y": 0x9ABC,
+            "d": 0x0000,
+            "db": 0x7E,
+        }
+
+    def test_a_case_with_both_widths_clear_keeps_them_clear(self) -> None:
+        found = verify.run_in_python([self.a_case(0x04)], bytes(verify.ROM_BYTES))
+
+        self.assertEqual(found[0]["p"] & 0x30, 0x00)
+
+    def test_a_case_with_both_widths_set_keeps_them_set(self) -> None:
+        found = verify.run_in_python([self.a_case(0x34)], bytes(verify.ROM_BYTES))
+
+        self.assertEqual(found[0]["p"] & 0x30, 0x30)
+
+    def test_a_sixteen_bit_index_survives_into_the_result(self) -> None:
+        found = verify.run_in_python([self.a_case(0x04)], bytes(verify.ROM_BYTES))
+
+        self.assertEqual(found[0]["x"], 0x5678)
+
+
 class ComparisonTest(unittest.TestCase):
     def test_identical_results_report_no_mismatch(self) -> None:
         cases = verify.build_cases(2, 3)
