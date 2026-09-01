@@ -205,6 +205,45 @@ class InputTest(unittest.TestCase):
 
         self.assertEqual(present, [True, True])
 
+    def test_a_dump_kept_somewhere_else_is_brought_to_where_the_run_happens(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            (where / "roms").mkdir()
+            (where / "build").mkdir()
+            retail = where / "roms" / "a.sfc"
+            converted = where / "build" / "b.sfc"
+            retail.write_bytes(b"\x11\x22")
+            converted.write_bytes(b"\x00")
+
+            def _run(args: list[str]) -> Any:
+                name = pace.HASHES_RETAIL if "a.sfc" in args else pace.HASHES_CONVERTED
+                written(where / "build" / name, ["aa"])
+                return Finished(0, "", "")
+
+            pace.main(
+                ["pace.py", str(retail), str(converted), "3000"], lambda _l: None, execute=_run
+            )
+
+            self.assertEqual((where / "build" / "a.sfc").read_bytes(), b"\x11\x22")
+
+    def test_a_dump_already_there_is_left_alone(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            retail, converted = where / "a.sfc", where / "b.sfc"
+            retail.write_bytes(b"\x11\x22")
+            converted.write_bytes(b"\x00")
+
+            def _run(args: list[str]) -> Any:
+                name = pace.HASHES_RETAIL if "a.sfc" in args else pace.HASHES_CONVERTED
+                written(where / name, ["aa"])
+                return Finished(0, "", "")
+
+            pace.main(
+                ["pace.py", str(retail), str(converted), "3000"], lambda _l: None, execute=_run
+            )
+
+            self.assertEqual(retail.read_bytes(), b"\x11\x22")
+
 
 class ShellingOutTest(unittest.TestCase):
     """The command that reaches the emulator."""

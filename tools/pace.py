@@ -23,6 +23,7 @@ than reporting a small lag.
 """
 
 import importlib.util
+import shutil
 import subprocess
 import sys
 from collections.abc import Callable
@@ -190,6 +191,11 @@ def main(
 
     work = converted.parent
     (work / SCRIPT).write_text(tour.steady(frames))
+
+    if retail.resolve().parent != work.resolve():
+        shutil.copyfile(retail, work / retail.name)
+        retail = work / retail.name
+
     for cartridge, hashes in ((retail, HASHES_RETAIL), (converted, HASHES_CONVERTED)):
         finished = execute(run_command(work, cartridge.name, hashes, frames))
         if finished.returncode:
