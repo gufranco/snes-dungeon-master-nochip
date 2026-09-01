@@ -219,6 +219,15 @@ build_merge:
 ; Entry: DB = $00, DP = !STATE, !P_BUFFER holds the background then the overlay.
 ; Exit:  !O_BUFFER holds the result, !S_OUT_LEN = !S_LEN1.
 ; ---------------------------------------------------------------------------
+macro merge_byte()
+    lda [!S_OVERLAY_PTR],y      ; the overlay byte decides for both its nibbles
+    tax
+    lda.w !MERGE_MASK,x         ; where it was transparent, and only there
+    and [!S_PARAM_PTR],y        ;   the background shows through
+    ora.w !MERGE_KEEP,x         ; everywhere else the overlay stands
+    sta.w !O_BUFFER,y
+endmacro
+
 op_merge:
     lda !S_LEN1
     beq .empty
@@ -237,22 +246,28 @@ op_merge:
 
     ldy !S_OUT_LEN              ; the walk runs down rather than up, so its end
     dey                         ;   is the sign bit of the index and no compare
-    lda.w #$0000                ;   against the length is needed. Every byte is
-    sep #$20                    ;   decided by its own two nibbles and nothing
+    lda !S_OUT_LEN              ;   against the length is needed. Every byte is
+    lsr                         ;   decided by its own two nibbles and nothing
                                 ;   else, so the order they are visited in does
-                                ;   not reach the result.
-                                ; The high byte of the accumulator is cleared
-                                ;   once so that every later transfer to X
-                                ;   carries the overlay byte alone.
-.byte:
-    lda [!S_OVERLAY_PTR],y      ; the overlay byte decides for both its nibbles
-    tax
-    lda.w !MERGE_MASK,x         ; where it was transparent, and only there
-    and [!S_PARAM_PTR],y        ;   the background shows through
-    ora.w !MERGE_KEEP,x         ; everywhere else the overlay stands
-    sta.w !O_BUFFER,y
+                                ;   not reach the result, and two of them can
+                                ;   share one test of the index. The carry out of
+                                ;   this shift is the length's low bit, which
+                                ;   says whether the pairs start one byte in.
+    lda.w #$0000                ; the high byte of the accumulator is cleared
+    sep #$20                    ;   once so that every later transfer to X
+                                ;   carries the overlay byte alone
+    bcc .pair
+    %merge_byte()               ; an odd length takes its first byte alone, so
+    dey                         ;   what is left of it divides in two
+    bmi .done
+
+.pair:
+    %merge_byte()
     dey
-    bpl .byte
+    %merge_byte()
+    dey
+    bpl .pair
+.done:
     rts
 
 .empty:
