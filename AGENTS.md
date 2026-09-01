@@ -123,6 +123,7 @@ The gates it runs, for reference:
 | the cartridge | `python3 cartridge.py roms/<dump>.sfc build/<name>.sfc` |
 | how far behind it runs | `python3 tools/pace.py roms/<dump>.sfc build/<name>.sfc` |
 | that the block's work RAM is still free | `python3 tools/placement.py` |
+| that nothing outside a declared region moved | `python3 similarity.py roms/<dump>.sfc build/<name>.sfc` |
 
 A change to the assembly adds two more: rebuild, then run
 [`tools/cost.py`](tools/cost.py) and read both columns, and run
