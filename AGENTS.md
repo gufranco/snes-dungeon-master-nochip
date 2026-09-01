@@ -108,6 +108,7 @@ Everything below must pass before a change is done. There is no partial credit.
 | this machine | `python3 doctor.py` |
 | the cartridge | `python3 cartridge.py roms/<dump>.sfc build/<name>.sfc` |
 | how far behind it runs | `python3 tools/pace.py roms/<dump>.sfc build/<name>.sfc` |
+| that the block's work RAM is still free | `python3 tools/placement.py` |
 
 A change to the assembly adds two more: rebuild, then run
 [`tools/cost.py`](tools/cost.py) and read both columns, and run
@@ -142,7 +143,10 @@ and booted to black.
   run of 4,078 bytes that three thirty thousand frame tours never touched, found
   by comparing the whole of work RAM against the previous frame after every
   frame. An earlier instrument watched byte accesses only, missed everything this
-  game moves by DMA, and put the block on top of a live table.
+  game moves by DMA, and put the block on top of a live table. Moving the block,
+  or wanting to trust it under a new input, means running
+  [`tools/placement.py`](tools/placement.py), which reads the addresses out of
+  the assembly rather than repeating them.
 
 ## Where the open questions are
 

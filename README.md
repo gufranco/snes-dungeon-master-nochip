@@ -188,6 +188,7 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | [`tools/verify_trace.py`](tools/verify_trace.py) | the recorded stream against the chip's own microcode |
 | [`tools/boot.py`](tools/boot.py) | drives the finished cartridge and fails if it still wants a chip |
 | [`tools/pace.py`](tools/pace.py) | drives both cartridges on one input and says how far behind the conversion runs |
+| [`tools/placement.py`](tools/placement.py) | maps the work RAM the game touches, and fails if it reaches the state block |
 | [`conformance/`](conformance/) | the record of what is settled and what is not, with a test holding it to the prose |
 | [`asm/`](asm/) | assembly that goes into the ROM, with its own container pinning asar |
 | [`emu/`](emu/) | the harness everything is validated against |
@@ -209,6 +210,7 @@ Analysis modules in Python, each with its tests beside it, and a pinned containe
 | What each command costs | `python3 tools/cost.py` |
 | The recorded traffic through the routines | `python3 tools/replay.py build/trace-s1.bin` |
 | That the cartridge runs, and runs without a chip | `python3 tools/boot.py` |
+| That the game still leaves the state block's work RAM alone | `python3 tools/placement.py` |
 | How far behind the conversion runs | `python3 tools/pace.py roms/<dump>.sfc build/<name>.sfc` |
 
 The last three need a dump: the first needs the assembled image and its symbol table, the second a

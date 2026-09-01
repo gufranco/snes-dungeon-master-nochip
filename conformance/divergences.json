@@ -41,8 +41,8 @@
       "documentSays": "n/a",
       "referenceDoes": "n/a",
       "packageFollows": "recording",
-      "reasoning": "The block needs work RAM the game does not use, and the game's own use of work RAM is not documented anywhere. It was found by comparing the whole of work RAM against the previous frame after every frame of three 30,000 frame tours, which leaves 4,568 bytes untouched in 87 runs, only one of them long enough to hold the block. The block uses 1,536 bytes of that run, 194 bytes in from its start and 2,860 short of its end. An earlier instrument watched byte accesses only, missed everything this game moves by DMA, reported 37,245 bytes free, and put the block on top of a live table.",
-      "wouldSettleIt": "A disassembly of the game's own allocation, or a tour that reaches every screen. Neither is in hand.",
+      "reasoning": "The block needs work RAM the game does not use, and the game's own use of work RAM is not documented anywhere. It was found by comparing the whole of work RAM against the previous frame after every frame of three 30,000 frame tours, which leaves 4,568 bytes untouched in 87 runs, only one of them long enough to hold the block. The block uses 1,536 bytes of that run, 194 bytes in from its start and 2,860 short of its end. An earlier instrument watched byte accesses only, missed everything this game moves by DMA, reported 37,245 bytes free, and put the block on top of a live table. A fourth input has since been tried and the claim held: driven along the steady route for 19,000 frames, in which it sends the chip 55,805,743 bytes, the retail cartridge touches no byte of the block's region and leaves the same 4,078 byte stretch free.",
+      "wouldSettleIt": "A disassembly of the game's own allocation, or a run that reaches every screen. Neither is in hand. tools/placement.py exists so that any new input can be tried against the claim in one command.",
       "namedInDocument": "The state block sits where three tours never wrote"
     },
     {

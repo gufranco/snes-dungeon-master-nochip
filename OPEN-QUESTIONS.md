@@ -136,8 +136,17 @@ earlier instrument watched byte accesses only. This game moves work RAM by DMA,
 which that path does not see, so it reported 37,245 bytes free and the block went
 on top of a live table. The converted image drew a blank screen.
 
-**What would settle it:** a disassembly of the game's own allocation, or a tour
-that reaches every screen. Neither is in hand.
+A fourth input has since been tried, and the claim held.
+[`tools/placement.py`](tools/placement.py) drives the retail cartridge along the
+steady route for 19,000 frames, during which it sends the chip 55,805,743 bytes,
+and reports what work RAM it touched. Not one byte of $00900 to $00EFF, and the
+longest free stretch is the same $0083E for 4,078 bytes the tours found. The
+addresses come out of the assembly rather than being repeated in the tool, so a
+block that moves cannot leave this checking where it used to be.
+
+**What would settle it:** a disassembly of the game's own allocation, or a run
+that reaches every screen. Neither is in hand, and the check now exists so that
+any new input can be tried against it in one command.
 
 ## What is closed, and why it is worth saying
 
