@@ -917,6 +917,58 @@ exhaustive rather than merely large, and the fallback stops being reachable by
 construction instead of by hope. A member that can arrange this says so, because
 it is the only arrangement in which the intent above is provable.
 
+## Three questions about a table, asked in this order
+
+Sizing a table goes wrong by skipping a question rather than by answering one
+badly, and the questions are not interchangeable. They are asked in this order
+and each is answered before the next is raised.
+
+**One: which calculations can the game ask for.** Read the whole image. The
+request is written in the code, so this closes, and it closes against something a
+recording cannot reach: a routine the run never entered still has its commands in
+the image.
+
+**Two: what range does each argument take.** Measure the lowest, the highest and
+the number of distinct values at every argument position. This is the question
+that gets skipped, and skipping it is what produces both of the wrong answers
+below. A value computed at run time is not a value nobody can bound. It has ends,
+the ends are measurable, and until they are measured nothing is known about what
+shape of table is possible.
+
+**Three: which exact values.** Only running the game says, and it never closes.
+
+A design proposed before question two is answered is a design proposed without
+the number that decides it.
+
+### A range and a set are not the same table
+
+Question two returns two figures and they carry different consequences.
+
+| what the position looks like | what it allows |
+|---|---|
+| values filling their range | an index straight off the argument, one shift and one read |
+| values scattered through a wide range | nothing dense. A row per value in the range is mostly rows for inputs nobody sends |
+
+A position spanning the whole of a sixteen bit word with a few thousand distinct
+values is the second, and reporting only its width makes it look like the first.
+Both figures are reported, always, and a member that reports a width without the
+count of distinct values beside it has published the misleading half.
+
+### The two wrong answers this order prevents
+
+**Sizing against the part's input domain.** The domain is the exponent of the
+argument count, so any command taking more than one word makes a table nothing
+holds and the conclusion is that nothing can be stored. That conclusion is about
+the part and says nothing about the game.
+
+**Calling a computed value unknowable.** A value the image does not contain still
+has ends, and the ends decide the table. Stopping at "it is computed at run time"
+skips question two entirely and leaves a design resting on a guess about size.
+
+Neither is a small error. The first makes a feasible table look impossible and
+the second makes an impossible table look like the only option, and a member that
+has made either states which one and what the measurement then showed.
+
 ## What "finished" means here
 
 Not that everything is known. That every question which can be answered has been,
