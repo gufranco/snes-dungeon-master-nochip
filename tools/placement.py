@@ -104,6 +104,19 @@ def summary(used: list[int], runs: list[tuple[int, int]], frames: int) -> str:
     )
 
 
+def route_for(frames: int, seed: int | None) -> str:
+    """The input this run walks.
+
+    The steady route is the default because it is the one every earlier claim was
+    made under. A seed asks for a random walk instead, which reaches states the
+    steady route never does, and a claim about which bytes the game leaves alone
+    is only as good as the inputs it was tried under. Without a way to name a
+    second route there was no way to try one.
+    """
+    route: str = tour.steady(frames) if seed is None else tour.build(frames, seed)
+    return route
+
+
 def run_command(work: Path, cartridge: str, frames: int) -> list[str]:
     """What mapping one run shells out to."""
     return [
@@ -135,13 +148,14 @@ def main(
     """One mapped run of the retail cartridge, and whether the block's region survived it."""
     cartridge = DEFAULT_CARTRIDGE if len(argv) < 2 else Path(argv[1])
     frames = DEFAULT_FRAMES if len(argv) < 3 else int(argv[2])
+    seed = None if len(argv) < 4 else int(argv[3])
 
     if not cartridge.exists():
         say(f"  no dump at {cartridge}; the builder supplies their own")
         return 2
 
     work = cartridge.parent
-    (work / SCRIPT).write_text(tour.steady(frames))
+    (work / SCRIPT).write_text(route_for(frames, seed))
 
     finished = execute(run_command(work, cartridge.name, frames))
     if finished.returncode:

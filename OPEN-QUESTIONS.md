@@ -280,9 +280,25 @@ longest free stretch is the same $0083E for 4,078 bytes the tours found. The
 addresses come out of the assembly rather than being repeated in the tool, so a
 block that moves cannot leave this checking where it used to be.
 
-**What would settle it:** a disassembly of the game's own allocation, or a run
-that reaches every screen. Neither is in hand, and the check now exists so that
-any new input can be tried against it in one command.
+Three more inputs have since been tried and the claim held under all of them.
+[`tools/placement.py`](tools/placement.py) now takes a seed, so a random walk can
+be asked for instead of the steady route, and three walks of 19,000 frames each
+report what the tours and the steady route did: **not one byte of `$00900` to
+`$00EFF` touched**, and the same longest free stretch of 4,078 bytes at `$0083E`.
+That is seven distinct inputs.
+
+Whether reading the code could settle it instead was tried, and it cannot.
+Scanning the whole dump for instruction-shaped writes landing in that range
+returns 965 hits against a random-noise expectation of roughly 844 for a scan of
+that shape over a megabyte, so the reading is noise rather than evidence.
+Following the code instead would need every entry point found, and even then an
+indexed write and a computed DMA destination cannot be bounded without running
+them.
+
+**What would settle it: nothing in reach.** A run reaching every screen would,
+and no route proves it reached every screen. A disassembly would, and the writes
+that matter are indexed or computed. What exists instead is a check any new input
+can be tried against in one command, and seven inputs that agree.
 
 ## What is closed, and why it is worth saying
 

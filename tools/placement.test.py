@@ -199,5 +199,19 @@ class ShellingOutTest(unittest.TestCase):
         self.assertTrue(args[args.index("-v") + 1].startswith("/"))
 
 
+class RouteTest(unittest.TestCase):
+    def test_without_a_seed_the_steady_route_is_walked(self) -> None:
+        self.assertEqual(placement.route_for(4000, None), placement.tour.steady(4000))
+
+    def test_a_seed_asks_for_a_walk_instead(self) -> None:
+        self.assertEqual(placement.route_for(4000, 3), placement.tour.build(4000, 3))
+
+    def test_two_seeds_give_two_different_routes(self) -> None:
+        self.assertNotEqual(placement.route_for(4000, 1), placement.route_for(4000, 2))
+
+    def test_a_walk_is_not_the_steady_route(self) -> None:
+        self.assertNotEqual(placement.route_for(4000, 1), placement.route_for(4000, None))
+
+
 if __name__ == "__main__":
     unittest.main()
