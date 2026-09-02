@@ -228,9 +228,13 @@ part over every length up to 80, on the processor, and is a gate. That is the
 whole of what the cartridge can ask for: the largest merge in 60,000 recorded
 exchanges declares 30, and only five distinct lengths appear at all.
 
-What the part does above 80 is still not modelled. The routines hold a 512 byte
-parameter buffer and so have an answer for every length the protocol can declare,
-and whether the part has one is a question about the part.
+What the part does above 80 is deterministic rather than residue: a declared
+length of 81 answers identically whether it follows a run filled with `AA`, one
+filled with `55`, or nothing at all. What it answers is one byte before the run
+and then the published rule with a single byte perturbed around the sixteenth,
+realigning after it, and no simple buffer wrap between 150 and 175 bytes
+reproduces it. So a rule exists there and has not been read. It is also
+unreachable from the cartridge, so reading it buys nothing a player would notice.
 
 **A multiply of anything but zero. Settled, and the routines were wrong.**
 
