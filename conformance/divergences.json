@@ -1,157 +1,197 @@
 {
-  "comment": "Where each fact stands, and what this package deliberately does not claim.",
-  "sources": {
-    "siblings": "Six members on the import path, each held to its own suite: snes-dsp, mos65xx, snes-mapper, snes-rom-image, snes-graphics and snes-driver.",
-    "cartridge": "The retail image named in artifacts.manifest.json, identified by four digests and not carried here.",
-    "microcode": "The DSP-2's own program, run by snes-dsp to produce an expected answer. Never carried here, and supplied by whoever runs the check.",
-    "tours": "Three seeded tours of 30,000 frames each, 89,999 frames in total, driven on the emulator with every byte in and out of the port recorded. They hold 3,336,773 chip transactions.",
-    "replay": "The recorded stream fed back to the 65816 routines on the processor, with every returned byte compared against what the cartridge's chip returned at that point.",
-    "cost": "tools/cost.py, which runs each command on the cycle counted processor model against recorded traffic and prices it against what the same exchange cost when a chip answered it."
+ "comment": "Where each fact stands, and what this package deliberately does not claim.",
+ "sources": {
+  "siblings": "Six members on the import path, each held to its own suite: snes-dsp, mos65xx, snes-mapper, snes-rom-image, snes-graphics and snes-driver.",
+  "cartridge": "The retail image named in artifacts.manifest.json, identified by four digests and not carried here.",
+  "microcode": "The DSP-2's own program, run by snes-dsp to produce an expected answer. Never carried here, and supplied by whoever runs the check.",
+  "tours": "Three seeded tours of 30,000 frames each, 89,999 frames in total, driven on the emulator with every byte in and out of the port recorded. They hold 3,336,773 chip transactions.",
+  "replay": "The recorded stream fed back to the 65816 routines on the processor, with every returned byte compared against what the cartridge's chip returned at that point.",
+  "cost": "tools/cost.py, which runs each command on the cycle counted processor model against recorded traffic and prices it against what the same exchange cost when a chip answered it."
+ },
+ "divergences": [
+  {
+   "id": "the-replacement-costs-about-one-extra-frame-per-frame",
+   "parts": [
+    "speed"
+   ],
+   "severity": "high",
+   "status": "narrowed",
+   "documentSays": "Nothing. No document says what a DSP-2 command cost the program that issued it.",
+   "referenceDoes": "The chip computed while the cartridge carried on, so from the program's side a command cost only the bytes pushed through the port.",
+   "packageFollows": "neither",
+   "reasoning": "Priced against the tours, the routines spend 63,168 cycles a frame where the chip path spent 7,600, so they add 55,567 to a frame that holds 59,561. Two commands carry almost all of it: 1,031,195 tile conversions and 2,023,023 merges. The figure is weighted across the two ways the cartridge reaches the chip, because they do not cost the same: a merge is 1,207 cycles through the eighteen sites that name their banks in the instruction and 1,292 through one of the four dispatchers, which carry sixty per cent of the traffic. The merge figure is the telling one, because a merge computes four bytes and the arithmetic for those four bytes is about 180 cycles. The rest is the cost of standing in for one instruction: saving the caller's state, pointing the data bank and direct page at the block, and putting it all back. There are about 120 of those interceptions in a frame and no arrangement of tables removes them. The sum charges neither side for the status poll, which the retail path spins on until the chip answers and the replacement answers at once, so what the conversion costs in practice is smaller than the sum says. Driven along one route for 30,000 frames, eight minutes of walking and turning in which the cartridge sends the chip about 85 million bytes, it loses one second on the first dungeon draw and then does not lose another frame, with 29,936 of the 30,000 frames drawn the same.",
+   "wouldSettleIt": "Real hardware, or an emulator whose coprocessor takes the time the part took. Comparing per frame digests from both cartridges driven by one input narrows it and cannot close it: the emulator answers a chip command in no time at all, so the gap measured that way is an upper bound, and once the runs drift the fixed input reaches each of them at a different point in its own logic and they stop being the same playthrough.",
+   "namedInDocument": "The replacement costs about one extra frame of processor time per frame"
   },
-  "divergences": [
-    {
-      "id": "the-replacement-costs-about-one-extra-frame-per-frame",
-      "parts": ["speed"],
-      "severity": "high",
-      "status": "narrowed",
-      "documentSays": "Nothing. No document says what a DSP-2 command cost the program that issued it.",
-      "referenceDoes": "The chip computed while the cartridge carried on, so from the program's side a command cost only the bytes pushed through the port.",
-      "packageFollows": "neither",
-      "reasoning": "Priced against the tours, the routines spend 63,168 cycles a frame where the chip path spent 7,600, so they add 55,567 to a frame that holds 59,561. Two commands carry almost all of it: 1,031,195 tile conversions and 2,023,023 merges. The figure is weighted across the two ways the cartridge reaches the chip, because they do not cost the same: a merge is 1,207 cycles through the eighteen sites that name their banks in the instruction and 1,292 through one of the four dispatchers, which carry sixty per cent of the traffic. The merge figure is the telling one, because a merge computes four bytes and the arithmetic for those four bytes is about 180 cycles. The rest is the cost of standing in for one instruction: saving the caller's state, pointing the data bank and direct page at the block, and putting it all back. There are about 120 of those interceptions in a frame and no arrangement of tables removes them. The sum charges neither side for the status poll, which the retail path spins on until the chip answers and the replacement answers at once, so what the conversion costs in practice is smaller than the sum says. Driven along one route for 30,000 frames, eight minutes of walking and turning in which the cartridge sends the chip about 85 million bytes, it loses one second on the first dungeon draw and then does not lose another frame, with 29,936 of the 30,000 frames drawn the same.",
-      "wouldSettleIt": "Real hardware, or an emulator whose coprocessor takes the time the part took. Comparing per frame digests from both cartridges driven by one input narrows it and cannot close it: the emulator answers a chip command in no time at all, so the gap measured that way is an upper bound, and once the runs drift the fixed input reaches each of them at a different point in its own logic and they stop being the same playthrough.",
-      "namedInDocument": "The replacement costs about one extra frame of processor time per frame"
-    },
-    {
-      "id": "the-recorded-traffic-is-four-recordings-not-the-whole-game",
-      "parts": ["coverage"],
-      "severity": "medium",
-      "status": "narrowed",
-      "documentSays": "n/a",
-      "referenceDoes": "n/a",
-      "packageFollows": "recording",
-      "reasoning": "Every claim of correctness rests on 4,636,076 transactions from four runs: three seeded random walks of 30,000 frames each and one steady route of the same length. Replaying all four through the routines on the processor checks 98,333,301 bytes against what the cartridge's own chip returned, none wrong. The fourth recording is what shows why the question stays open rather than closing it: it is a different shape of workload, producing 848,987 merges and 372,624 tile conversions and not one mirror or scale over 30,000 frames. The walks produce both, unevenly: scale appears 10,422 times in the first, 1,068 in the second and 17,777 in the third. No single input reaches all six commands, so the coverage argument rests on the union of four. What bounds the risk is that the shapes are few and each operation is a closed function of its payload.",
-      "wouldSettleIt": "A run that reaches every screen in the game, or a recording made by someone playing rather than by a generated route.",
-      "namedInDocument": "The recorded traffic is four recordings, not the whole game"
-    },
-    {
-      "id": "the-state-block-sits-where-three-tours-never-wrote",
-      "parts": ["placement"],
-      "severity": "medium",
-      "status": "narrowed",
-      "documentSays": "n/a",
-      "referenceDoes": "n/a",
-      "packageFollows": "recording",
-      "reasoning": "The block needs work RAM the game does not use, and the game's own use of work RAM is not documented anywhere. It was found by comparing the whole of work RAM against the previous frame after every frame of three 30,000 frame tours, which leaves 4,568 bytes untouched in 87 runs, only one of them long enough to hold the block. The block uses 1,536 bytes of that run, 194 bytes in from its start and 2,860 short of its end. An earlier instrument watched byte accesses only, missed everything this game moves by DMA, reported 37,245 bytes free, and put the block on top of a live table. A fourth input has since been tried and the claim held: driven along the steady route for 19,000 frames, in which it sends the chip 55,805,743 bytes, the retail cartridge touches no byte of the block's region and leaves the same 4,078 byte stretch free.",
-      "wouldSettleIt": "A disassembly of the game's own allocation, or a run that reaches every screen. Neither is in hand. tools/placement.py exists so that any new input can be tried against the claim in one command.",
-      "namedInDocument": "The state block sits where three tours never wrote"
-    },
-    {
-      "id": "scale-declared-its-lengths-in-nibbles",
-      "parts": ["scale"],
-      "severity": "high",
-      "status": "closed",
-      "documentSays": "n/a",
-      "referenceDoes": "The chip reads the scale command's two declared lengths as counts of nibbles, so each covers half as many bytes.",
-      "packageFollows": "reference",
-      "reasoning": "Both the routine and the tool that parses the recorded traffic read the two lengths as byte counts. Because they shared the mistake, scale was not merely wrong: it was unverifiable. The harness fed it a payload of the wrong length and compared the result against an expectation of the wrong length, and the two agreed. It was found by reading the raw structure of a scale exchange, 63 writes followed by 40 reads, against what the parser claimed the lengths were. Both were corrected; scale now answers every recorded byte and its cost fell from 44,521 cycles to 13,490.",
-      "wouldSettleIt": "n/a. Measured and closed.",
-      "namedInDocument": "Scale declared its lengths in nibbles, and the parser shared the mistake"
-    },
-    {
-      "id": "the-merge-tables-were-placed-on-the-replay-harnesss-counters",
-      "parts": ["harness"],
-      "severity": "high",
-      "status": "closed",
-      "documentSays": "n/a",
-      "referenceDoes": "n/a",
-      "packageFollows": "neither",
-      "reasoning": "The replay cartridge keeps its counters in work RAM at $0D00, which nothing else reached until the merge lookup tables were placed there. The tables then overwrote the counters, and the byte the finish flag is read from happened to hold the value that means finished, so a run reported a fixed 353,637,138 wrong bytes for any script and reported them as a completed run. Two further ways the same harness could report a result it had not measured were found alongside it: the emulator's exit code was discarded, and the work RAM dump was read whether or not that run had written it. The counters moved above the whole of the chip's block, an assert holds them there, a test holds the address the tool reads against the address the cartridge writes, and a batch that cannot run is now a failure rather than the previous batch's numbers.",
-      "wouldSettleIt": "n/a. Found, fixed, and guarded three ways.",
-      "namedInDocument": "The replay harness reported numbers it had not measured"
-    },
-    {
-      "id": "the-chip-is-a-renderer-rather-than-a-decompressor",
-      "parts": ["approach"],
-      "severity": "medium",
-      "status": "closed",
-      "documentSays": "n/a",
-      "referenceDoes": "The six commands convert a bitmap to the console's tile format, set a transparent colour, merge, mirror, multiply and scale. None of them expands anything.",
-      "packageFollows": "reference",
-      "reasoning": "If the part unpacked stored graphics, the conversion would be a build step rather than a runtime one: expand everything once, put it in the image, and the cartridge would never need the answers computed. Searching the retail dump for the exact bytes the cartridge sends settles it. Every one of the mirror command's inputs is a run found in the dump, so mirror only ever mirrors fixed assets. Of the tile command's, 0.3% are, and of the merge command's, 1.2%. The two commands that matter are given a view composed in work RAM for wherever the player is standing, which exists nowhere in the image.",
-      "wouldSettleIt": "n/a. Measured and closed.",
-      "namedInDocument": "The part is a renderer, not an unpacker"
-    },
-    {
-      "id": "a-cache-of-recent-answers-does-not-pay",
-      "parts": ["approach"],
-      "severity": "low",
-      "status": "closed",
-      "documentSays": "n/a",
-      "referenceDoes": "n/a",
-      "packageFollows": "recording",
-      "reasoning": "Comparing two tours, 99.3% of tile calls and 99.2% of merge calls use an input the other tour had already seen, so a table of answers would cover nearly everything and the idea is worth testing rather than dismissing. It fails on the key. A sixteen byte prefix still fails to tell 154 of 1,767 distinct tile inputs apart, so a cheap key is not sound, and the repeats are spread across a whole run rather than clustered: a sixty four entry cache of recent inputs hits 2.7% on tile and 5.0% on merge.",
-      "wouldSettleIt": "n/a. Measured and closed.",
-      "namedInDocument": "A cache of recent answers does not pay"
-    },
-    {
-      "id": "a-sixteen-bit-table-index-cannot-be-reached-under-this-mapping",
-      "parts": ["speed"],
-      "severity": "medium",
-      "status": "closed",
-      "documentSays": "The cartridge is a LoROM, which maps 32 kilobytes of each bank, at $8000 to $FFFF.",
-      "packageFollows": "document",
-      "referenceDoes": "n/a",
-      "reasoning": "The obvious way to halve the tile conversion is to look up two input bytes at once, which needs a table indexed by a sixteen bit value. It cannot be built here whatever the image is grown to. Long indexed addressing adds a sixteen bit index register to a twenty four bit base, so an index runs to $FFFF, and 32 kilobytes into any base the address leaves the mapped half of the bank and lands in the system area rather than in the next 32 kilobytes of the table. A single lookup is therefore capped at a fifteen bit index under this mapping, and a sixteen bit one would need the cartridge remapped, which would move every address the game computes for itself. The conversion keeps its four byte wide lookups, which is the finest granularity available, and the eight rows are written out rather than looped because the count never varies.",
-      "wouldSettleIt": "n/a. Settled by the mapping.",
-      "namedInDocument": "A sixteen bit table index cannot be reached under this mapping"
-    },
-    {
-      "id": "nothing-here-models-the-chip",
-      "parts": ["boundary"],
-      "severity": "outOfScope",
-      "status": "notModelled",
-      "documentSays": "n/a",
-      "referenceDoes": "n/a",
-      "packageFollows": "neither",
-      "reasoning": "Every statement about what the DSP-2 returns is made by snes-dsp, which runs the part's own microcode, and every statement about the processor is made by mos65xx. What this package measures directly is how many cycles its own routines spend, and it measures that by running them on the processor model rather than by counting from a table.",
-      "wouldSettleIt": "n/a. This is a boundary, not an unknown.",
-      "namedInDocument": "Nothing here models hardware"
-    },
-    {
-      "id": "neither-the-cartridge-nor-the-microcode-is-here",
-      "parts": ["boundary"],
-      "severity": "outOfScope",
-      "status": "notADisagreement",
-      "documentSays": "n/a",
-      "referenceDoes": "n/a",
-      "packageFollows": "neither",
-      "reasoning": "The cartridge, the part's microcode and every image built from either are absent by rule, and everything published about them is a digest. That is why parts of the suite skip rather than fail on a machine holding neither, and why the checks that need one live in files kept out of the coverage measurement.",
-      "wouldSettleIt": "n/a. This is a rule, not a limitation.",
-      "namedInDocument": "Neither the cartridge nor the microcode is here"
-    },
-    {
-      "id": "two-fields-of-the-state-block-shared-a-byte",
-      "parts": ["placement"],
-      "severity": "high",
-      "status": "closed",
-      "documentSays": "n/a",
-      "referenceDoes": "n/a",
-      "packageFollows": "neither",
-      "reasoning": "The block is laid out by hand as a list of offsets and nothing checked that list against itself; the assembler cannot, because an offset is a number and two names for one number assemble without complaint. !S_OVERLAY was declared at $0E, which is !S_INBYTE, and the sixteen bit store that sets it reached into $0F, the bank a block transfer reads from. A transfer that overruns one command's payload carries on into the next and re-reads that bank, so a merge would have taken its continuation from wherever the overlay pointer's high byte pointed. Nothing in 4.6 million recorded transactions overruns, so it never fired. A second, benign overlap sat eight bytes inside the operations' scratch region. Both fields moved, stateblock.py now refuses any two that share a byte, and splitfeed.retail.test.py drives the overrun: against the old layout it reads bank $0A and stops, against the new one it answers what a single move answers.",
-      "wouldSettleIt": "n/a. Found, fixed, and held by a check that fails against the layout it replaced.",
-      "namedInDocument": "Two fields of the state block shared a byte"
-    },
-    {
-      "id": "the-trace-verifier-has-never-agreed-with-the-recordings",
-      "parts": ["harness"],
-      "severity": "high",
-      "status": "narrowed",
-      "documentSays": "n/a",
-      "referenceDoes": "n/a",
-      "packageFollows": "neither",
-      "reasoning": "tools/verify_trace.py replays a recorded stream against the part's own microcode through snes-dsp, and is described as the check that says the recordings are faithful. Bounded to the first 200,000 records it reports 51,414 of 75,349 reads not reproduced, with identical figures for two different tours, so it is the boot sequence rather than the route. It had never been seen because a whole trace outlasts any run it was given: three hours of processor time on the last attempt, killed, with no output. Adding progress reporting and a bound is what surfaced it. The shipped routines are not in question: replaying the same streams through the 65816 code on the processor checks 98,333,301 bytes with none wrong. Almost every recorded read comes from a block move draining the port rather than a status poll, so a poll counted as a data read is not the explanation. Where the disagreement comes from, the model or the recording or how this tool drives the model, is not established, and nothing here rests on this check. Stepping the first disagreement through both settles the mechanism, and it is alignment rather than arithmetic. The stream diverges at record 19: the cartridge writes sync five times, then a multiply of zero, and reads 00 00 00 00 where the model answers 00 00 10 10. That same multiply on a fresh model answers 00 00 00 00, and six multiplies from the recording agree byte for byte. The model produces a byte of output for command $0F and the cartridge's chip produces none: five syncs alone leave 0f ff ff ff ff ff to be read, and the project's reading of the boot code says the same from the other side. One byte per sync compounds across 180,975 of them. Discarding a byte after each $0F write drops the mismatches from 101,963 to 60,401, and the remainder is the same shape: the first tile disagreement is the cartridge's own answer shifted one byte with a leftover in front. The hack is not the repair, because a payload byte can be $0F as well, so a sound comparison has to be driven by transactions rather than by byte values.",
-      "wouldSettleIt": "Whether the part answers a sync at all, which its microcode knows and snes9x's reimplementation may not model. That is a question for snes-dsp rather than for this project. Until it is answered this tool is not a gate and nothing here rests on it.",
-      "namedInDocument": "The trace verifier has never agreed with the recordings"
-    }
-  ]
+  {
+   "id": "the-recorded-traffic-is-four-recordings-not-the-whole-game",
+   "parts": [
+    "coverage"
+   ],
+   "severity": "medium",
+   "status": "narrowed",
+   "documentSays": "n/a",
+   "referenceDoes": "n/a",
+   "packageFollows": "recording",
+   "reasoning": "Every claim of correctness rests on 4,636,076 transactions from four runs: three seeded random walks of 30,000 frames each and one steady route of the same length. Replaying all four through the routines on the processor checks 98,333,301 bytes against what the cartridge's own chip returned, none wrong. The fourth recording is what shows why the question stays open rather than closing it: it is a different shape of workload, producing 848,987 merges and 372,624 tile conversions and not one mirror or scale over 30,000 frames. The walks produce both, unevenly: scale appears 10,422 times in the first, 1,068 in the second and 17,777 in the third. No single input reaches all six commands, so the coverage argument rests on the union of four. What bounds the risk is that the shapes are few and each operation is a closed function of its payload.",
+   "wouldSettleIt": "A run that reaches every screen in the game, or a recording made by someone playing rather than by a generated route.",
+   "namedInDocument": "The recorded traffic is four recordings, not the whole game"
+  },
+  {
+   "id": "the-state-block-sits-where-three-tours-never-wrote",
+   "parts": [
+    "placement"
+   ],
+   "severity": "medium",
+   "status": "narrowed",
+   "documentSays": "n/a",
+   "referenceDoes": "n/a",
+   "packageFollows": "recording",
+   "reasoning": "The block needs work RAM the game does not use, and the game's own use of work RAM is not documented anywhere. It was found by comparing the whole of work RAM against the previous frame after every frame of three 30,000 frame tours, which leaves 4,568 bytes untouched in 87 runs, only one of them long enough to hold the block. The block uses 1,536 bytes of that run, 194 bytes in from its start and 2,860 short of its end. An earlier instrument watched byte accesses only, missed everything this game moves by DMA, reported 37,245 bytes free, and put the block on top of a live table. A fourth input has since been tried and the claim held: driven along the steady route for 19,000 frames, in which it sends the chip 55,805,743 bytes, the retail cartridge touches no byte of the block's region and leaves the same 4,078 byte stretch free.",
+   "wouldSettleIt": "A disassembly of the game's own allocation, or a run that reaches every screen. Neither is in hand. tools/placement.py exists so that any new input can be tried against the claim in one command.",
+   "namedInDocument": "The state block sits where three tours never wrote"
+  },
+  {
+   "id": "three-commands-answer-differently-outside-what-the-cartridge-asks",
+   "parts": [
+    "merge",
+    "multiply",
+    "protocol"
+   ],
+   "severity": "medium",
+   "status": "narrowed",
+   "documentSays": "n/a. No manufacturer document for this part is known to exist.",
+   "referenceDoes": "Driving the routines and the part's own microcode over the whole declared input space, rather than over recorded traffic, finds three places where they part. A merge declaring more than 80 bytes: they agree byte for byte at every length from 1 to 80 over four transparent colours and disagree at every length from 81 to 199, while mirror agrees at all 199. A declared length of zero, for any command that declares one: the routines answer the idle byte having produced nothing, the microcode answers zeroes. A multiply of anything but zero: the routines compute the plain unsigned 16 by 16 product, and the part answers the same high word every time with a low word differing by exactly $8000 on some operand pairs, 1000 by 1000 and 811 by 4660 and 16384 by 2 among them, while 2 by 3 and 100 by 100 and 4095 by 4095 and 32767 by 2 agree.",
+   "packageFollows": "reference",
+   "reasoning": "All three sit outside everything the recordings contain, and they are recorded because an untested region is worth naming even when nothing reaches it. The largest merge in 60,000 recorded exchanges declares 30 and only five distinct lengths appear at all, so nothing recorded comes near 80. Not one of 150,000 recorded exchanges that declare a length declares zero. The multiply is the one that says something about what has been checked rather than about what differs: in all three recordings every single multiply has a zero first operand, 11,330 exchanges in one and 10,697 and 9,048 in the others, with no exception, so the arithmetic underneath has never been exercised against the part at all and a passing check there means less than it reads. An earlier note here blamed signedness and was wrong, since both operands have their high bit clear throughout, and no rule fitted to the microcode's answers is offered in its place.",
+   "wouldSettleIt": "For the multiply, driving a retail cartridge on real hardware through a multiply with a non-zero first operand, or establishing from the microcode itself what it computes. For the other two, whether the part has an answer at all outside the range the protocol reaches, which is a question about the part rather than about this project.",
+   "namedInDocument": "Three commands answer differently outside anything the cartridge asks for"
+  },
+  {
+   "id": "scale-declared-its-lengths-in-nibbles",
+   "parts": [
+    "scale"
+   ],
+   "severity": "high",
+   "status": "closed",
+   "documentSays": "n/a",
+   "referenceDoes": "The chip reads the scale command's two declared lengths as counts of nibbles, so each covers half as many bytes.",
+   "packageFollows": "reference",
+   "reasoning": "Both the routine and the tool that parses the recorded traffic read the two lengths as byte counts. Because they shared the mistake, scale was not merely wrong: it was unverifiable. The harness fed it a payload of the wrong length and compared the result against an expectation of the wrong length, and the two agreed. It was found by reading the raw structure of a scale exchange, 63 writes followed by 40 reads, against what the parser claimed the lengths were. Both were corrected; scale now answers every recorded byte and its cost fell from 44,521 cycles to 13,490.",
+   "wouldSettleIt": "n/a. Measured and closed.",
+   "namedInDocument": "Scale declared its lengths in nibbles, and the parser shared the mistake"
+  },
+  {
+   "id": "the-merge-tables-were-placed-on-the-replay-harnesss-counters",
+   "parts": [
+    "harness"
+   ],
+   "severity": "high",
+   "status": "closed",
+   "documentSays": "n/a",
+   "referenceDoes": "n/a",
+   "packageFollows": "neither",
+   "reasoning": "The replay cartridge keeps its counters in work RAM at $0D00, which nothing else reached until the merge lookup tables were placed there. The tables then overwrote the counters, and the byte the finish flag is read from happened to hold the value that means finished, so a run reported a fixed 353,637,138 wrong bytes for any script and reported them as a completed run. Two further ways the same harness could report a result it had not measured were found alongside it: the emulator's exit code was discarded, and the work RAM dump was read whether or not that run had written it. The counters moved above the whole of the chip's block, an assert holds them there, a test holds the address the tool reads against the address the cartridge writes, and a batch that cannot run is now a failure rather than the previous batch's numbers.",
+   "wouldSettleIt": "n/a. Found, fixed, and guarded three ways.",
+   "namedInDocument": "The replay harness reported numbers it had not measured"
+  },
+  {
+   "id": "the-chip-is-a-renderer-rather-than-a-decompressor",
+   "parts": [
+    "approach"
+   ],
+   "severity": "medium",
+   "status": "closed",
+   "documentSays": "n/a",
+   "referenceDoes": "The six commands convert a bitmap to the console's tile format, set a transparent colour, merge, mirror, multiply and scale. None of them expands anything.",
+   "packageFollows": "reference",
+   "reasoning": "If the part unpacked stored graphics, the conversion would be a build step rather than a runtime one: expand everything once, put it in the image, and the cartridge would never need the answers computed. Searching the retail dump for the exact bytes the cartridge sends settles it. Every one of the mirror command's inputs is a run found in the dump, so mirror only ever mirrors fixed assets. Of the tile command's, 0.3% are, and of the merge command's, 1.2%. The two commands that matter are given a view composed in work RAM for wherever the player is standing, which exists nowhere in the image.",
+   "wouldSettleIt": "n/a. Measured and closed.",
+   "namedInDocument": "The part is a renderer, not an unpacker"
+  },
+  {
+   "id": "a-cache-of-recent-answers-does-not-pay",
+   "parts": [
+    "approach"
+   ],
+   "severity": "low",
+   "status": "closed",
+   "documentSays": "n/a",
+   "referenceDoes": "n/a",
+   "packageFollows": "recording",
+   "reasoning": "Comparing two tours, 99.3% of tile calls and 99.2% of merge calls use an input the other tour had already seen, so a table of answers would cover nearly everything and the idea is worth testing rather than dismissing. It fails on the key. A sixteen byte prefix still fails to tell 154 of 1,767 distinct tile inputs apart, so a cheap key is not sound, and the repeats are spread across a whole run rather than clustered: a sixty four entry cache of recent inputs hits 2.7% on tile and 5.0% on merge.",
+   "wouldSettleIt": "n/a. Measured and closed.",
+   "namedInDocument": "A cache of recent answers does not pay"
+  },
+  {
+   "id": "a-sixteen-bit-table-index-cannot-be-reached-under-this-mapping",
+   "parts": [
+    "speed"
+   ],
+   "severity": "medium",
+   "status": "closed",
+   "documentSays": "The cartridge is a LoROM, which maps 32 kilobytes of each bank, at $8000 to $FFFF.",
+   "packageFollows": "document",
+   "referenceDoes": "n/a",
+   "reasoning": "The obvious way to halve the tile conversion is to look up two input bytes at once, which needs a table indexed by a sixteen bit value. It cannot be built here whatever the image is grown to. Long indexed addressing adds a sixteen bit index register to a twenty four bit base, so an index runs to $FFFF, and 32 kilobytes into any base the address leaves the mapped half of the bank and lands in the system area rather than in the next 32 kilobytes of the table. A single lookup is therefore capped at a fifteen bit index under this mapping, and a sixteen bit one would need the cartridge remapped, which would move every address the game computes for itself. The conversion keeps its four byte wide lookups, which is the finest granularity available, and the eight rows are written out rather than looped because the count never varies.",
+   "wouldSettleIt": "n/a. Settled by the mapping.",
+   "namedInDocument": "A sixteen bit table index cannot be reached under this mapping"
+  },
+  {
+   "id": "nothing-here-models-the-chip",
+   "parts": [
+    "boundary"
+   ],
+   "severity": "outOfScope",
+   "status": "notModelled",
+   "documentSays": "n/a",
+   "referenceDoes": "n/a",
+   "packageFollows": "neither",
+   "reasoning": "Every statement about what the DSP-2 returns is made by snes-dsp, which runs the part's own microcode, and every statement about the processor is made by mos65xx. What this package measures directly is how many cycles its own routines spend, and it measures that by running them on the processor model rather than by counting from a table.",
+   "wouldSettleIt": "n/a. This is a boundary, not an unknown.",
+   "namedInDocument": "Nothing here models hardware"
+  },
+  {
+   "id": "neither-the-cartridge-nor-the-microcode-is-here",
+   "parts": [
+    "boundary"
+   ],
+   "severity": "outOfScope",
+   "status": "notADisagreement",
+   "documentSays": "n/a",
+   "referenceDoes": "n/a",
+   "packageFollows": "neither",
+   "reasoning": "The cartridge, the part's microcode and every image built from either are absent by rule, and everything published about them is a digest. That is why parts of the suite skip rather than fail on a machine holding neither, and why the checks that need one live in files kept out of the coverage measurement.",
+   "wouldSettleIt": "n/a. This is a rule, not a limitation.",
+   "namedInDocument": "Neither the cartridge nor the microcode is here"
+  },
+  {
+   "id": "two-fields-of-the-state-block-shared-a-byte",
+   "parts": [
+    "placement"
+   ],
+   "severity": "high",
+   "status": "closed",
+   "documentSays": "n/a",
+   "referenceDoes": "n/a",
+   "packageFollows": "neither",
+   "reasoning": "The block is laid out by hand as a list of offsets and nothing checked that list against itself; the assembler cannot, because an offset is a number and two names for one number assemble without complaint. !S_OVERLAY was declared at $0E, which is !S_INBYTE, and the sixteen bit store that sets it reached into $0F, the bank a block transfer reads from. A transfer that overruns one command's payload carries on into the next and re-reads that bank, so a merge would have taken its continuation from wherever the overlay pointer's high byte pointed. Nothing in 4.6 million recorded transactions overruns, so it never fired. A second, benign overlap sat eight bytes inside the operations' scratch region. Both fields moved, stateblock.py now refuses any two that share a byte, and splitfeed.retail.test.py drives the overrun: against the old layout it reads bank $0A and stops, against the new one it answers what a single move answers.",
+   "wouldSettleIt": "n/a. Found, fixed, and held by a check that fails against the layout it replaced.",
+   "namedInDocument": "Two fields of the state block shared a byte"
+  },
+  {
+   "id": "the-trace-verifier-has-never-agreed-with-the-recordings",
+   "parts": [
+    "harness"
+   ],
+   "severity": "high",
+   "status": "narrowed",
+   "documentSays": "n/a",
+   "referenceDoes": "n/a",
+   "packageFollows": "neither",
+   "reasoning": "tools/verify_trace.py replays a recorded stream against the part's own microcode through snes-dsp, and is described as the check that says the recordings are faithful. Bounded to the first 200,000 records it reports 51,414 of 75,349 reads not reproduced, with identical figures for two different tours, so it is the boot sequence rather than the route. It had never been seen because a whole trace outlasts any run it was given: three hours of processor time on the last attempt, killed, with no output. Adding progress reporting and a bound is what surfaced it. The shipped routines are not in question: replaying the same streams through the 65816 code on the processor checks 98,333,301 bytes with none wrong. Almost every recorded read comes from a block move draining the port rather than a status poll, so a poll counted as a data read is not the explanation. Where the disagreement comes from, the model or the recording or how this tool drives the model, is not established, and nothing here rests on this check. Stepping the first disagreement through both settles the mechanism, and it is alignment rather than arithmetic. The stream diverges at record 19: the cartridge writes sync five times, then a multiply of zero, and reads 00 00 00 00 where the model answers 00 00 10 10. That same multiply on a fresh model answers 00 00 00 00, and six multiplies from the recording agree byte for byte. The model produces a byte of output for command $0F and the cartridge's chip produces none: five syncs alone leave 0f ff ff ff ff ff to be read, and the project's reading of the boot code says the same from the other side. One byte per sync compounds across 180,975 of them. Discarding a byte after each $0F write drops the mismatches from 101,963 to 60,401, and the remainder is the same shape: the first tile disagreement is the cartridge's own answer shifted one byte with a leftover in front. The hack is not the repair, because a payload byte can be $0F as well, so a sound comparison has to be driven by transactions rather than by byte values.",
+   "wouldSettleIt": "Whether the part answers a sync at all, which its microcode knows and snes9x's reimplementation may not model. That is a question for snes-dsp rather than for this project. Until it is answered this tool is not a gate and nothing here rests on it.",
+   "namedInDocument": "The trace verifier has never agreed with the recordings"
+  }
+ ]
 }

@@ -31,6 +31,18 @@ SEVERITIES = ("contradiction", "high", "medium", "low", "unstated", "unchecked",
 
 FOLLOWS = ("document", "reference", "recording", "corpus", "cartridges", "microcode", "neither")
 
+SECTIONS_THAT_ARE_NOT_ENTRIES = (
+    "What is closed, and why it is worth saying",
+    "Boundaries, so nobody mistakes them for gaps",
+)
+"""Headings in the document that summarise rather than raise a question.
+
+Everything else under a second level heading is a question, and a question the
+record has never heard of is the drift this file exists to catch. The check ran
+in one direction only until a section describing three commands that answer
+differently sat in the prose with no entry beside it, and nothing said so.
+"""
+
 LIVE = ("open", "narrowed", "acknowledged")
 """The statuses that mean a reader still has something to worry about.
 
@@ -97,6 +109,16 @@ class RecordTest(unittest.TestCase):
 
         self.assertEqual(missing, [])
 
+    def test_the_document_holds_no_section_the_record_has_never_heard_of(self) -> None:
+        headings = [
+            one[3:].strip()
+            for one in self.text.splitlines()
+            if one.startswith("## ") and one[3:].strip() not in SECTIONS_THAT_ARE_NOT_ENTRIES
+        ]
+        named = {one["namedInDocument"] for one in divergences()}
+
+        self.assertEqual([one for one in headings if one not in named], [])
+
     def test_every_entry_names_itself_in_the_document_including_the_settled_ones(self) -> None:
         missing = [one["id"] for one in divergences() if one["namedInDocument"] not in self.text]
 
@@ -136,7 +158,7 @@ class RecordTest(unittest.TestCase):
         self.assertEqual(silent, [])
 
     def test_there_are_live_questions_to_report(self) -> None:
-        self.assertEqual(len(live()), 4)
+        self.assertEqual(len(live()), 5)
 
     def test_the_document_separates_boundaries_from_unknowns(self) -> None:
         self.assertIn("Boundaries, so nobody mistakes them for gaps", self.text)
