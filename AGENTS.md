@@ -108,6 +108,52 @@ it always could. A slower answer beats a stopped machine.
 A fallback nobody measured is a fallback nobody has. Its cost is stated in cycles
 and a build reports how often it fired, rather than asserting it did not.
 
+## Assembly is source, is commented line by line, and is fast
+
+Three rules bind every `.asm` file in this repository, and a file that breaks any
+of them is incomplete rather than merely untidy.
+
+**Everything ships as source.** The `.asm` files are the deliverable. Nothing
+assembled is checked in: no patched image, no object file, no symbol file, no
+table pasted in as a block of numbers. A build produces those into an ignored
+directory and a clone reproduces them from source. Where a table can be computed,
+it is computed by the assembler at build time from the same expression that
+describes it, because a table worked out where it is used cannot drift away from
+the code that uses it and a table pasted in as numbers can.
+
+**Every file is commented line by line, for a reader who does not know
+assembly.** This is not the comment policy that governs the rest of the
+repository, and the difference is deliberate. In a high level language a name
+carries the meaning, so a comment restating it is noise that goes stale. In
+assembly there are no names: there are registers, raw addresses and opcodes, and
+nothing in `lda $2140` says what `$2140` is or why it is being read. So each file
+opens with what it does and what a reader needs to know to follow it, each block
+says what it is for, and each line that is not self-evident carries a short note
+of what it does and why. A number that came from a measurement says which one.
+
+**Performance is an absolute priority.** This code runs in place of a coprocessor
+on a 3.58 MHz processor, inside a frame budget the game already spends. Every
+routine is written for speed first:
+
+- Count cycles, not instructions, and state the count where it matters.
+- Prefer the shortest addressing mode that reaches: direct page over absolute,
+  absolute over long. Direct page is one byte and one cycle cheaper per access.
+- Keep the direct page pointed at the working set so the cheap mode is reachable.
+- Stay in sixteen bit mode for anything that moves words; `rep`/`sep` pairs
+  around a byte operation usually cost more than they save.
+- Unroll the inner loop of anything that runs per scanline or per pixel. The
+  branch and the counter are pure overhead there.
+- Prefer a table lookup to arithmetic when the table fits, and arithmetic to a
+  lookup when the arithmetic is a shift.
+- Do not call a subroutine from an inner loop when it can be inlined; `jsr` plus
+  `rts` is twelve cycles that compute nothing.
+- Reach ROM through the fast mirror at banks `$80`-`$BF` when the cartridge is
+  configured for it, which answers a fetch in six master clocks against eight.
+
+A routine that is correct and slow is not finished. Where a faster form was
+rejected, the reason is written down beside the slower one, because the next
+reader will otherwise assume nobody thought of it.
+
 ## What must never enter this repository
 
 No cartridge, no microcode, no patched output, no intermediate derived from any
