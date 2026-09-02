@@ -211,12 +211,11 @@ than to dismiss it.
 read from the program rather than inferred from its answers, or a capture from a
 real cartridge.
 
-## Three commands answer differently outside anything the cartridge asks for
+## One command answers differently outside anything the cartridge asks for
 
-Driving the routines and the part's microcode over the whole declared input
-space, rather than over recorded traffic, finds three places where they part.
-All three sit outside everything the recordings contain, and they are stated
-here because an untested region is worth naming even when nothing reaches it.
+Three places stood here where the routines and the part parted company. Two are
+closed by reading the part's program rather than by running it, and what is left
+is one.
 
 **A merge longer than 80 bytes.** Each is fed the same payload and the same
 transparent colour on a fresh machine. They agree byte for byte at every
@@ -245,43 +244,34 @@ byte, the emulator answers zeroes, and the part answers stale data. All three
 differ, and the part is the one with standing. Nothing recorded declares a length
 of zero, in 150,000 exchanges that declare one, so nothing reaches it.
 
-**A multiply of anything but zero.** This one is worth more than the other two,
-because of what it says about what has been checked rather than about what
-differs.
+**A multiply of anything but zero. Settled, and the routines were wrong.**
 
-The routines compute the plain unsigned 16 by 16 product, which is what the
-reference this project was read from computes and is checkable by hand. The
-part does something else, and the program says what kind of thing it is: the
-multiply routine at `$0478` loads `$7FFF` as a mask, hands two operands to the
-multiplier, then shifts one result word right by one and masks it with that
-`$7FFF` before writing it. That is the uPD7725's signed fractional convention
-rather than a plain product, which is why a low word differs by exactly `$8000`.
-Measured over 200 random operand pairs the plain product is wrong for 140 of
-them, and every difference is bit 15 of one or both result words. The exact rule
-is not yet stated here: six candidate formulas were tested against the part and
-the best was wrong for 91 of 200, so it is being read off the program rather
-than fitted to its answers. The part
-answers the same high word every time and a low word that differs by exactly
-$8000 on some operand pairs: 1000 by 1000, 811 by 4660, and 16384 by 2 all
-differ, while 2 by 3, 100 by 100, 4095 by 4095 and 32767 by 2 agree. Both
-operands have their high bit clear throughout, so an earlier note here that
-blamed signedness was wrong, and no rule fitted to the microcode's answers is
-offered in its place: reading a chip's arithmetic out of an emulator is the one
-place this project does not take an answer from.
+The routine at `$0478` loads `$7FFF` as a mask, hands both operands to the
+multiplier, and shifts a result word right by one before masking it. Reading the
+registers while it runs says why: the multiplier leaves the signed product
+doubled across `M` and `N`, and `shr1` on this part is arithmetic. So the rule is
 
-What matters more is that nothing recorded can arbitrate it, and not because the
-recordings are thin. In all three of them every single multiply has a zero first
-operand: 11,330 exchanges in one, 10,697 and 9,048 in the others, and not one
-with anything else. So the sixty of sixty the cost report shows for multiply are
-sixty instances of zero times something, and the arithmetic underneath has never
-been checked against hardware at all. The command is 0.29 of the 35.8 the
-cartridge issues in a frame, so this is a small corner, but it is a corner where
-a passing check means less than it reads.
+```
+product = signed(a) * signed(b)
+low     = (product & 0x7FFF) | ((product & 0x4000) << 1)
+high    = (product >> 16) & 0x7FFF
+```
 
-**What would settle any of them:** the part's own documentation, or a run
-against hardware. Neither is in hand. What is in hand is that the shipped
-routines reproduce every byte of the recorded traffic, so no divergence here is
-reachable by playing the game.
+which agrees with the part on 610 of 610 operand pairs, including zero on either
+side, both signs, and the value whose product sets bit 14 next to the one just
+below it.
+
+The routines computed a plain unsigned product, which is wrong for 140 of 200
+random pairs. They now compute this, and
+[`tools/verify_multiply.py`](tools/verify_multiply.py) holds them to it over the
+corners and 120 seeded pairs, on the processor, against the part. It was driven
+to failure both ways before being trusted: with the rule broken it reports the
+part no longer matching, and with the old routine restored it reports 59 of 228
+bytes wrong.
+
+Nothing recorded could ever have caught this. Every multiply in every recording
+has a zero first operand, tens of thousands without exception, and the rule and
+the plain product agree on zero.
 
 ## The state block sits where three tours never wrote
 

@@ -48,6 +48,11 @@ ignore = [
 # report what a machine is, so a check that throws has to become a line in the
 # report rather than end the run, and its output is the product.
 "environment.py" = ["BLE001", "T201"]
+# A check that needs the part reports that it had nothing to run rather than
+# ending the suite, and what it could not do is the line it prints. Whatever the
+# absence looks like on a given machine, a missing image or a missing submodule
+# or a refusal from the loader, it becomes the report rather than a traceback.
+"tools/verify_multiply.py" = ["BLE001"]
 
 [tool.coverage.run]
 branch = true

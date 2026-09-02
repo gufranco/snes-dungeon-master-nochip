@@ -377,9 +377,33 @@ op_multiply:
     adc !S_SCRATCH+20
     sta !S_SCRATCH+20
 
-    lda !S_SCRATCH+18
-    sta.w !O_BUFFER+0
+    lda.w !P_BUFFER+0           ; the four passes are unsigned, and the part
+    bpl .a_positive             ;   multiplies signed, so each negative operand
+    lda !S_SCRATCH+20           ;   costs the other one out of the high word
+    sec
+    sbc.w !P_BUFFER+2
+    sta !S_SCRATCH+20
+.a_positive:
+    lda.w !P_BUFFER+2
+    bpl .b_positive
     lda !S_SCRATCH+20
+    sec
+    sbc.w !P_BUFFER+0
+    sta !S_SCRATCH+20
+.b_positive:
+
+    lda !S_SCRATCH+18           ; the part's multiplier leaves the product
+    pha                         ;   doubled across two registers and the code
+    and.w #$7FFF                ;   shifts each back arithmetically, so bit 14
+    sta.w !O_BUFFER+0           ;   of the low word reappears as bit 15
+    pla
+    and.w #$4000
+    asl a
+    ora.w !O_BUFFER+0
+    sta.w !O_BUFFER+0
+
+    lda !S_SCRATCH+20           ; and the high word is masked before it is sent
+    and.w #$7FFF
     sta.w !O_BUFFER+2
     lda.w #!MULTIPLY_BYTES
     sta !S_OUT_LEN
