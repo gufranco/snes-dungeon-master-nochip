@@ -42,7 +42,7 @@ processor cannot be free, so every statement about it here is a cycle count.
 
 [`tools/cost.py`](tools/cost.py) runs each command on the 65816 model, which
 drives a bus cycle by cycle, feeds it the cartridge's own recorded traffic, checks
-every answer against what the chip returned, and prices the exchange against what
+every answer against what the recording holds, and prices the exchange against what
 it cost when a chip answered it. Both figures print per command. A single total
 would hide which one regressed, which is the whole reason for the tool.
 

@@ -113,7 +113,9 @@ four runs: three seeded random walks of 30,000 frames each, and one steady route
 of the same length. A command shape none of them produced has never been checked.
 
 Replaying all four through the routines, on the processor, checks **98,333,301
-bytes** against what the cartridge's own chip returned. None are wrong.
+bytes** against what the emulator the recording was made on answered. None are
+wrong. That emulator computes the part's results in C rather than running its
+microcode, so this is a statement about agreement with snes9x.
 
 What the fourth recording shows is why this question stays open. It is a
 different shape of workload, not merely more of the same: over 30,000 frames it
@@ -127,6 +129,46 @@ operation is a closed function of its payload.
 
 **What would settle it:** a run that reaches every screen in the game, or a
 recording made by someone playing rather than by a generated route.
+
+## The recordings are an emulator's reimplementation, not the part
+
+Every correctness figure in this project is a comparison against a recording, and
+the recording is what **snes9x answered**, not what a DSP-2 answered.
+
+snes9x computes the part's results in C. Its `dsp2.cpp` holds nineteen
+`DSP2_Op` functions, loads no microcode image, and one of them carries the
+author's own note that the hardware does strange things if the size is varied.
+That is a description of the part, written by somebody who worked out what it
+does, and the sibling that models these chips exists precisely because such
+descriptions have been measured against the real programs and found to differ.
+
+This changes what two figures here mean:
+
+- The routines reproduce the recordings exactly, 98,333,301 bytes with none
+  wrong. That is a true statement about agreement with snes9x.
+- 29,942 of 30,000 frames are drawn the same. Both halves of that comparison run
+  inside snes9x, so it says the conversion matches the emulator's own answers.
+
+Neither has been compared against the part's own program. Driving the microcode
+through `snes-dsp` over the distinct command and parameter pairs a recording
+contains disagrees on most merges and most tiles.
+
+**Which of the two is right is not established, and this document does not claim
+it is.** The replay is not yet faithful enough to convict either side: every
+transaction leaves exactly one byte the cartridge never read, and restoring the
+length prefix the parser strips improves merge from 13,061 wrong of 13,078 to
+11,360 while taking multiply from 86 wrong of 155 to all 155. That is
+accumulating state error in the harness, not arithmetic in the part.
+
+What is established is that the question was never asked. The phrase this project
+used for what a recording holds, *what the cartridge's own chip returned*, claimed
+more than a recording made this way can carry, and it has been corrected wherever
+it appeared.
+
+**What would settle it:** driving the recorded transactions against the microcode
+faithfully enough that a disagreement is the part rather than the harness, which
+needs the output queue drained the way the cartridge drains it. Failing that, a
+capture from a real cartridge.
 
 ## The trace verifier has never agreed with the recordings
 

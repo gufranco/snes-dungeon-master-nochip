@@ -59,7 +59,12 @@ DSP-2 and serves every request itself.
 **Correctness.** Four runs of 30,000 frames each were driven on the emulator with every byte in and
 out of the port recorded: three seeded random walks and one steady route. Feeding those streams back
 through the routines, on the processor, walks 8,722,303 runs and checks 98,333,301 bytes against what
-the cartridge's own chip returned. None are wrong.
+the recording holds. None are wrong.
+
+What a recording holds is worth stating exactly, because it is not the part. The emulator computes
+the DSP-2's answers in C rather than running its microcode, so the figure above is agreement with
+that C. Whether that C agrees with the part has never been established here, and
+[`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries what is known about it.
 
 **Speed.** The chip computed while the program that fed it carried on, so replacing it with code
 cannot be free. Weighted by how often the cartridge sends each command, the routines spend 59,874

@@ -49,7 +49,7 @@ Result = namedtuple("Result", "path writes reads mismatches examples")
 def chip(build: Any = None) -> Any:
     """One DSP-2, running the microcode of the part rather than a description of it.
 
-    A trace is what the cartridge's own chip answered, so the only thing worth
+    A trace is what the emulator the recording was made on answered, so the thing worth
     replaying it against is that chip's program. Nothing here carries it: a copy
     somebody already owns goes in this project's firmware directory.
     """

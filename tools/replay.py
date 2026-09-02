@@ -6,7 +6,7 @@ request the cartridge ever made with the byte its chip answered.
 
 So the recorded stream is compiled into a cartridge that walks it, feeds each
 run of writes through the entry points the patched game calls, reads back what
-the routines return, and checks it against what the chip returned at that point.
+the routines return, and checks it against what the recording holds at that point.
 The expected bytes travel in the script and the comparison happens on the
 processor, so a run reports counters rather than a transcript and the script may
 be as large as the cartridge holds.
