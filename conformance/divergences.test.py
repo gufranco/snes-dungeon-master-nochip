@@ -158,7 +158,7 @@ class RecordTest(unittest.TestCase):
         self.assertEqual(silent, [])
 
     def test_there_are_live_questions_to_report(self) -> None:
-        self.assertEqual(len(live()), 6)
+        self.assertEqual(len(live()), 7)
 
     def test_the_document_separates_boundaries_from_unknowns(self) -> None:
         self.assertIn("Boundaries, so nobody mistakes them for gaps", self.text)

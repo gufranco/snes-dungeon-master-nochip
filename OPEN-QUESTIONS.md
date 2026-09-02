@@ -152,6 +152,31 @@ is why this entry stays open rather than closing.
 yet held to the part directly. For which inputs occur, a run that reaches every
 screen, or a recording made by someone playing rather than by a generated route.
 
+## The scale has never been compared against the part
+
+Five of the six commands are now held to the part directly. The scale is the one
+that is not, and it turns out never to have been.
+
+[`scalestep.retail.test.py`](scalestep.retail.test.py) checks the routines
+against themselves: that one length pair answers the same every time, and that
+two pairs answer differently. It never asks the part what the answer should be.
+So a command carrying 10,422 calls in one recorded tour has no check that its
+arithmetic is right.
+
+Driven the way the other five are driven, over the only two length pairs the
+cartridge asks for, `(72, 38)` and `(120, 80)` counted in nibbles, the part and
+the routines disagree on **146 of 236 bytes**.
+
+That is not yet a finding. The tile disagreed on every byte until a one byte
+preamble was understood, and the merge disagreed on almost every byte until its
+length prefix was restored. A command nobody has driven before disagreeing means
+the driving is unproven, not that the routines are wrong. It is left out of the
+gate rather than shipped as a passing check that avoids the hard case.
+
+**What would settle it:** establishing how the cartridge drives a scale, from its
+own code or from a recording that contains one. No recording taken here contains
+a scale at all, which is the same coverage hole the mirror had.
+
 ## The recordings are an emulator's reimplementation, not the part
 
 Every correctness figure in this project is a comparison against a recording, and

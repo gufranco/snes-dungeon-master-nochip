@@ -67,6 +67,20 @@
    "namedInDocument": "The state block sits where three tours never wrote"
   },
   {
+   "id": "the-scale-has-never-been-compared-against-the-part",
+   "parts": [
+    "scale"
+   ],
+   "severity": "medium",
+   "status": "open",
+   "documentSays": "n/a. No manufacturer document for this part is known to exist.",
+   "referenceDoes": "Driven the way the other five commands are driven here, over the only two length pairs the cartridge asks for, the part and the routines disagree on 146 of 236 bytes.",
+   "packageFollows": "neither",
+   "reasoning": "Five of the six commands are now held to the part directly. The scale is the one that is not, and it turns out never to have been: scalestep.retail.test.py checks the routines against themselves, that a pair answers the same every time and that two pairs answer differently, and never asks the part what the answer should be. So a command carrying 10,422 calls in one recorded tour has no check that its arithmetic is right. Driving it the same way the others are driven produces a disagreement, and that disagreement is not yet a finding: the tile disagreed on every byte until a one byte preamble was understood, and the merge disagreed on almost every byte until its length prefix was restored, so a command nobody has driven before disagreeing means the driving is unproven rather than the routines wrong. It is left out of the gate rather than shipped as a passing check that avoids the hard case.",
+   "wouldSettleIt": "Establishing how the cartridge drives a scale, from its own code or from a recording that contains one, and then comparing. No recording taken here contains a scale at all, which is the same coverage hole the mirror had.",
+   "namedInDocument": "The scale has never been compared against the part"
+  },
+  {
    "id": "one-command-answers-differently-outside-what-the-cartridge-asks",
    "parts": [
     "merge"

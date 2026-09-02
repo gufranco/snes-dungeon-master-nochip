@@ -1,4 +1,4 @@
-"""The tile and the mirror, checked against the part rather than against a recording.
+"""The tile, the mirror and the scale, checked against the part rather than a recording.
 
 The recordings settle what the cartridge asked for. They cannot settle what the
 answer should be, because they hold an emulator's answers, and no single one of
@@ -26,16 +26,30 @@ ROOT = Path(__file__).resolve().parent.parent
 
 TILE = 0x01
 MIRROR = 0x06
+SCALE = 0x0D
 
 TILE_BYTES = 32
 """What a tile takes and gives, which the protocol fixes rather than declares."""
 
 SAFE_LENGTH = 80
 
+SCALE_PAIRS = ((72, 38), (120, 80))
+"""The only two length pairs the cartridge asks a scale for, counted in nibbles.
+
+One recorded tour asks for these two across 10,422 calls and for nothing else.
+The scale is deliberately not among the cases below. Driven the way the other
+commands here are driven it disagrees with the part on 146 of 236 bytes, and
+whether that is the part or the driving is not established: the tile needed a
+preamble understood before it agreed, and the merge needed its length byte, so a
+disagreement on a command nobody has driven before is a question rather than a
+result. It is recorded as an open question instead of shipped as a passing check
+that quietly avoids it.
+"""
+
 SEED = 17
 
 
-PREAMBLE = {TILE: 1, MIRROR: 0}
+PREAMBLE = {TILE: 1, MIRROR: 0, SCALE: 0}
 """How many bytes the part offers before the answer, per command.
 
 Measured. A tile is preceded by one byte the cartridge's own read pattern
@@ -122,8 +136,8 @@ def _default_walk(runs: Any, load: Callable[[], Any] = _load_replay) -> tuple[in
 
 def report(pairs: int, compared: int, wrong: int) -> list[str]:
     if wrong:
-        return [f"  {pairs} tiles and mirrors, {compared} bytes compared, {wrong} wrong"]
-    return [f"  {pairs} tiles and mirrors, {compared} bytes compared, none wrong"]
+        return [f"  {pairs} exchanges, {compared} bytes compared, {wrong} wrong"]
+    return [f"  {pairs} exchanges, {compared} bytes compared, none wrong"]
 
 
 def main(
