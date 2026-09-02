@@ -954,6 +954,32 @@ values is the second, and reporting only its width makes it look like the first.
 Both figures are reported, always, and a member that reports a width without the
 count of distinct values beside it has published the misleading half.
 
+### A table is only as good as the key it is indexed on
+
+Before any table is built, one thing is checked: does the key decide the answer.
+Group every exchange a run recorded by the key the table would use, and look at
+how many answers sit in each group. One answer per group and the key decides. Two
+and it does not, and a table indexed on it returns whichever row was written last.
+
+A part that keeps state fails this and fails it quietly. A command that reads a
+matrix another command loaded is not a function of its own arguments, so the
+arguments look like a perfectly good key right up until the table answers wrongly
+on hardware. The failure has no symptom at build time: the table is the right
+size, every row holds a real answer the part really gave, and the wrong one is
+returned.
+
+When the arguments do not decide it, the key is widened rather than the table
+abandoned. Each command seen earlier in the run is tried as the thing carrying
+the state, and the one that leaves nothing ambiguous is the key. A command that
+nothing settles is reported as not tabulatable, and reporting that is the whole
+point: a command tabulated on a key that does not decide it is worse than one
+left to the fallback, because the fallback is at least correct.
+
+The check is cheap, it is decidable from a recording already taken, and it is
+worth more than any sizing figure. A member states which key each command is
+indexed on and how many rows were ambiguous under it, and a member that has not
+run this check has not established that its table answers anything.
+
 ### The two wrong answers this order prevents
 
 **Sizing against the part's input domain.** The domain is the exponent of the
