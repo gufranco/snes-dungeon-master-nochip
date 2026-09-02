@@ -230,11 +230,29 @@ exchanges declares 30, and only five distinct lengths appear at all.
 
 What the part does above 80 is deterministic rather than residue: a declared
 length of 81 answers identically whether it follows a run filled with `AA`, one
-filled with `55`, or nothing at all. What it answers is one byte before the run
-and then the published rule with a single byte perturbed around the sixteenth,
-realigning after it, and no simple buffer wrap between 150 and 175 bytes
-reproduces it. So a rule exists there and has not been read. It is also
-unreachable from the cartridge, so reading it buys nothing a player would notice.
+filled with `55`, or nothing at all.
+
+Both halves of it have been measured, by making the answer name the index it
+read. A transparent colour of zero with a second bitmap of zeros makes the output
+equal the first bitmap; a colour of fifteen with a first bitmap of zeros makes it
+equal the second. Read that way, for a declared length `n` above 80 and
+`k = n - 80`:
+
+- the **first** bitmap wraps at eighty. The output takes `bm1[80+i]` for the
+  first `k` bytes, and `bm1[i]` after them.
+- the **second** is shifted by `k`. The output takes `bm2[i-k]` from the `k`th
+  byte on, and something that is not `bm2` before it.
+
+A single 160 byte buffer with both bitmaps written in order and wrapping, read
+with the second at `min(n, 80)`, reproduces every length from 1 to 80 and none
+above it. So that is not the arrangement, and the rule is partly read rather than
+finished.
+
+**What would settle it:** the arrangement of the part's parameter buffer above a
+declared length of 80, which these two probes narrow but do not fix. Reading the
+merge routine at `$0277` instruction by instruction would settle it. Nothing a
+player can reach depends on the answer: the cartridge's largest merge declares
+30.
 
 **A multiply of anything but zero. Settled, and the routines were wrong.**
 
