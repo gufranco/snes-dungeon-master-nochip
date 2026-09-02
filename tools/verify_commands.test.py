@@ -56,10 +56,22 @@ class CaseTest(unittest.TestCase):
 
         self.assertEqual(first, again)
 
-    def test_both_commands_are_covered(self) -> None:
+    def test_every_command_this_tool_covers_is_covered(self) -> None:
         commands = {one.command for one in verify_commands.cases(1)}
 
-        self.assertEqual(commands, {verify_commands.TILE, verify_commands.MIRROR})
+        self.assertEqual(
+            commands, {verify_commands.TILE, verify_commands.MIRROR, verify_commands.SCALE}
+        )
+
+    def test_a_scale_only_asks_for_a_shape_the_cartridge_sends(self) -> None:
+        scales = [one for one in verify_commands.cases(1) if one.command == verify_commands.SCALE]
+
+        self.assertTrue(all(one.lengths in verify_commands.SCALE_PAIRS for one in scales))
+
+    def test_a_scale_reads_back_what_its_second_length_implies(self) -> None:
+        scales = [one for one in verify_commands.cases(1) if one.command == verify_commands.SCALE]
+
+        self.assertTrue(all(one.reads == (one.lengths[1] + 1) >> 1 for one in scales))
 
 
 class ExchangeTest(unittest.TestCase):

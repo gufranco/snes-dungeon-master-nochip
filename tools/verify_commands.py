@@ -37,13 +37,10 @@ SCALE_PAIRS = ((72, 38), (120, 80))
 """The only two length pairs the cartridge asks a scale for, counted in nibbles.
 
 One recorded tour asks for these two across 10,422 calls and for nothing else.
-The scale is deliberately not among the cases below. Driven the way the other
-commands here are driven it disagrees with the part on 146 of 236 bytes, and
-whether that is the part or the driving is not established: the tile needed a
-preamble understood before it agreed, and the merge needed its length byte, so a
-disagreement on a command nobody has driven before is a question rather than a
-result. It is recorded as an open question instead of shipped as a passing check
-that quietly avoids it.
+These are the shapes the cases below use, and the only ones a check here claims
+anything about. A scale given a pair the cartridge never sends reaches code paths
+the routines get wrong, and those are recorded as open questions rather than
+hidden by a check that avoids them.
 """
 
 SEED = 17
@@ -79,6 +76,10 @@ def cases(each: int) -> list[Case]:
         for _ in range(each):
             payload = bytes(picked.randrange(256) for _ in range(length))
             out.append(Case(MIRROR, (length,), payload, length))
+    for lengths in SCALE_PAIRS:
+        for _ in range(each * 4):
+            payload = bytes(picked.randrange(256) for _ in range((lengths[0] + 1) >> 1))
+            out.append(Case(SCALE, lengths, payload, (lengths[1] + 1) >> 1))
     return out
 
 

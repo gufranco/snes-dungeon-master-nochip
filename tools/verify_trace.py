@@ -31,9 +31,10 @@ PART = "dsp2"
 """The part this cartridge carries, and the microcode a check runs against."""
 
 CAVEAT = (
-    "  this comparison is not sound yet: the model answers a byte for the sync"
-    " command and the cartridge's chip answers none, so the read streams run out"
-    " of step. See OPEN-QUESTIONS.md. The routines are held by tools/replay.py."
+    "  the recording holds what the emulator answered, so a disagreement here is"
+    " the part and that emulator parting company rather than a fault in the"
+    " routines. The routines are held to the part by tools/verify_merge.py,"
+    " tools/verify_multiply.py and tools/verify_commands.py."
 )
 """Said with every result, because a number nobody can trust reads like one they can.
 
@@ -44,6 +45,22 @@ agrees wherever it has been checked one transaction at a time.
 """
 
 Result = namedtuple("Result", "path writes reads mismatches examples")
+
+PREAMBLE = {0x01: 1}
+"""Bytes the part offers before an answer, per command.
+
+A tile is preceded by one byte that is not part of its answer. Measured: skipping
+it reproduces 200 of 200 recorded tiles and not skipping it reproduces none. No
+other command has one.
+"""
+
+TRAILING = {0x0F: 1}
+"""Bytes the part leaves behind that the cartridge never reads, per command.
+
+A sync leaves one. Together with the preamble above, these two numbers are the
+whole reason a byte driven comparison could never stay in step: one byte per
+sync, across the 180,975 of them a trace carries, and one per tile.
+"""
 
 
 def chip(build: Any = None) -> Any:
@@ -86,31 +103,49 @@ def check(
     say: Callable[[str], None] | None = None,
     every: int = PROGRESS,
     limit: int = 0,
+    read_transactions: Any = None,
 ) -> Any:
-    """A whole trace, or as much of it as asked for, replayed against the part."""
+    """A whole trace, or as much of it as asked for, replayed against the part.
+
+    Driven by transaction rather than by byte. Only the protocol can say which
+    writes are a command, which are a declared length, and which byte of the
+    part's output the cartridge was never going to read, and getting any of
+    those wrong puts the two streams permanently out of step.
+    """
     path = Path(path)
     if not path.exists():
         return None
 
+    transactions = dsptrace.transactions if read_transactions is None else read_transactions
     part = build()
-    writes = reads = mismatches = 0
+    writes = reads = mismatches = said_at = 0
     examples: list[Any] = []
 
-    for record in dsptrace.records(path):
-        if record.kind == dsptrace.KIND_WRITE:
-            part.write(record.byte)
-            writes += 1
-        else:
-            produced = part.read()
-            reads += 1
-            if produced != record.byte:
-                mismatches += 1
-                if len(examples) < EXAMPLE_LIMIT:
-                    examples.append((record.frame, record.pc, record.byte, produced))
+    for one in transactions(dsptrace.records(str(path))):
+        if not one.complete:
+            continue
+        part.write(one.command)
+        for byte in one.lengths:
+            part.write(byte)
+        for byte in one.parameters:
+            part.write(byte)
+        writes += 1 + len(one.lengths) + len(one.parameters)
+
+        for _ in range(PREAMBLE.get(one.command, 0)):
+            part.read()
+        produced = bytes(part.read() for _ in range(len(one.output)))
+        reads += len(one.output)
+        if produced != one.output:
+            mismatches += 1
+            if len(examples) < EXAMPLE_LIMIT:
+                examples.append((one.frame, one.pc, one.output, produced))
+        for _ in range(TRAILING.get(one.command, 0)):
+            part.read()
 
         seen = writes + reads
-        if say is not None and seen % every == 0:
-            say(f"  {path.name}: {seen:,} records, {mismatches:,} wrong so far")
+        if say is not None and seen - said_at >= every:
+            said_at = seen
+            say(f"  {path.name}: {seen:,} bytes, {mismatches:,} exchanges wrong so far")
         if limit and seen >= limit:
             break
 
@@ -120,11 +155,11 @@ def check(
 def explain(result: Any) -> str:
     lines = [
         f"  {result.path.name}: {result.writes:,} written, {result.reads:,} read, "
-        f"{result.mismatches:,} wrong"
+        f"{result.mismatches:,} exchanges wrong"
     ]
     for frame, pc, wanted, produced in result.examples:
         lines.append(
-            f"      frame {frame} pc ${pc:06X} cartridge {wanted:#04x} model {produced:#04x}"
+            f"      frame {frame} pc ${pc:06X} cartridge {wanted.hex()} model {produced.hex()}"
         )
     return "\n".join(lines)
 

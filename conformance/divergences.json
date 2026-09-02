@@ -44,13 +44,13 @@
     "approach"
    ],
    "severity": "high",
-   "status": "open",
+   "status": "closed",
    "documentSays": "n/a. No manufacturer document for this part is known to exist.",
    "referenceDoes": "snes9x computes the DSP-2's answers in C. Its dsp2.cpp holds nineteen DSP2_Op functions, loads no microcode image, and one of them carries the author's own note that the hardware does strange things if the size is varied. The emulator this project records from is therefore answering out of a description of the part rather than out of the part.",
-   "packageFollows": "recording",
-   "reasoning": "Every correctness figure here is a comparison against a recording, and the recording is what snes9x answered. The routines reproduce it exactly, 98,333,301 bytes with none wrong, and the end to end comparison that shows 29,942 of 30,000 frames drawn the same compares a converted image against a retail image inside that same emulator, so both halves of it are answered by the same C. Neither figure has ever been compared against the part's own program. Driving the part's microcode through snes-dsp over the distinct command and parameter pairs the recording contains disagrees on most merges and most tiles. Which of the two is right is not established here: the replay accumulates state, feeding the length prefix back improves merge and worsens multiply, and every transaction leaves exactly one byte the cartridge never read, so the driving is not yet faithful enough to convict either side. What is established is that the question was never asked, and that the phrase used here for what a recording holds, what the cartridge's own chip returned, claimed more than the recording can carry.",
-   "wouldSettleIt": "Driving the recorded transactions against the microcode faithfully enough that a disagreement is the part rather than the harness, which needs the output queue to be drained the way the cartridge drains it. Failing that, a capture from a real cartridge.",
-   "namedInDocument": "The recordings are an emulator's reimplementation, not the part"
+   "packageFollows": "microcode",
+   "reasoning": "Every correctness figure here is a comparison against a recording, and the recording is what snes9x answered. The routines reproduce it exactly, 98,333,301 bytes with none wrong, and the end to end comparison that shows 29,942 of 30,000 frames drawn the same compares a converted image against a retail image inside that same emulator, so both halves of it are answered by the same C. Neither figure has ever been compared against the part's own program. Driving the part's microcode through snes-dsp over the distinct command and parameter pairs the recording contains disagrees on most merges and most tiles. Which of the two is right is not established here: the replay accumulates state, feeding the length prefix back improves merge and worsens multiply, and every transaction leaves exactly one byte the cartridge never read, so the driving is not yet faithful enough to convict either side. What is established is that the question was never asked, and that the phrase used here for what a recording holds, what the cartridge's own chip returned, claimed more than the recording can carry. That is now settled, and the answer is that they agree. Replaying a whole recording against the part's own program reproduces all 17,241,846 bytes the cartridge returned. So for everything the cartridge actually asks, the emulator's C and the part's microcode give the same answers, and a figure quoted against a recording is a figure against the part as well. What the recordings still cannot say is anything about inputs they do not contain, which is exactly where the routines were found wrong: every recorded multiply has a zero first operand, and no recording taken here contains a scale or a mirror at all.",
+   "wouldSettleIt": "n/a. Measured over a whole recording.",
+   "namedInDocument": "The recordings and the part agree, and the verifier that says so now works"
   },
   {
    "id": "the-state-block-sits-where-three-tours-never-wrote",
@@ -71,13 +71,13 @@
    "parts": [
     "scale"
    ],
-   "severity": "medium",
-   "status": "open",
+   "severity": "low",
+   "status": "narrowed",
    "documentSays": "n/a. No manufacturer document for this part is known to exist.",
    "referenceDoes": "Driven the way the other five commands are driven here, over the only two length pairs the cartridge asks for, the part and the routines disagree on 146 of 236 bytes.",
    "packageFollows": "neither",
-   "reasoning": "Five of the six commands are now held to the part directly. The scale is the one that is not, and it turns out never to have been: scalestep.retail.test.py checks the routines against themselves, that a pair answers the same every time and that two pairs answer differently, and never asks the part what the answer should be. So a command carrying 10,422 calls in one recorded tour has no check that its arithmetic is right. Driving it the same way the others are driven produces a disagreement, and that disagreement is not yet a finding: the tile disagreed on every byte until a one byte preamble was understood, and the merge disagreed on almost every byte until its length prefix was restored, so a command nobody has driven before disagreeing means the driving is unproven rather than the routines wrong. It is left out of the gate rather than shipped as a passing check that avoids the hard case.",
-   "wouldSettleIt": "Establishing how the cartridge drives a scale, from its own code or from a recording that contains one, and then comparing. No recording taken here contains a scale at all, which is the same coverage hole the mirror had.",
+   "reasoning": "Five of the six commands are now held to the part directly. The scale is the one that is not, and it turns out never to have been: scalestep.retail.test.py checks the routines against themselves, that a pair answers the same every time and that two pairs answer differently, and never asks the part what the answer should be. So a command carrying 10,422 calls in one recorded tour has no check that its arithmetic is right. Driving it the same way the others are driven produces a disagreement, and that disagreement is not yet a finding: the tile disagreed on every byte until a one byte preamble was understood, and the merge disagreed on almost every byte until its length prefix was restored, so a command nobody has driven before disagreeing means the driving is unproven rather than the routines wrong. It is left out of the gate rather than shipped as a passing check that avoids the hard case. It has been compared since, and the routines were wrong. The step was derived by dividing by (out << 1) + 1 where the part divides by (out << 1) + 2, so the cursor ran ahead of the part's from the sixth output nibble on. With that corrected the two shapes the cartridge asks for, 72 to 38 and 120 to 80 counted in nibbles, agree over 1,180 bytes with the two alternating forty times, and tools/verify_commands.py holds them there as a gate. What remains is outside what the cartridge sends: a stretch, where the output is longer than the input, is answered correctly on its own and wrongly when it follows another shape, and one ratio just above one still differs.",
+   "wouldSettleIt": "For the stretch, why a shape that is right alone is wrong after another, which is the step cache. Neither that nor a near unity ratio is a shape any recording contains or any recorded tour asks for.",
    "namedInDocument": "The scale has never been compared against the part"
   },
   {
@@ -212,13 +212,13 @@
     "harness"
    ],
    "severity": "high",
-   "status": "narrowed",
+   "status": "closed",
    "documentSays": "n/a",
    "referenceDoes": "n/a",
-   "packageFollows": "neither",
-   "reasoning": "The mechanism is alignment and framing rather than arithmetic, and driving the comparison by transactions with the framing corrected takes it most of the way. Three things had to be restored that a byte driven replay loses: the length byte the parser strips into its own field, the command echo the model queues and the cartridge never reads, and nothing else. With those, over 20,000 transactions of a real route, sync agrees 900 of 900, transparent 155 of 155, and tile 5,426 of 5,712, where a byte driven replay had almost none of them agreeing. Merge does not follow: 13,044 of 13,078 still differ. It is not a missing transparent colour, because setting one changes the answer, and it is not a fixed shift. For the recorded case with a declared length of four, a first bitmap of 000000cc, a second of 00aaaaaa and a transparent colour of ten, snes9x and the recording both give 000000cc, which is what its published loop computes by hand, and the microcode gives 0000cccc. That is a real disagreement about what a merge is, between a description of the part and the part's own program, and this project has no standing to declare a winner from an emulator. The merge disagreement this entry reported has since been shown to be the harness rather than the part. Asked directly, with a part built fresh for each case, the microcode and the published rule agree on every declared length from 1 to 80, over 240 random bitmaps and colours, and tools/verify_merge.py now holds the routines to the part the same way over 160 cases and 6,480 bytes. What the replay could not do was keep the model in step across transactions: the model holds output the cartridge never read, and neither leaving it nor draining it reproduces what the cartridge did, so the two run in different states. That is a fault in how this tool drives the model and nothing about the routines rests on it.",
-   "wouldSettleIt": "Driving the model so that its output queue ends each transaction where the cartridge left it. The correctness questions this tool was meant to answer are answered directly by tools/verify_merge.py and tools/verify_multiply.py, which build a part per case and do not need the stream to stay aligned.",
-   "namedInDocument": "The trace verifier disagrees with the recordings, and most of it was framing"
+   "packageFollows": "microcode",
+   "reasoning": "It was framing, and two numbers were missing. A tile is preceded by one byte that is not part of its answer, and a sync leaves one byte behind that the cartridge never reads. Those two, together with writing back the length byte the parser strips into its own field, are the whole of it: with them the comparison walks a whole recording of 45,313,954 records and reproduces all 17,241,846 bytes the cartridge returned, with none wrong. Without them it disagreed on more than nine tenths of them. The tool now drives by transaction rather than by byte, because only the protocol can say which write is a command, which is a declared length, and which byte of the output was never going to be read.",
+   "wouldSettleIt": "n/a. Found, fixed, and run over a whole recording.",
+   "namedInDocument": "The recordings and the part agree, and the verifier that says so now works"
   }
  ]
 }

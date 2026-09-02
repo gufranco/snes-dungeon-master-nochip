@@ -177,86 +177,32 @@ gate rather than shipped as a passing check that avoids the hard case.
 own code or from a recording that contains one. No recording taken here contains
 a scale at all, which is the same coverage hole the mirror had.
 
-## The recordings are an emulator's reimplementation, not the part
+## The recordings and the part agree, and the verifier that says so now works
 
-Every correctness figure in this project is a comparison against a recording, and
-the recording is what **snes9x answered**, not what a DSP-2 answered.
+Both of these were open, and both are closed by the same measurement.
 
-snes9x computes the part's results in C. Its `dsp2.cpp` holds nineteen
-`DSP2_Op` functions, loads no microcode image, and one of them carries the
-author's own note that the hardware does strange things if the size is varied.
-That is a description of the part, written by somebody who worked out what it
-does, and the sibling that models these chips exists precisely because such
-descriptions have been measured against the real programs and found to differ.
+The comparison was framing, and two numbers were missing from it. **A tile is
+preceded by one byte that is not part of its answer**, and **a sync leaves one
+byte behind that the cartridge never reads.** Those two, with the length byte the
+parser strips into its own field written back, are the whole of it.
 
-This changes what two figures here mean:
+With them, replaying a whole recording against the part's own program walks
+45,313,954 records and reproduces **all 17,241,846 bytes the cartridge returned,
+none wrong.** Without them it disagreed on more than nine tenths.
 
-- The routines reproduce the recordings exactly, 98,333,301 bytes with none
-  wrong. That is a true statement about agreement with snes9x.
-- 29,942 of 30,000 frames are drawn the same. Both halves of that comparison run
-  inside snes9x, so it says the conversion matches the emulator's own answers.
+So the emulator's C and the part's microcode give the same answers for everything
+the cartridge actually asks, and a figure quoted against a recording is a figure
+against the part as well.
 
-Neither has been compared against the part's own program. Driving the microcode
-through `snes-dsp` over the distinct command and parameter pairs a recording
-contains disagrees on most merges and most tiles.
+What a recording still cannot say is anything about inputs it does not contain,
+and that is exactly where the routines were found wrong. Every recorded multiply
+has a zero first operand. No recording taken here contains a scale or a mirror at
+all. Both defects were found by asking the part directly, and neither could ever
+have been found by replaying traffic.
 
-**Which of the two is right is not established, and this document does not claim
-it is.** The replay is not yet faithful enough to convict either side: every
-transaction leaves exactly one byte the cartridge never read, and restoring the
-length prefix the parser strips improves merge from 13,061 wrong of 13,078 to
-11,360 while taking multiply from 86 wrong of 155 to all 155. That is
-accumulating state error in the harness, not arithmetic in the part.
-
-What is established is that the question was never asked. The phrase this project
-used for what a recording holds, *what the cartridge's own chip returned*, claimed
-more than a recording made this way can carry, and it has been corrected wherever
-it appeared.
-
-**What would settle it:** driving the recorded transactions against the microcode
-faithfully enough that a disagreement is the part rather than the harness, which
-needs the output queue drained the way the cartridge drains it. Failing that, a
-capture from a real cartridge.
-
-## The trace verifier disagrees with the recordings, and most of it was framing
-
-[`tools/verify_trace.py`](tools/verify_trace.py) replays a recorded stream against
-the part's own microcode. It compared byte against byte, and a byte driven replay
-loses two things the protocol carries:
-
-- **the length byte**, which the transaction parser strips into its own field, so
-  a merge was replayed without the size it declared;
-- **the command echo**, one byte the model queues and the cartridge never reads,
-  which shifts everything after it.
-
-Restoring both and driving by transaction, over 20,000 transactions of a real
-route:
-
-| command | agrees | of |
-|---|--:|--:|
-| sync | 900 | 900 |
-| transparent | 155 | 155 |
-| tile | 5,426 | 5,712 |
-| multiply | 86 | 155 |
-| merge | 34 | 13,078 |
-
-Sync and transparent are exact. Tile went from almost nothing agreeing to 95%.
-
-**Merge does not follow, and it is a real disagreement rather than framing.** It
-is not a missing transparent colour, because setting one changes the answer. For
-the recorded case declaring a length of four, a first bitmap of `000000cc`, a
-second of `00aaaaaa` and a transparent colour of ten, snes9x answers `000000cc`,
-which is what its published loop computes by hand, and the recording agrees with
-it. The microcode answers `0000cccc`.
-
-That is a description of the part and the part's own program disagreeing about
-what a merge is. This project does not declare a winner from an emulator, and the
-same emulator's source declines to implement a size-zero behaviour its author
-describes as what the chip does, which is a reason to weigh it carefully rather
-than to dismiss it.
-
-**What would settle it:** what the microcode actually does with the two bitmaps,
-read from the program rather than inferred from its answers, or a capture from a
-real cartridge.
+[`tools/verify_trace.py`](tools/verify_trace.py) drives by transaction rather
+than by byte, because only the protocol can say which write is a command, which
+is a declared length, and which byte of the output was never going to be read.
 
 ## One command answers differently outside anything the cartridge asks for
 

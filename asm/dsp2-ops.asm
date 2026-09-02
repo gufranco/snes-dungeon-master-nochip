@@ -596,7 +596,11 @@ scale_step:
     lda !S_SCRATCH+40           ; nibbles, because both declared lengths are
     asl
     inc a
-    sta !S_SCRATCH+38           ; the divisor, (out << 1) + 1
+    inc a
+    sta !S_SCRATCH+38           ; the divisor, (out << 1) + 2, which is what the
+                                ;   part divides by: with (out << 1) + 1 the step
+                                ;   comes out too large and the cursor runs ahead
+                                ;   of the part's from the sixth output nibble on
 
     lda !S_SCRATCH+24
     asl                         ; the dividend is the length shifted by 17, and
