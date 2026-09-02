@@ -228,16 +228,39 @@ side of it is not established: the routines hold a 512 byte parameter buffer and
 so have an answer for every length the protocol can declare, and whether the
 part has one is a question about the part.
 
-**A length of zero, for any command that declares one.** The routines answer the
-idle byte, having produced nothing; the microcode answers zeroes. Across 150,000
-recorded exchanges that declare a length, not one declares zero.
+**A length of zero, for any command that declares one. Settled by reading the
+program.** The merge routine sits at `$0277`. It reads the declared length, and
+its third instruction branches to `$03AF` when that length is zero. `$03AF` loads
+the status register and returns, without ever writing the data register:
+
+```
+03AF  D10007  ld $4400,sr
+03B0  400000  rt
+```
+
+So the part leaves whatever was last in that register. That is exactly what
+snes9x's own source describes and declines to implement, calling it a quirk not
+worth the trouble unless proven necessary. The routines here answer the idle
+byte, the emulator answers zeroes, and the part answers stale data. All three
+differ, and the part is the one with standing. Nothing recorded declares a length
+of zero, in 150,000 exchanges that declare one, so nothing reaches it.
 
 **A multiply of anything but zero.** This one is worth more than the other two,
 because of what it says about what has been checked rather than about what
 differs.
 
 The routines compute the plain unsigned 16 by 16 product, which is what the
-reference this project was read from computes and is checkable by hand. The part
+reference this project was read from computes and is checkable by hand. The
+part does something else, and the program says what kind of thing it is: the
+multiply routine at `$0478` loads `$7FFF` as a mask, hands two operands to the
+multiplier, then shifts one result word right by one and masks it with that
+`$7FFF` before writing it. That is the uPD7725's signed fractional convention
+rather than a plain product, which is why a low word differs by exactly `$8000`.
+Measured over 200 random operand pairs the plain product is wrong for 140 of
+them, and every difference is bit 15 of one or both result words. The exact rule
+is not yet stated here: six candidate formulas were tested against the part and
+the best was wrong for 91 of 200, so it is being read off the program rather
+than fitted to its answers. The part
 answers the same high word every time and a low word that differs by exactly
 $8000 on some operand pairs: 1000 by 1000, 811 by 4660, and 16384 by 2 all
 differ, while 2 by 3, 100 by 100, 4095 by 4095 and 32767 by 2 agree. Both
