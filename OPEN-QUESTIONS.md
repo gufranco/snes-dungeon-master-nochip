@@ -217,32 +217,24 @@ Three places stood here where the routines and the part parted company. Two are
 closed by reading the part's program rather than by running it, and what is left
 is one.
 
-**A merge longer than 80 bytes.** Each is fed the same payload and the same
-transparent colour on a fresh machine. They agree byte for byte at every
-declared length from 1 to 80, over four different transparent colours, and
-disagree at every length from 81 to 199. Mirror agrees at all 199. The largest
-merge in 60,000 recorded exchanges declares 30, and only five distinct lengths
-appear at all, so nothing recorded comes near the boundary. What is on the other
-side of it is not established: the routines hold a 512 byte parameter buffer and
-so have an answer for every length the protocol can declare, and whether the
-part has one is a question about the part.
+**A merge longer than 80 bytes. The boundary is measured, and everything below
+it is now held to the part.**
 
-**A length of zero, for any command that declares one. Settled by reading the
-program.** The merge routine sits at `$0277`. It reads the declared length, and
-its third instruction branches to `$03AF` when that length is zero. `$03AF` loads
-the status register and returns, without ever writing the data register:
+Asked directly, with a part built fresh for each case, the part and the rule the
+routines follow agree on **every declared length from 1 to 80**, over 240 random
+bitmaps and colours, and on **none from 81 to 199**. At 81 the part emits one
+byte before the run and then drifts, which is the shape of a buffer running out
+rather than of different arithmetic. snes9x's source says the same in a comment:
+the hardware does strange things if the size is varied.
 
-```
-03AF  D10007  ld $4400,sr
-03B0  400000  rt
-```
+[`tools/verify_merge.py`](tools/verify_merge.py) now holds the routines to the
+part over every length up to 80, on the processor, and is a gate. That is the
+whole of what the cartridge can ask for: the largest merge in 60,000 recorded
+exchanges declares 30, and only five distinct lengths appear at all.
 
-So the part leaves whatever was last in that register. That is exactly what
-snes9x's own source describes and declines to implement, calling it a quirk not
-worth the trouble unless proven necessary. The routines here answer the idle
-byte, the emulator answers zeroes, and the part answers stale data. All three
-differ, and the part is the one with standing. Nothing recorded declares a length
-of zero, in 150,000 exchanges that declare one, so nothing reaches it.
+What the part does above 80 is still not modelled. The routines hold a 512 byte
+parameter buffer and so have an answer for every length the protocol can declare,
+and whether the part has one is a question about the part.
 
 **A multiply of anything but zero. Settled, and the routines were wrong.**
 

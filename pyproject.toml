@@ -53,6 +53,7 @@ ignore = [
 # absence looks like on a given machine, a missing image or a missing submodule
 # or a refusal from the loader, it becomes the report rather than a traceback.
 "tools/verify_multiply.py" = ["BLE001"]
+"tools/verify_merge.py" = ["BLE001"]
 
 [tool.coverage.run]
 branch = true
