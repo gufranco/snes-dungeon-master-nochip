@@ -138,7 +138,7 @@ chosen rather than observed, with a part built fresh for each case.
 | merge | [`tools/verify_merge.py`](tools/verify_merge.py) | every declared length to 80 |
 | mirror | [`tools/verify_commands.py`](tools/verify_commands.py) | every declared length to 80 |
 | multiply | [`tools/verify_multiply.py`](tools/verify_multiply.py) | the corners and 120 seeded pairs |
-| scale | not yet | |
+| scale | [`tools/verify_commands.py`](tools/verify_commands.py) | both shapes the cartridge sends |
 
 The mirror shows what this buys. One recorded route of thirty thousand frames
 contains **not a single mirror**, and the routines are checked against the part
@@ -148,9 +148,12 @@ What the recordings still settle, and nothing else does, is which inputs the
 cartridge actually sends. That is what the cost figures are weighted by, and it
 is why this entry stays open rather than closing.
 
-**What would settle it:** for correctness, the scale command, the one of six not
-yet held to the part directly. For which inputs occur, a run that reaches every
-screen, or a recording made by someone playing rather than by a generated route.
+All six are now held to the part, so the correctness half of this entry is
+closed. What is left is only which inputs occur, which the cost figures are
+weighted by.
+
+**What would settle it: nothing in reach.** No route proves it reached every
+screen. More inputs narrow it and none closes it.
 
 ## The scale has never been compared against the part
 
