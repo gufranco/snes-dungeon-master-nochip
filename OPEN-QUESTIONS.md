@@ -127,8 +127,30 @@ So no single input reaches all six commands, and the coverage argument rests on
 the union of four. What bounds the risk is that the shapes are few and each
 operation is a closed function of its payload.
 
-**What would settle it:** a run that reaches every screen in the game, or a
-recording made by someone playing rather than by a generated route.
+What that argument has to carry has shrunk. Correctness no longer rests on the
+recordings: five of the six commands are held to the part directly, over inputs
+chosen rather than observed, with a part built fresh for each case.
+
+| command | held to the part by | over |
+|---|---|---|
+| tile | [`tools/verify_commands.py`](tools/verify_commands.py) | random 32 byte payloads |
+| transparent | [`tools/verify_merge.py`](tools/verify_merge.py) | every colour, through the merge |
+| merge | [`tools/verify_merge.py`](tools/verify_merge.py) | every declared length to 80 |
+| mirror | [`tools/verify_commands.py`](tools/verify_commands.py) | every declared length to 80 |
+| multiply | [`tools/verify_multiply.py`](tools/verify_multiply.py) | the corners and 120 seeded pairs |
+| scale | not yet | |
+
+The mirror shows what this buys. One recorded route of thirty thousand frames
+contains **not a single mirror**, and the routines are checked against the part
+on eighty of them regardless.
+
+What the recordings still settle, and nothing else does, is which inputs the
+cartridge actually sends. That is what the cost figures are weighted by, and it
+is why this entry stays open rather than closing.
+
+**What would settle it:** for correctness, the scale command, the one of six not
+yet held to the part directly. For which inputs occur, a run that reaches every
+screen, or a recording made by someone playing rather than by a generated route.
 
 ## The recordings are an emulator's reimplementation, not the part
 

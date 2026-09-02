@@ -54,6 +54,7 @@ ignore = [
 # or a refusal from the loader, it becomes the report rather than a traceback.
 "tools/verify_multiply.py" = ["BLE001"]
 "tools/verify_merge.py" = ["BLE001"]
+"tools/verify_commands.py" = ["BLE001"]
 
 [tool.coverage.run]
 branch = true

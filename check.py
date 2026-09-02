@@ -59,6 +59,7 @@ GATES = (
     Gate("similarity", ["python3", "similarity.retail.test.py"], needs_image=True),
     Gate("multiply", ["python3", "tools/verify_multiply.py"], needs_image=True),
     Gate("merge", ["python3", "tools/verify_merge.py"], needs_image=True),
+    Gate("tile and mirror", ["python3", "tools/verify_commands.py"], needs_image=True),
 )
 
 
