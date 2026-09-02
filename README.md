@@ -78,8 +78,8 @@ counts the stores and block moves and not the time the game spent spinning on a 
 waiting for an answer, which nobody here can measure.
 
 What it costs a player is a separate measurement. Driving both cartridges along the same route for
-30,000 frames, eight minutes of walking and turning, 29,942 frames are drawn the same. The conversion
-reaches the title screen 55 frames later, and after that never falls a frame behind. Timing the
+30,000 frames, eight minutes of walking and turning, 29,941 frames are drawn the same. The conversion
+reaches the title screen 56 frames later, and after that never falls a frame behind. Timing the
 dungeon redraw directly, over 139 of them, both cartridges settle in 26 frames and the conversion was
 slower on none: the game paces that redraw itself, and both the chip and the routines finish inside
 it. [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries both measurements, what each cannot say, and the

@@ -67,16 +67,19 @@ once and clears:
 
 | from frame | frames behind |
 |--:|--:|
-| 0 | 61 |
+| 0 | 56 |
 | 3,806 | 0 |
 | 11,290 | 0 |
 | 18,774 | 0 |
 | 26,258 | 0 |
 
-**29,936 of the 30,000 frames were drawn the same.** A conversion that is
-steadily slower falls further behind every frame. This one loses one second on
+**29,941 of the 30,000 frames were drawn the same.** A conversion that is
+steadily slower falls further behind every frame. This one loses just under a second on
 the first dungeon draw and then does not lose another frame for the remaining
 twenty six thousand.
+
+Re-measured on the build that carries the corrected multiply and scale, since a
+figure taken before a change describes code nobody ships.
 
 The route is not a light one. Over 12,000 frames it provokes 33,994,917 chip
 events; the random walk the recordings came from provokes 31,471,694 over the
