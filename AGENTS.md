@@ -242,6 +242,66 @@ and booted to black.
   [`tools/placement.py`](tools/placement.py), which reads the addresses out of
   the assembly rather than repeating them.
 
+## Bound the domain before building a table, never after
+
+A table keyed on values taken from a recording covers the recording and nothing
+else. That is not a small caveat, it is the whole behaviour of the thing: a
+recorded-set table answers the run it was built from perfectly and answers a run
+it has not seen almost never. Measure it and the gap is not subtle. Splitting one
+recording in half and asking the second half what the first half learned, this
+project's table answered 7.2% of calls. Asking it a different recording of the
+same demo it answered 91.4%, and that number is worse than useless without the
+first one beside it: the recordings are the same attract sequence, so the 91.4%
+measures repetition and not coverage.
+
+So the domain comes first, and it comes from the code.
+
+**Do this in order, per calculation, before a single row is written.**
+
+1. **Read the part's own program for what bounds each input.** A table lookup
+   with a fixed size bounds its index. A mask bounds a word. A shift bounds a
+   magnitude. A clamp bounds both ends. These are true bounds, independent of
+   any recording, and they are the only kind that is.
+
+2. **Read the calling code for what it can compose.** An argument built from a
+   fixed table, a constant, or a quantised angle has a domain the caller decides
+   and the image holds. This closes for the same reason the command census
+   closes: it is a property of the image, not of a run.
+
+3. **Size an exhaustive table over that domain.** Both the span of each word and
+   the set of distinct values it can take, because they give very different
+   answers when an input is quantised. This project has an argument whose span is
+   32,769 and whose value set is seven, and the two sizings differ by four orders
+   of magnitude.
+
+4. **Choose per calculation, and record which case it is.**
+
+   | case | what to build |
+   |---|---|
+   | the exhaustive table fits | build it. No miss is possible, and the fallback behind it becomes unreachable rather than merely unlikely |
+   | it does not fit, but the arithmetic is readable | read the arithmetic. A routine covers the whole domain and costs no space |
+   | neither | a recorded-set table, and say plainly that it covers the recording and what the holdout rate is |
+
+5. **Publish the holdout for every calculation in the third case.** Build the
+   table from part of the recordings and ask it the rest. A coverage figure with
+   no holdout beside it is a claim about the data it was built from.
+
+**A recorded-set table is the last resort, never the first move.** Reaching for
+one before steps 1 to 3 have been done produces a table that looks finished,
+measures well against its own inputs, and fails on a player. The failure is
+silent, because a fallback answers and nothing reports that it did.
+
+**Weight the effort by traffic, not by command count.** Three commands here are
+77% of all calls. Making a rare command exhaustive while a heavy one is guessing
+from its nearest neighbour is work in the wrong place.
+
+**A miss is not the same as a wrong answer, and both get measured.** When a
+fallback takes the nearest row, how near it is varies by orders of magnitude
+between calculations: measured on real misses here, one command's nearest row is
+never more than 26 out and another's is 23,154 out. The first is a near miss and
+the second is noise. Which is which decides whether a recorded-set table is
+tolerable for that calculation at all.
+
 ## Where the open questions are
 
 [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md). Anything not yet settled by measurement
