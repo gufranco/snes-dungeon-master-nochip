@@ -20,12 +20,6 @@ def build_image_command() -> list[str]:
 
 
 def patch_command(work_dir: Path | str, patch_name: str, rom_name: str) -> list[str]:
-    """What assembling shells out to, asking for the label table as well.
-
-    The table is emitted on a pass of its own and only when asked for, so a
-    build without this flag leaves whatever the last one wrote. Anything that
-    then enters a routine by name enters it where it used to be.
-    """
     return [
         "docker",
         "run",
@@ -42,11 +36,6 @@ def patch_command(work_dir: Path | str, patch_name: str, rom_name: str) -> list[
 
 
 def staged_path(patch: Path | str, output_name: str) -> Path:
-    """Where the assembler's output lands, which is beside the source it assembles.
-
-    The container mounts that directory and nothing else, so the image is
-    written there rather than wherever the caller wants it afterwards.
-    """
     return Path(patch).resolve().parent / output_name
 
 
@@ -63,7 +52,6 @@ def run(
     execute: Callable[[list[str]], int] | None = None,
     say: Callable[[str], None] = print,
 ) -> int:
-    """One command, printed before it runs so a failing build says what it ran."""
     say("  $ " + " ".join(args))
     if execute is None:
         return subprocess.run(args, text=True, check=False).returncode
@@ -80,7 +68,6 @@ def main(
     say: Callable[[str], None] = print,
     complain: Callable[[str], None] | None = None,
 ) -> int:
-    """The command line, with the shelling out passed in so it can be checked."""
     argv = sys.argv if argv is None else argv
     complain = say if complain is None else complain
 

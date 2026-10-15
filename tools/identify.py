@@ -153,7 +153,6 @@ def main(
     say: Callable[[str], None] = print,
     complain: Callable[[str], None] | None = None,
 ) -> int:
-    """Every declared dump checked, with both streams passed in so a run can be tested."""
     complain = say if complain is None else complain
     manifest = read_manifest() if manifest is None else manifest
 

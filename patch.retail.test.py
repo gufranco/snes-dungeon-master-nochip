@@ -36,16 +36,6 @@ SYMBOLS = """; wla symbolic information file
 """
 
 
-"""The checks that need the cartridge itself.
-
-Nobody may distribute that dump, so on a machine without it every one of
-these reports as skipped. They live apart from the rest because a coverage
-gate cannot be met by a file whose paths depend on what a machine holds:
-one machine runs these and another runs none of them, and no single build
-can exercise both.
-"""
-
-
 @unittest.skipUnless(RETAIL.exists(), "the retail dump is supplied by the builder")
 class RetailTest(unittest.TestCase):
     @override
@@ -91,14 +81,6 @@ class RetailTest(unittest.TestCase):
 
 
 class UnknownSiteTest(unittest.TestCase):
-    """A kind nobody wrote a case for is refused rather than passed over.
-
-    Returning the image unchanged would leave that access still pointing at a
-    chip the finished cartridge does not have, and nothing downstream would say
-    so: the build would succeed and the game would reach for hardware that is
-    not there.
-    """
-
     def test_a_site_of_an_unknown_kind_is_refused(self) -> None:
         site = sites.Site(kind="something nobody wrote", offset=0, address=0x8000, bank=0)
 
@@ -115,8 +97,6 @@ class UnknownSiteTest(unittest.TestCase):
 
 
 class SymbolReadingTest(unittest.TestCase):
-    """What asar emits is not always a symbol, and the reader says which is which."""
-
     def test_a_line_with_an_unreadable_address_is_passed_over(self) -> None:
         found = patch.read_symbols("zz:zzzz  nonsense\n00:8000  real")
 

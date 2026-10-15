@@ -23,14 +23,6 @@ similarity = load_module("similarity", ROOT / "similarity.py")
 
 
 class SimilarityTest(unittest.TestCase):
-    """What the cartridge somebody plays keeps of the dump it came from.
-
-    The patch has its own check that it stays inside the instructions it names,
-    and it passes. This runs against the other end: the image after the routines
-    are placed, the accesses redirected and the header rewritten, which is three
-    steps further on and is the thing that reaches a player.
-    """
-
     @override
     def setUp(self) -> None:
         reason = assembled.stale()

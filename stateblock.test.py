@@ -18,8 +18,6 @@ stateblock = load_module("stateblock", ROOT / "stateblock.py")
 
 
 class ReadingTest(unittest.TestCase):
-    """The fields the assembly declares, as offsets and widths."""
-
     def test_it_reads_a_field_and_its_offset(self) -> None:
         found = stateblock.fields("!S_STAGE        = $00           ; 0 idle\n")
 
@@ -77,8 +75,6 @@ class ReadingTest(unittest.TestCase):
 
 
 class OverlapTest(unittest.TestCase):
-    """Two fields that share a byte, which is the failure this exists to catch."""
-
     def test_fields_that_do_not_touch_are_clear(self) -> None:
         self.assertEqual(stateblock.overlaps({"a": (0, 1), "b": (1, 1)}), [])
 
@@ -99,8 +95,6 @@ class OverlapTest(unittest.TestCase):
 
 
 class BlockTest(unittest.TestCase):
-    """The block as the assembly actually declares it."""
-
     def test_no_two_fields_share_a_byte(self) -> None:
         found = stateblock.overlaps(stateblock.fields(stateblock.SOURCE.read_text()))
 

@@ -186,8 +186,6 @@ class CartridgeTest(unittest.TestCase):
 
 
 class BeneathTest(unittest.TestCase):
-    """That what this is built on is examined too, and under its own name."""
-
     def test_the_models_that_carry_a_doctor_are_asked_for_theirs(self) -> Any:
         def beneath() -> Any:
             return [("snes-dsp-python", doctor.Finding("python", True, "some version"))]
@@ -219,8 +217,6 @@ class BeneathTest(unittest.TestCase):
 
 
 class AskingEachTest(unittest.TestCase):
-    """Which models get asked for a report, and which are passed over."""
-
     def _a_doctor(self, findings: Any) -> Any:
         return type("Underneath", (), {"examine": staticmethod(lambda: findings)})
 

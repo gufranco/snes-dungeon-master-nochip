@@ -266,8 +266,6 @@ class ShippedManifestTest(unittest.TestCase):
 
 
 class EntryTest(unittest.TestCase):
-    """A run from the command line, with the manifest passed in."""
-
     def _manifest(self, artifacts: Any) -> Any:
         return {"decides": "sha256", "artifacts": artifacts, "known_bad": [], "not_this": []}
 
@@ -320,8 +318,6 @@ class EntryTest(unittest.TestCase):
 
 
 class HintTest(unittest.TestCase):
-    """What to do about a dump that is here and wrong, which is the useful case."""
-
     def _finding(self, state: Any) -> Any:
         return ident.Finding("Something", "a.sfc", state, "", None, None)
 

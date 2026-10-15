@@ -22,15 +22,6 @@ dt = load_module("dsptrace", ROOT / "dsptrace.py")
 
 
 class Puppet:
-    """A part that answers what it was told to answer.
-
-    The real check runs the cartridge's trace against the cartridge's own
-    microcode, which belongs to whoever made the part and is on nobody's build
-    machine. That check is a script, not a test. What the tests here pin is the
-    replaying: that a write goes to the part, that a read is compared, and that a
-    disagreement is counted and reported rather than passed over.
-    """
-
     def __init__(self, answers: Any = ()) -> None:
         self.answers = list(answers)
         self.written: list[Any] = []
@@ -43,8 +34,6 @@ class Puppet:
 
 
 class Exchange:
-    """One transaction, the shape the check now walks."""
-
     def __init__(
         self,
         command: int = 0x09,
@@ -93,12 +82,6 @@ def trace_bytes(writes: Any = (), reads: Any = ()) -> Any:
 
 
 def multiply_trace(answer: Any = (0x11, 0x22, 0x33, 0x44), how_many: int = 1) -> Any:
-    """A recording of that many complete multiplies, which the parser will finish.
-
-    A command with fewer bytes than the protocol says it takes never completes,
-    so the check passes it over and reports nothing, which is not what these
-    tests mean to exercise.
-    """
     one = trace_bytes(writes=(0x09, 0x00, 0x00, 0x00, 0x00), reads=tuple(answer))
     return one * how_many
 
@@ -354,8 +337,6 @@ class MainTest(unittest.TestCase):
 
 
 class ProgressTest(unittest.TestCase):
-    """A run long enough to outlive a session has to say where it has got to."""
-
     @override
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()

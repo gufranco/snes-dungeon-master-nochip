@@ -174,8 +174,6 @@ class ResidueTest(unittest.TestCase):
 
 
 class SyntheticImageTest(unittest.TestCase):
-    """The whole pass over an image, on one built here rather than on a cartridge."""
-
     def _image(self) -> Any:
         image = bytearray(0x10000)
         image[0x1000 : 0x1000 + len(sites.STA_PORT)] = sites.STA_PORT

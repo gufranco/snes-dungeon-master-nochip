@@ -1,16 +1,3 @@
-"""That the environment checks look at this machine rather than describe one.
-
-Every check here has to work on Windows, macOS and Linux, and none of them may
-assume which one it is running on. So the tests drive each check twice: once
-against a machine that is fine and once against one that is not, with the
-platform, the filesystem and the tools all supplied rather than discovered. A
-check that cannot be made to fail is a check nobody has seen work.
-
-The one thing not faked is the current machine, which every check is also run
-against at the end. That run asserts shape rather than outcome: it must produce
-an observation for everything, and it must not raise, whatever it finds.
-"""
-
 import importlib.util
 import sys
 import tempfile

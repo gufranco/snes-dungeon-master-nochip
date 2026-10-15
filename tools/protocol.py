@@ -40,17 +40,9 @@ HEADER_INPUT = {
     MULTIPLY: MULTIPLY_BYTES,
     SCALE: 2,
 }
-"""How many bytes each command wants before it first acts, lengths included.
-
-A merge, a mirror and a scale ask for their lengths first and their data after,
-so they appear here with only the length bytes and take the rest once they know
-how much to take.
-"""
 
 
 class Shape:
-    """Where a stream of bytes has got to, and what the part owes because of it."""
-
     def __init__(self) -> None:
         self.command = None
         self.waiting_for_command = True
@@ -65,31 +57,21 @@ class Shape:
 
     @property
     def produced(self) -> Any:
-        """How many bytes of a finished result have not been read yet."""
         return self.owed
 
     @property
     def expecting_input(self) -> bool:
-        """Whether the part is still owed bytes before it can act."""
         return not self.waiting_for_command
 
     @property
     def at_boundary(self) -> bool:
-        """Whether a fresh part could take over here without losing anything.
-
-        True when the stream is between commands and no result is waiting. A
-        driver that breaks anywhere else splits a command from its payload, or
-        its payload from its answer, and the part it hands over to knows neither.
-        """
         return self.waiting_for_command and self.owed == 0
 
     def was_read(self) -> None:
-        """One byte of the result taken by whoever is driving."""
         if self.owed:
             self.owed -= 1
 
     def wrote(self, value: Any) -> None:
-        """One byte given to the part, and what that leaves it owing."""
         value &= 0xFF
 
         if self.waiting_for_command:
@@ -109,7 +91,6 @@ class Shape:
             self._acted(value)
 
     def _headers(self) -> Any:
-        """The length bytes this command declares before its data."""
         if self.command in (MERGE, MIRROR):
             return (0,)
         if self.command == SCALE:
@@ -117,12 +98,6 @@ class Shape:
         return ()
 
     def _arm(self, wanted: Any, value: Any) -> None:
-        """Take the lengths, then decide whether data follows them.
-
-        A non zero length means data comes next. A zero length leaves the part
-        waiting for a command with the length still held, so the next appearance
-        of that command runs immediately on the length it was already given.
-        """
         self.taken = 0
         self.wanted = wanted
         self._reading_lengths = False
@@ -150,7 +125,6 @@ class Shape:
         return self._lengths[0] if self._lengths else 0
 
     def _sized(self, command: Any, payload_for: Any, value: Any) -> None:
-        """A merge or a mirror: its length once, then that much data."""
         if self._armed.pop(command, None) is not None:
             self.owed = self._held[command]
             return
@@ -160,7 +134,6 @@ class Shape:
         self._arm(payload_for(length), value)
 
     def _scaled(self, value: Any) -> None:
-        """A scale: two lengths, then half the first rounded up in data."""
         if self._armed.pop(SCALE, None) is not None:
             self.owed = self._held["scale_out"]
             return

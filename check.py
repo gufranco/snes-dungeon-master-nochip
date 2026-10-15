@@ -1,17 +1,3 @@
-"""Every gate this project holds itself to, in one pass.
-
-They were run by hand, one command each, and the list of them lived in a
-document. That has two costs. One is remembering: a change lands with the tests
-run and the formatter forgotten, and the runner finds it. The other is worse and
-quieter, because the versions drift. Reporting coverage with a newer build than
-the one that recorded it named four lines uncovered that were not, and an hour
-went into looking for a gap that did not exist. Every gate here names the version
-it runs, and it is the version the runner installs.
-
-The deeper gates need the cartridge, so they need what nobody may distribute.
-They are skipped, out loud, on a machine without it rather than quietly passing.
-"""
-
 import subprocess
 import sys
 from collections.abc import Callable
@@ -31,8 +17,6 @@ MODULES = "*.test.py tools/*.test.py conformance/*.test.py"
 
 
 class Gate(NamedTuple):
-    """One check, what it runs, and whether it needs the cartridge."""
-
     name: str
     command: list[str]
     needs_image: bool = False
@@ -43,7 +27,6 @@ COVERED = (
     f'python3 -m coverage run -a "$one" || status=1; done && '
     f"python3 -m coverage report && exit $status"
 )
-"""Recording and reporting with one build, because two disagree about class bodies."""
 
 GATES = (
     Gate("lint", ["uvx", RUFF, "check", "."]),
@@ -73,7 +56,6 @@ def main(
     execute: Any = _shell_out,
     ready: Any = None,
 ) -> int:
-    """Every gate, run in order, with the one that failed named."""
     ready = assembled.ready if ready is None else ready
 
     quick = False

@@ -37,8 +37,6 @@ RESULT load=ok frames=8000 delivered=8000 dspevents=0 brightness=0.0000
 
 
 class ReadingTest(unittest.TestCase):
-    """What the emulator says about a run, as numbers."""
-
     def test_it_reads_the_coprocessor_the_header_declares(self) -> None:
         self.assertEqual(boot.read(CLEAN)["dsp"], 0)
 
@@ -59,8 +57,6 @@ class ReadingTest(unittest.TestCase):
 
 
 class VerdictTest(unittest.TestCase):
-    """Whether a run is one this project can stand behind."""
-
     def test_a_clean_run_has_nothing_to_report(self) -> None:
         self.assertEqual(boot.faults(boot.read(CLEAN), 8000), [])
 
@@ -91,8 +87,6 @@ class VerdictTest(unittest.TestCase):
 
 
 class CommandTest(unittest.TestCase):
-    """The command line."""
-
     def test_a_missing_cartridge_is_reported_rather_than_run(self) -> None:
         said: list[str] = []
 
@@ -144,8 +138,6 @@ class CommandTest(unittest.TestCase):
 
 
 class RealShellTest(unittest.TestCase):
-    """The path that actually shells out, run against a command that does nothing."""
-
     def test_it_runs_the_command_and_hands_back_what_it_returned(self) -> None:
         found = boot._shell_out(["true"])
 
@@ -153,8 +145,6 @@ class RealShellTest(unittest.TestCase):
 
 
 class InputTest(unittest.TestCase):
-    """The input the run is driven with, which the run writes for itself."""
-
     def test_the_script_is_there_before_the_emulator_starts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             where = Path(tmp)
@@ -186,8 +176,6 @@ class InputTest(unittest.TestCase):
 
 
 class ShellingOutTest(unittest.TestCase):
-    """The command that reaches the emulator."""
-
     def test_it_runs_without_network(self) -> None:
         args = boot.run_command(Path("/w"), "dm.sfc", 8000)
 

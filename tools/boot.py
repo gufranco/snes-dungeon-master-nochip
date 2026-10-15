@@ -1,19 +1,3 @@
-"""Whether the finished cartridge runs, and runs without a coprocessor.
-
-Every other check here asks whether a routine answers correctly. None of them
-asks whether the cartridge that ships still wants the chip, and that turns out
-to be the one failure the screen cannot show. An image with the replacement
-assembled into it and the accesses not redirected boots, plays and looks
-perfect, because an emulator reads a header still declaring a DSP-2, provides
-one and serves every request itself.
-
-So this reads what the emulator says rather than what it draws. Four things have
-to hold: the header declares no coprocessor, nothing asked one for anything, the
-run reached the frame it was sent to, and the screen ended up lit. The last is
-there because the other three all pass on an image that boots to a black screen,
-which is what the first wrong placement of the state block produced.
-"""
-
 import importlib.util
 import re
 import subprocess
@@ -26,7 +10,6 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def _load_beside(name: str) -> Any:
-    """A module that sits next to this one, loaded the way the tools load each other."""
     where = Path(__file__).resolve().parent / f"{name}.py"
     spec = importlib.util.spec_from_file_location(name, where)
     assert spec is not None and spec.loader is not None, "no loader for that path"
@@ -44,22 +27,13 @@ DEFAULT_CARTRIDGE = ROOT / "build" / "Dungeon Master (USA) (nochip).sfc"
 DEFAULT_FRAMES = 8000
 
 SCRIPT = "boot.script"
-"""The input the run is driven with, which this writes before the run.
-
-It used to be a file the caller was expected to have put there, which nothing in
-this repository produced. Without it the cartridge sits on the title screen for
-the whole run, and a check that only asks whether the screen lit would have
-passed on that.
-"""
 
 DARK = 1.0
-"""Below this the screen never lit, whatever else the run reported."""
 
 NUMBERS = re.compile(r"(\w+)=(-?\d+(?:\.\d+)?)")
 
 
 def read(output: str) -> dict[str, float]:
-    """Every number the emulator printed about the run, by the name it gave it."""
     found: dict[str, float] = {}
     for line in output.splitlines():
         if not line.startswith(("ROM title=", "RESULT ")):
@@ -70,7 +44,6 @@ def read(output: str) -> dict[str, float]:
 
 
 def faults(numbers: dict[str, float], frames: int) -> list[str]:
-    """Every way this run failed to be a cartridge that needs no chip."""
     if not numbers:
         return ["the emulator said nothing this could read"]
 
@@ -87,13 +60,6 @@ def faults(numbers: dict[str, float], frames: int) -> list[str]:
 
 
 def run_command(work: Path, cartridge: str, frames: int) -> list[str]:
-    """What running the cartridge shells out to.
-
-    The directory is resolved because a relative one is not a directory to
-    Docker, it is the name of a volume. Asked for a volume nobody created it
-    makes an empty one, mounts that, and the emulator reports it cannot read a
-    cartridge that is plainly there.
-    """
     return [
         "docker",
         "run",
@@ -118,7 +84,6 @@ def main(
     say: Callable[[str], None] = print,
     execute: Any = _shell_out,
 ) -> int:
-    """One run of the finished cartridge, and what the emulator made of it."""
     cartridge = DEFAULT_CARTRIDGE if len(argv) < 2 else Path(argv[1])
     frames = DEFAULT_FRAMES if len(argv) < 3 else int(argv[2])
 

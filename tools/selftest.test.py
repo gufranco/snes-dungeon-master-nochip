@@ -101,16 +101,6 @@ class OutputSizeTest(unittest.TestCase):
 
 
 class Puppet:
-    """A part that counts up, so what the case machinery did is visible.
-
-    What a real DSP-2 answers is settled by running the cartridge's own
-    microcode, which is a script rather than a test because that program is on
-    nobody's build machine. What these tests pin is the machinery around it: that
-    a case feeds the command, its lengths and its payload in that order, reads
-    back exactly as many bytes as the command declares, and carries one part
-    through a run so state set by one case reaches the next.
-    """
-
     def __init__(self) -> None:
         self.written: list[Any] = []
         self.given = 0
@@ -195,8 +185,6 @@ class MirrorSizeTest(unittest.TestCase):
 
 
 class ModelTest(unittest.TestCase):
-    """That the part a case is answered by is the one the cartridge carries."""
-
     def test_it_asks_the_model_for_that_part(self) -> None:
         asked: list[Any] = []
         made_up = type("Model", (), {"Chip": staticmethod(asked.append)})

@@ -1,17 +1,3 @@
-"""That the record and the document still say the same thing.
-
-Two files describe what this project does not know: one for a person and one for
-a program. They drift in a particular direction. An entry gets added to the
-record and not to the document, and the document quietly becomes a claim that the
-project knows more than it does, which is the failure it exists to prevent.
-
-So every live entry has to be findable in the prose, every closed one has to stay
-in the record rather than being deleted, and an entry that is still open has to
-name the measurement that would close it. The phrase each entry is found by is
-stored in the record rather than derived from the identifier, because an
-identifier turned into a heading by rule is a rule nobody maintains.
-"""
-
 import json
 import sys
 import unittest
@@ -35,21 +21,8 @@ SECTIONS_THAT_ARE_NOT_ENTRIES = (
     "What is closed, and why it is worth saying",
     "Boundaries, so nobody mistakes them for gaps",
 )
-"""Headings in the document that summarise rather than raise a question.
-
-Everything else under a second level heading is a question, and a question the
-record has never heard of is the drift this file exists to catch. The check ran
-in one direction only until a section describing three commands that answer
-differently sat in the prose with no entry beside it, and nothing said so.
-"""
 
 LIVE = ("open", "narrowed", "acknowledged")
-"""The statuses that mean a reader still has something to worry about.
-
-`closed` is settled, and the two boundary statuses were never questions. Those
-three are the ones the document has to carry, and the ones a count should move
-when work lands.
-"""
 
 
 def held() -> dict[str, Any]:

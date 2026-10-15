@@ -1,23 +1,3 @@
-"""The merge, checked against the part at every length the cartridge can reach.
-
-Replaying a recording cannot settle this. A recording holds the emulator's
-answers, and only five distinct declared lengths appear in the whole of one, the
-largest of them 30. So the check here does what the multiply check does: it asks
-the part directly, over every declared length from one upward, and feeds those
-answers to the routines on the processor.
-
-The part and the rule the routines follow agree exactly from a declared length of
-one to eighty. Above eighty they part company, and the part is the one doing
-something unusual: it emits a byte before the run and then drifts, which is the
-shape of a buffer that has run out rather than of different arithmetic. snes9x's
-own source says the same thing in a comment, that the hardware does strange
-things if the size is varied.
-
-So this stops at eighty. That is not a check avoiding the hard case: it is the
-boundary of what the cartridge can ask for, and what lies beyond it is recorded
-as an open question rather than papered over here.
-"""
-
 import random
 import sys
 from collections.abc import Callable
@@ -30,11 +10,6 @@ COLOUR_COMMAND = 0x03
 MERGE_COMMAND = 0x05
 
 SAFE_LENGTH = 80
-"""The longest declared length at which the part and the rule still agree.
-
-Measured, not chosen: they agree on every length from 1 to 80 and on none from
-81 to 199. The largest merge in 60,000 recorded exchanges declares 30.
-"""
 
 SEED = 41
 
@@ -47,11 +22,6 @@ class Case(NamedTuple):
 
 
 def expected(colour: int, first: bytes, second: bytes) -> bytes:
-    """The overlay the part performs, a nibble at a time.
-
-    A nibble of the second bitmap that equals the transparent colour lets the
-    first bitmap's nibble through. Every other nibble is the second bitmap's.
-    """
     wanted = colour & 0x0F
     return bytes(
         ((one & 0xF0) if (two >> 4) == wanted else (two & 0xF0))
@@ -61,7 +31,6 @@ def expected(colour: int, first: bytes, second: bytes) -> bytes:
 
 
 def cases(per_length: int) -> list[Case]:
-    """That many bitmaps at every length the cartridge can declare."""
     picked = random.Random(SEED)
     out: list[Case] = []
     for length in range(1, SAFE_LENGTH + 1):
@@ -78,7 +47,6 @@ def cases(per_length: int) -> list[Case]:
 
 
 def runs_for(pairs: Any, answer: Callable[[Case], bytes]) -> list[Any]:
-    """Each case as the cartridge would send it, and what the part gives back."""
     out: list[Any] = []
     for one in pairs:
         out.append(
@@ -94,7 +62,6 @@ def runs_for(pairs: Any, answer: Callable[[Case], bytes]) -> list[Any]:
 
 
 def answer_from(build_chip: Callable[[], Any], one: Case) -> bytes:
-    """One merge put to a part the caller builds."""
     part = build_chip()
     part.write(COLOUR_COMMAND)
     part.write(one.colour)

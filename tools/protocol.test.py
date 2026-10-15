@@ -126,8 +126,6 @@ class ReadingTest(unittest.TestCase):
 
 
 class TransparentTest(unittest.TestCase):
-    """The one value the driver has to remember, because a batch boundary loses it."""
-
     def test_a_fresh_stream_has_not_been_told_a_colour(self) -> None:
         self.assertIsNone(protocol.Shape().transparent)
 
@@ -141,8 +139,6 @@ class TransparentTest(unittest.TestCase):
 
 
 class ArmingTest(unittest.TestCase):
-    """That a length given once is used by the next appearance of its command."""
-
     def test_a_merge_length_given_with_no_payload_arms_the_next_merge(self) -> None:
         shape = feed(protocol.Shape(), protocol.MERGE, 0)
 

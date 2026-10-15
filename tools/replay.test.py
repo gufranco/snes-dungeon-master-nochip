@@ -20,11 +20,9 @@ replay = load_module("replay", ROOT / "tools" / "replay.py")
 
 
 Finished = namedtuple("Finished", "returncode stdout stderr")
-"""What a finished shell command looks like to the caller that started it."""
 
 
 def keeping(dump: Path) -> Any:
-    """A stand-in for the emulator that leaves the dump the caller staged."""
     written = dump.read_bytes()
 
     def _run(_args: Any) -> Any:
@@ -35,7 +33,6 @@ def keeping(dump: Path) -> Any:
 
 
 def _capture(seen: list[Any], make: Any) -> Any:
-    """A stand-in for one batch run that keeps the batch it was handed."""
 
     def _run(_build: Any, _skeleton: Any, batch: Any) -> Any:
         seen.append(batch)
@@ -161,13 +158,6 @@ class BatchTest(unittest.TestCase):
 
 
 class StatefulBatchTest(unittest.TestCase):
-    """Where a batch may break, which is a question about shape rather than values.
-
-    Nothing here asks a part what it computes. It asks the stream where a fresh
-    cartridge could take over, which is the one thing a batch boundary has to get
-    right, and that is tracked from the bytes themselves.
-    """
-
     def chip(self) -> Any:
         return replay.protocol.Shape()
 
@@ -224,7 +214,6 @@ class StatefulBatchTest(unittest.TestCase):
 
 
 def define(name: str, source: Path) -> int:
-    """One of the assembler's `!NAME = $hex` defines, as a number."""
     for line in source.read_text().splitlines():
         head, _, tail = line.partition("=")
         if head.strip() != name:
@@ -234,8 +223,6 @@ def define(name: str, source: Path) -> int:
 
 
 class CounterAddressTest(unittest.TestCase):
-    """That the counters this reads and the counters the cartridge writes are one place."""
-
     def test_the_counter_base_matches_the_cartridge(self) -> None:
         self.assertEqual(replay.STATE, define("!R_STATE", ROOT / "asm" / "dsp2-replay.asm"))
 
@@ -461,8 +448,6 @@ class EntryTest(unittest.TestCase):
 
 
 class ShellingOutTest(unittest.TestCase):
-    """What the two Docker commands are, checked without Docker."""
-
     def test_assembling_names_the_pinned_assembler_and_the_source(self) -> None:
         found = replay.assemble_command(Path("/root"), Path("/build"))
 
@@ -589,8 +574,6 @@ class ShellingOutTest(unittest.TestCase):
 
 
 class RealShellTest(unittest.TestCase):
-    """The path that actually shells out, run against a command that does nothing."""
-
     def test_it_runs_the_command_and_hands_back_what_it_returned(self) -> None:
         found = replay._shell_out(["true"])
 

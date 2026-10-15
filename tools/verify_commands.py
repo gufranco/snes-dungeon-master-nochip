@@ -1,21 +1,3 @@
-"""The tile, the mirror and the scale, checked against the part rather than a recording.
-
-The recordings settle what the cartridge asked for. They cannot settle what the
-answer should be, because they hold an emulator's answers, and no single one of
-them even reaches all six commands: one route of thirty thousand frames produces
-no mirror at all.
-
-So this asks the part, over inputs chosen rather than observed, and feeds those
-answers to the routines on the processor. There is no rule written down here for
-either command. Both are held to the part directly, which is the highest thing
-this project can reach and removes any question of a transcription being wrong.
-
-The mirror stops at the same declared length the merge does. The two share the
-protocol's length byte and the part's buffer, and beyond that length the part
-does something the routines do not follow, which is recorded as an open question
-rather than hidden by a check that avoids it.
-"""
-
 import random
 import sys
 from collections.abc import Callable
@@ -29,33 +11,15 @@ MIRROR = 0x06
 SCALE = 0x0D
 
 TILE_BYTES = 32
-"""What a tile takes and gives, which the protocol fixes rather than declares."""
 
 SAFE_LENGTH = 80
 
 SCALE_PAIRS = ((72, 38), (120, 80))
-"""The only two length pairs the cartridge asks a scale for, counted in nibbles.
-
-One recorded tour asks for these two across 10,422 calls and for nothing else.
-These are the shapes the cases below use, and the only ones a check here claims
-anything about. A scale given a pair the cartridge never sends reaches code paths
-the routines get wrong, and those are recorded as open questions rather than
-hidden by a check that avoids them.
-"""
 
 SEED = 17
 
 
 PREAMBLE = {TILE: 1, MIRROR: 0, SCALE: 0}
-"""How many bytes the part offers before the answer, per command.
-
-Measured. A tile is preceded by one byte the cartridge's own read pattern
-accounts for and which is not part of the answer: skipping it reproduces 200 of
-200 recorded tiles, and not skipping it reproduces none. A mirror has no such
-byte. It is a property of the protocol rather than of the arithmetic, and it is
-the single thing that made a byte driven replay of a whole trace impossible to
-keep in step.
-"""
 
 
 class Case(NamedTuple):
@@ -66,7 +30,6 @@ class Case(NamedTuple):
 
 
 def cases(each: int) -> list[Case]:
-    """Tiles at the one width there is, and mirrors across the lengths there are."""
     picked = random.Random(SEED)
     out: list[Case] = []
     for _ in range(each * 8):
@@ -84,7 +47,6 @@ def cases(each: int) -> list[Case]:
 
 
 def answer_from(build_chip: Callable[[], Any], one: Case) -> bytes:
-    """One exchange put to a part the caller builds."""
     part = build_chip()
     part.write(one.command)
     for length in one.lengths:
@@ -97,7 +59,6 @@ def answer_from(build_chip: Callable[[], Any], one: Case) -> bytes:
 
 
 def runs_for(pairs: Any, answer: Callable[[Case], bytes]) -> list[Any]:
-    """Each case as the cartridge would send it, and what the part gives back."""
     out: list[Any] = []
     for one in pairs:
         out.append((0, bytes([one.command, *one.lengths]) + one.payload))

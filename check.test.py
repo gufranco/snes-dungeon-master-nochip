@@ -21,7 +21,6 @@ Finished = namedtuple("Finished", "returncode stdout stderr")
 
 
 def answering(codes: dict[str, int]) -> Any:
-    """A stand-in for shelling out that fails whichever gates are named."""
 
     def _run(args: list[str]) -> Any:
         joined = " ".join(args)
@@ -34,8 +33,6 @@ def answering(codes: dict[str, int]) -> Any:
 
 
 class GateTest(unittest.TestCase):
-    """What a run is made of."""
-
     def test_every_gate_names_itself(self) -> None:
         self.assertTrue(all(one.name for one in check.GATES))
 
@@ -57,8 +54,6 @@ class GateTest(unittest.TestCase):
 
 
 class RunTest(unittest.TestCase):
-    """One pass over the gates."""
-
     def test_a_clean_run_reports_every_gate_and_passes(self) -> None:
         said: list[str] = []
 
@@ -100,8 +95,6 @@ class RunTest(unittest.TestCase):
 
 
 class ImageTest(unittest.TestCase):
-    """The image the deeper gates need."""
-
     def test_a_dump_that_cannot_be_assembled_stops_the_deeper_gates(self) -> None:
         said: list[str] = []
 
@@ -134,8 +127,6 @@ class ImageTest(unittest.TestCase):
 
 
 class QuickTest(unittest.TestCase):
-    """The pass that leaves out what needs a container."""
-
     def test_it_runs_none_of_the_gates_that_shell_into_one(self) -> None:
         ran: list[list[str]] = []
 
@@ -167,8 +158,6 @@ class QuickTest(unittest.TestCase):
 
 
 class RealShellTest(unittest.TestCase):
-    """The path that actually shells out, run against a command that does nothing."""
-
     def test_it_runs_the_command_and_hands_back_what_it_returned(self) -> None:
         self.assertEqual(check._shell_out(["true"]).returncode, 0)
 

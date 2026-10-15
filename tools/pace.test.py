@@ -27,8 +27,6 @@ def written(where: Path, hashes: list[str]) -> Path:
 
 
 class ReadingTest(unittest.TestCase):
-    """The per frame digests, in the order the run produced them."""
-
     def test_it_reads_one_digest_a_frame(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             found = pace.digests(written(Path(tmp) / "h", ["aa", "bb", "cc"]))
@@ -44,8 +42,6 @@ class ReadingTest(unittest.TestCase):
 
 
 class LagTest(unittest.TestCase):
-    """How far behind the converted run is, frame by frame."""
-
     def test_two_identical_runs_never_fall_behind(self) -> None:
         self.assertEqual(pace.lags(["a", "b", "c"], ["a", "b", "c"]), [0, 0, 0])
 
@@ -66,8 +62,6 @@ class LagTest(unittest.TestCase):
 
 
 class VerdictTest(unittest.TestCase):
-    """What the lags add up to."""
-
     def test_a_run_that_kept_up_says_so(self) -> None:
         found = pace.summary([0, 0, 0], 3)
 
@@ -93,8 +87,6 @@ class VerdictTest(unittest.TestCase):
 
 
 class CurveTest(unittest.TestCase):
-    """The shape of the lag across the run."""
-
     def test_a_run_that_never_fell_behind_is_flat_at_nothing(self) -> None:
         found = pace.curve([0] * 8, steps=4)
 
@@ -120,8 +112,6 @@ class CurveTest(unittest.TestCase):
 
 
 class CommandTest(unittest.TestCase):
-    """The command line."""
-
     def test_a_missing_cartridge_is_reported_rather_than_run(self) -> None:
         said: list[str] = []
 
@@ -174,8 +164,6 @@ class CommandTest(unittest.TestCase):
 
 
 class RealShellTest(unittest.TestCase):
-    """The path that actually shells out, run against a command that does nothing."""
-
     def test_it_runs_the_command_and_hands_back_what_it_returned(self) -> None:
         found = pace._shell_out(["true"])
 
@@ -183,8 +171,6 @@ class RealShellTest(unittest.TestCase):
 
 
 class InputTest(unittest.TestCase):
-    """The input both cartridges are driven with, which the run writes for itself."""
-
     def test_the_same_script_is_there_before_either_starts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             where = Path(tmp)
@@ -246,8 +232,6 @@ class InputTest(unittest.TestCase):
 
 
 class ShellingOutTest(unittest.TestCase):
-    """The command that reaches the emulator."""
-
     def test_it_asks_for_the_digests(self) -> None:
         args = pace.run_command(Path("/w"), "dm.sfc", "h.txt", 100)
 

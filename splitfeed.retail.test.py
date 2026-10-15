@@ -27,23 +27,8 @@ MERGE = 0x05
 SET_TRANSPARENT = 0x03
 
 LENGTH = 8
-"""Bytes of background, and of overlay, in the merge these checks drive."""
 
 TRANSPARENT = 0x0A
-
-
-"""The one path no recording reaches: a payload delivered in more than one move.
-
-Every transfer the cartridge makes carries exactly what the command still wants,
-across all four recordings and 4.6 million transactions, so the loop that
-handles a payload arriving in pieces has never run outside these checks. That is
-what made a field collision in the state block invisible: the overlay pointer
-was declared on top of the bank a split transfer re-reads, and only a split
-would have shown it.
-
-These need the assembled image, which needs the dump, so on a machine without
-one they report as skipped.
-"""
 
 
 @unittest.skipUnless(
@@ -60,7 +45,6 @@ class SplitFeedTest(unittest.TestCase):
         self.colour()
 
     def colour(self) -> None:
-        """The transparent colour a merge decides against, set the way the game sets it."""
         cost.measure(
             self.cpu, self.memory, self.names, SET_TRANSPARENT, (), bytes([TRANSPARENT]), 0
         )
@@ -123,18 +107,6 @@ class SplitFeedTest(unittest.TestCase):
         self.assertEqual(self.drain(LENGTH), expected)
 
     def test_one_move_carrying_two_whole_commands_answers_both(self) -> None:
-        """The path the layout collision would have broken, and the only one that reaches it.
-
-        A transfer that overruns one command's payload carries on into the next,
-        and when that next command collects a payload of its own the loop goes
-        back round to the block branch, which re-reads the bank to move from.
-        Splitting a payload across two calls does not reach it: each call sets
-        that bank again on the way in. One call has to do both.
-
-        What is left to read afterwards is the second merge's answer alone.
-        There is one output buffer, and a command that runs spends what the last
-        one left in it, which is what the part does.
-        """
         expected = self.whole()
 
         self.head(MERGE, (LENGTH,))

@@ -24,8 +24,6 @@ SYMBOLS = "; a comment\n[labels]\n9C:E1BF dsp_init\n9C:E202 dsp_write\n00:FBED :
 
 
 class SymbolTest(unittest.TestCase):
-    """Reading the label table the assembler emits."""
-
     def test_a_label_becomes_a_twenty_four_bit_address(self) -> None:
         self.assertEqual(cost.symbols(SYMBOLS)["dsp_init"], 0x9CE1BF)
 
@@ -43,8 +41,6 @@ class SymbolTest(unittest.TestCase):
 
 
 class MemoryTest(unittest.TestCase):
-    """What the harness lets a measured routine reach."""
-
     def machine(self) -> Any:
         return cost.LoRom(bytes(range(256)) * 4096)
 
@@ -103,8 +99,6 @@ class MemoryTest(unittest.TestCase):
 
 
 class RetailCostTest(unittest.TestCase):
-    """What the same exchange cost when a chip answered it."""
-
     def test_a_payload_is_priced_at_the_block_move_rate(self) -> None:
         found = cost.retail_cost("tile", bytes(32), bytes(32))
 
@@ -130,8 +124,6 @@ class RetailCostTest(unittest.TestCase):
 
 
 class ReportTest(unittest.TestCase):
-    """The comparison, and the status it reports."""
-
     def test_a_command_slower_than_retail_still_passes(self) -> None:
         said: list[str] = []
 
@@ -182,8 +174,6 @@ class ReportTest(unittest.TestCase):
 
 
 class CommandTest(unittest.TestCase):
-    """The command line, without a built cartridge on this machine."""
-
     def test_a_missing_cartridge_is_reported_rather_than_opened(self) -> None:
         said: list[str] = []
 
@@ -207,23 +197,9 @@ class CommandTest(unittest.TestCase):
 
 
 SPREAD = 25
-"""Frames between one recorded access and the next, so a spaced sample takes them."""
 
 
 def recorded(frame: int = 900) -> bytes:
-    """A trace holding one whole exchange, so a run has something to measure.
-
-    The frame is past the boot sequence by default, because a run measures what
-    the game asks for once it is playing and passes over what it asks for before
-    that.
-
-    The transparent command is used because it is the shortest the cartridge
-    ever sends: one command byte and one parameter, with nothing to read back.
-    Three of them arrive so a quota can be reached and exceeded, and two syncs
-    sit among them so the same is true of the command that computes nothing.
-    Neither sync ends the stream, because a transaction is closed by whatever
-    follows it and one left at the end would be recorded as incomplete.
-    """
     import dsptrace
 
     rows = [
@@ -245,16 +221,9 @@ def recorded(frame: int = 900) -> bytes:
 
 
 RTL = 0x6B
-"""One instruction, which is all a measured call needs to return from."""
 
 
 def cartridge(routines: dict[int, bytes]) -> bytes:
-    """A cartridge carrying only what a measurement has to run.
-
-    The harness reads through the LoROM window, so a routine is written at the
-    file offset that window reaches, and everything else is left as the $FF a
-    blank cartridge holds.
-    """
     rom = bytearray(b"\xff" * 0x100000)
     for address, code in routines.items():
         bank, offset = (address >> 16) & 0x7F, address & 0xFFFF
@@ -264,8 +233,6 @@ def cartridge(routines: dict[int, bytes]) -> bytes:
 
 
 class MachineTest(unittest.TestCase):
-    """A processor with a cartridge behind it."""
-
     def test_it_starts_out_of_emulation_mode(self) -> None:
         cpu, _ = cost.machine(cartridge({}))
 
@@ -278,8 +245,6 @@ class MachineTest(unittest.TestCase):
 
 
 class EnterTest(unittest.TestCase):
-    """Running one call and counting what it spent."""
-
     def test_a_routine_that_returns_at_once_costs_what_the_return_costs(self) -> None:
         cpu, _ = cost.machine(cartridge({0x9CE000: bytes([RTL])}))
 
@@ -301,8 +266,6 @@ class EnterTest(unittest.TestCase):
 
 
 class MeasureTest(unittest.TestCase):
-    """Delivering one exchange the way the cartridge delivers it."""
-
     def names(self) -> dict[str, int]:
         return {
             "dsp_write": 0x9CE000,
@@ -343,8 +306,6 @@ class MeasureTest(unittest.TestCase):
 
 
 class ProducedTest(unittest.TestCase):
-    """Reading back what the replacement drained."""
-
     def test_it_reads_from_where_the_drain_was_told_to_write(self) -> None:
         _, memory = cost.machine(cartridge({}))
         memory.write8(cost.DESTINATION, 0x5A)
@@ -358,8 +319,6 @@ class ProducedTest(unittest.TestCase):
 
 
 class CollectTest(unittest.TestCase):
-    """What a pass reads out of the recording before it picks anything."""
-
     def a_trace(self) -> Any:
         import tempfile
 
@@ -388,8 +347,6 @@ class CollectTest(unittest.TestCase):
 
 
 class ChosenTest(unittest.TestCase):
-    """Which of the exchanges a pass reads it actually measures."""
-
     def a_window(self, merges: int, colours: int, scales: int) -> list[Any]:
         found = [("merge", 0) for _ in range(merges)]
         found += [("transparent", 0) for _ in range(colours)]
@@ -440,8 +397,6 @@ class ChosenTest(unittest.TestCase):
 
 
 class WholeRunTest(unittest.TestCase):
-    """The command line, over a cartridge and a trace made for the occasion."""
-
     def setUpFiles(self) -> tuple[Path, Path, Path]:
         where = Path(tempfile.mkdtemp())
         rom = where / "probe.sfc"

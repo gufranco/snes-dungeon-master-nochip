@@ -279,8 +279,6 @@ class SummaryTest(unittest.TestCase):
 
 
 class ReportTest(unittest.TestCase):
-    """What a summary reads like, since a summary nobody can read is a number."""
-
     @override
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -367,8 +365,6 @@ class WorkRamTest(unittest.TestCase):
 
 
 class PayloadSizeTest(unittest.TestCase):
-    """Only three commands declare a length, and a fourth is refused."""
-
     def test_a_merge_takes_twice_its_length_and_gives_its_length(self) -> None:
         self.assertEqual(dt._payload_sizes(0x05, (4,)), (8, 4))
 
@@ -379,13 +375,6 @@ class PayloadSizeTest(unittest.TestCase):
         self.assertEqual(dt._payload_sizes(0x0D, (5, 9)), (3, 5))
 
     def test_both_scale_lengths_count_nibbles_rather_than_bytes(self) -> None:
-        """A recorded scale writes 63 bytes and reads 40.
-
-        The 63 are a command, two lengths and ceil(120 / 2) of payload, so the
-        40 read back are ceil(80 / 2). Reading the second length as a count of
-        bytes made the parser wait for twice as many, and absorb the next
-        command's writes into this one's parameters while it waited.
-        """
         self.assertEqual(dt._payload_sizes(0x0D, (120, 80)), (60, 40))
 
     def test_a_command_that_declares_no_length_is_refused(self) -> None:
@@ -394,8 +383,6 @@ class PayloadSizeTest(unittest.TestCase):
 
 
 class StreamEdgeTest(unittest.TestCase):
-    """Traces begin and end wherever the recorder was turned on and off."""
-
     @override
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()

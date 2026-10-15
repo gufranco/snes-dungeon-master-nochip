@@ -246,13 +246,6 @@ def _finish(transaction: Any, run: Any, complete: bool = True) -> None:
 
 
 def _payload_sizes(command: int, lengths: tuple[int, ...]) -> tuple[int, int]:
-    """How much a command takes and gives once its lengths are known.
-
-    Only the three commands that declare a length ever reach here, because only
-    those put the stream into the stage that asks. A fourth would mean a command
-    was given a length nobody wrote a rule for, so it says so rather than
-    answering nothing and quietly finishing the transaction early.
-    """
     if command == COMMAND_MERGE:
         return 2 * lengths[0], lengths[0]
     if command == COMMAND_MIRROR:

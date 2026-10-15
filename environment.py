@@ -1,44 +1,3 @@
-"""What this machine is, checked rather than assumed, on any of the three systems.
-
-Most reports that begin "it does not work here" are not about the code. They are
-about a machine that differs from the one the author had, and the differences
-that matter are nearly always the same handful. This looks for those, and it
-looks the same way on Windows, macOS and Linux, because it asks the machine
-rather than branching on a name.
-
-**Why this file exists separately.** Every member of the family has its own
-doctor, and each of those knows about its own part. None of them knew about the
-machine underneath. This is the part that is identical everywhere, so it is
-written once and carried unchanged, exactly like the shared half of `FAMILY.md`.
-
-**What it looks for, and why each one bites.**
-
-The interpreter is first because the instructions used to be wrong. `python3` is
-what macOS and Linux call it and it is frequently absent on Windows, where the
-name is `python` or the launcher is `py`. A reporter who is told to run a command
-that does not exist reports the wrong problem.
-
-Output encoding matters because the point of a doctor is that its output gets
-pasted. A terminal still on a legacy code page cannot print what the report
-contains, so the run dies part way through and the paste is a traceback.
-
-Line endings matter because git can be configured to rewrite them on checkout.
-Every digest over a text file then disagrees, every formatter reports the whole
-tree as unformatted, and none of it is the repository's fault.
-
-Path length matters because Windows refuses paths past 260 characters unless the
-machine has been told otherwise, and members here nest submodules three deep.
-
-The rest are the ordinary ones: is the tool installed, is there room on the disk,
-and does the filesystem tell `A.py` from `a.py`, which decides whether a wrong
-import passes locally and fails in CI.
-
-**What it never does.** It does not repair anything, it does not guess, and it
-does not fail a machine for being what it is. A case insensitive filesystem is
-reported and is not a fault. A check that throws is caught and reported as what
-it threw: a doctor that dies while examining is worse than no doctor.
-"""
-
 import contextlib
 import locale
 import platform
@@ -50,8 +9,6 @@ from typing import NamedTuple
 
 
 class Observation(NamedTuple):
-    """One thing looked at, and what was there."""
-
     name: str
     ok: bool
     detail: str
@@ -59,30 +16,14 @@ class Observation(NamedTuple):
 
 
 INTERPRETERS = ("python3", "python", "py")
-"""The names an interpreter answers to, in the order they are worth trying.
-
-`python3` first because it is unambiguous where it exists. `python` second
-because it is what a Windows installer provides. `py` last because the launcher
-needs an argument to choose a version, so a caller has to be told to write
-`py -3` rather than `py`.
-"""
 
 UTF8_NAMES = ("utf-8", "utf8", "utf_8", "cp65001")
-"""Spellings of the one encoding that can print anything this reports."""
 
 WINDOWS_PATH_LIMIT = 260
-"""Where Windows stops, unless the machine has been told to allow more."""
 
 CHECKOUT_ROOM = 60
-"""How much of the budget a checkout path is assumed to want.
-
-`C:\\Users\\somebody\\projects\\` is about forty characters before the repository
-name is added, so sixty is the point below which an ordinary clone stops fitting.
-Stated rather than tuned, and it is the number the report subtracts against.
-"""
 
 ROOM_WANTED = 2 * 1024**3
-"""Enough space to hold a build and its inputs, which is the usual reason to run out."""
 
 GENERATED = frozenset(
     {
@@ -98,26 +39,13 @@ GENERATED = frozenset(
         ".pytest_cache",
     }
 )
-"""Directories a tool made rather than the repository carrying them.
-
-A path this deep is still worth reporting, because a Windows user will meet it,
-and it is not something the repository can be edited to fix.
-"""
 
 TEXT_SUFFIXES = (".md", ".py", ".yml", ".yaml", ".json", ".toml", ".txt", ".cfg")
 
 SAMPLE = 200
-"""How many text files the line ending check reads before it stops.
-
-The question is whether the checkout was rewritten, which is a property of the
-whole tree rather than of one file, so a sample answers it. Reading every file in
-a repository that carries a corpus would make the doctor slow enough that people
-stop running it, and a doctor nobody runs reports nothing.
-"""
 
 
 def interpreter(look: Callable[[str], bool] | None = None) -> Observation:
-    """Which command runs Python here, so instructions can name the right one."""
     resolve = (lambda name: shutil.which(name) is not None) if look is None else look
     for name in INTERPRETERS:
         if resolve(name):
@@ -132,16 +60,9 @@ def interpreter(look: Callable[[str], bool] | None = None) -> Observation:
 
 
 DISCOVER = "<discover>"
-"""Asks a check to look at this machine rather than take what it was handed.
-
-A plain `None` cannot mean this, because `None` is a real answer: it is what a
-terminal reports when it will not say what encoding it uses, and that case has to
-stay distinguishable from nobody having passed anything.
-"""
 
 
 def output_encoding(encoding: str | None = DISCOVER) -> Observation:
-    """Whether this terminal can print what the report contains."""
     found = sys.stdout.encoding if encoding == DISCOVER else encoding
     if found is None:
         return Observation(
@@ -163,7 +84,6 @@ def output_encoding(encoding: str | None = DISCOVER) -> Observation:
 
 
 def line_endings(root: Path, sample: int = SAMPLE) -> Observation:
-    """Whether the checkout was rewritten to carriage returns on the way in."""
     looked = converted = 0
     for path in sorted(root.rglob("*")):
         if looked >= sample:
@@ -193,12 +113,6 @@ def line_endings(root: Path, sample: int = SAMPLE) -> Observation:
 
 
 def filesystem_case(root: Path, insensitive: bool | None = None) -> Observation:
-    """Whether this filesystem tells one spelling from another, which is not a fault.
-
-    The answer is taken rather than probed when a caller supplies one, because a
-    machine can only be one of the two and the other branch would otherwise be
-    unreachable wherever the check happens to run.
-    """
     if insensitive is not None:
         return _case_verdict(insensitive)
     probe = root / ".doctor-case-probe"
@@ -214,7 +128,6 @@ def filesystem_case(root: Path, insensitive: bool | None = None) -> Observation:
 
 
 def _case_verdict(insensitive: bool) -> Observation:
-    """One reading turned into a line. Neither answer is a fault."""
     if insensitive:
         return Observation(
             "filesystem case",
@@ -226,24 +139,6 @@ def _case_verdict(insensitive: bool) -> Observation:
 
 
 def path_budget(root: Path, windows: bool | None = None, longest: int | None = None) -> Observation:
-    """How much room a Windows checkout would have left, which is the portable question.
-
-    The raw length of a path on this machine says nothing a reader can act on,
-    because it includes wherever they happened to clone. What matters is the
-    longest path measured from the repository root: subtract that from what
-    Windows allows and the remainder is how deep a checkout directory may be
-    before anything breaks.
-
-    This is reported on every system rather than only on Windows. The tree is
-    shared, so a layout that cannot be checked out there is a fact about the
-    repository rather than about the machine that noticed.
-
-    Generated directories are measured and reported and do not fail the check.
-    A package manager that nests its own directories deeply is a real problem on
-    Windows and it is not this repository's layout, so a reader is told about it
-    and is not told their checkout is broken. Failing on it would make every
-    member report a fault forever, which is how a check stops being read.
-    """
     on_windows = platform.system() == "Windows" if windows is None else windows
     if longest is not None:
         return _budget_verdict(longest, "", on_windows, generated=False)
@@ -264,7 +159,6 @@ def path_budget(root: Path, windows: bool | None = None, longest: int | None = N
 
 
 def _budget_verdict(longest: int, where: str, on_windows: bool, generated: bool) -> Observation:
-    """One reading turned into a line, with the same wording on every system."""
     room = WINDOWS_PATH_LIMIT - longest
     named = f", deepest under {where}" if where else ""
     detail = (
@@ -301,7 +195,6 @@ def tool(
     look: Callable[[str], str | None] | None = None,
     required: bool = True,
 ) -> Observation:
-    """Whether one command line tool is here, and where."""
     resolve = shutil.which if look is None else look
     where = resolve(name)
     if where:
@@ -317,7 +210,6 @@ def tool(
 
 
 def free_space(root: Path, measure: Callable[[Path], int] | None = None) -> Observation:
-    """Whether there is room for a build and what it reads."""
     read = (lambda path: shutil.disk_usage(path).free) if measure is None else measure
     try:
         free = read(root)
@@ -340,7 +232,6 @@ def free_space(root: Path, measure: Callable[[Path], int] | None = None) -> Obse
 
 
 def machine() -> Observation:
-    """What this is, said plainly, because every other line is read against it."""
     return Observation(
         "machine",
         True,
@@ -352,7 +243,6 @@ def machine() -> Observation:
 
 
 def locale_setting(preferred: str | None = None, utf8: int | None = None) -> Observation:
-    """The encoding Python reads files with when nobody names one."""
     preferred = locale.getpreferredencoding(False) if preferred is None else preferred
     utf8 = getattr(sys.flags, "utf8_mode", 0) if utf8 is None else utf8
     detail = f"{preferred}, UTF-8 mode {'on' if utf8 else 'off'}"
@@ -367,7 +257,6 @@ def locale_setting(preferred: str | None = None, utf8: int | None = None) -> Obs
 
 
 def guarded(name: str, check: Callable[[Path], Observation], root: Path) -> Observation:
-    """One check, run so that its failure is reported rather than ending the run."""
     try:
         return check(root)
     except Exception as thrown:
@@ -393,17 +282,10 @@ CHECKS: tuple[tuple[str, Callable[[Path], Observation]], ...] = (
 
 
 def observations(root: Path) -> list[Observation]:
-    """Everything about the machine, in the order a reader wants it."""
     return [guarded(name, check, root) for name, check in CHECKS]
 
 
 def lines(root: Path, found: list[Observation] | None = None) -> list[str]:
-    """The same, ready to paste.
-
-    The readings are taken rather than gathered when a caller supplies them, so
-    the advice a failing check prints can be exercised on a machine where every
-    check happens to pass.
-    """
     found = observations(root) if found is None else found
     out = [f"  {'ok  ' if one.ok else '   !'}  {one.name}: {one.detail}" for one in found]
     for one in found:

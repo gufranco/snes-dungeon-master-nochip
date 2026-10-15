@@ -1,17 +1,3 @@
-"""Every instruction in the retail image that reaches the DSP-2.
-
-Sites are found by scanning for the instruction's own bytes rather than from a
-table of offsets. Three regions of this cartridge exist and their code sits at
-different addresses, so an offset table would describe one dump and quietly
-mispatch the others. A signature describes the instruction, which is the thing
-that has to change.
-
-The counts are declared and checked. A dump carrying a different number of any
-kind is refused rather than patched, because the difference means either a
-region this has not been measured against or a file that is not what it claims,
-and both deserve an error rather than a partial conversion.
-"""
-
 from collections import namedtuple
 from collections.abc import Sequence
 from typing import Any
@@ -66,17 +52,14 @@ class UnexpectedImage(Exception):
 
 
 def address_of(offset: int) -> tuple[int, int]:
-    """The LoROM bank and address a file offset is reached through."""
     return (offset // BANK_SIZE, BANK_WINDOW + (offset % BANK_SIZE))
 
 
 def offset_of(bank: int, address: int) -> int:
-    """The file offset a LoROM bank and address read from."""
     return (bank & 0x7F) * BANK_SIZE + (address - BANK_WINDOW)
 
 
 def occurrences(image: bytes | bytearray, pattern: bytes) -> list[int]:
-    """Every position of the pattern, including overlapping ones."""
     found: list[Any] = []
     at = image.find(pattern)
     while at >= 0:
@@ -86,7 +69,6 @@ def occurrences(image: bytes | bytearray, pattern: bytes) -> list[int]:
 
 
 def find(image: bytes | bytearray, kinds: Sequence[str] | None = None) -> list[Site]:
-    """Every site in the image, in file order."""
     wanted = SIGNATURES if kinds is None else {kind: SIGNATURES[kind] for kind in kinds}
     found: list[Any] = []
     for kind, pattern in wanted.items():
@@ -97,7 +79,6 @@ def find(image: bytes | bytearray, kinds: Sequence[str] | None = None) -> list[S
 
 
 def census(sites: Sequence[Site]) -> dict[str, int]:
-    """How many sites of each kind, including the kinds with none."""
     counted = dict.fromkeys(SIGNATURES, 0)
     for site in sites:
         counted[site.kind] += 1
@@ -105,7 +86,6 @@ def census(sites: Sequence[Site]) -> dict[str, int]:
 
 
 def verify(sites: Sequence[Site], region: str = "USA") -> dict[str, int]:
-    """Refuse an image whose access surface is not the one measured."""
     if region not in EXPECTED:
         raise UnexpectedImage(
             f"no measured site counts for region {region}; measured regions are {sorted(EXPECTED)}"
@@ -122,25 +102,16 @@ def verify(sites: Sequence[Site], region: str = "USA") -> dict[str, int]:
 
 
 def banks_touched(sites: Sequence[Site]) -> list[int]:
-    """The banks the sites live in, without repeats."""
     return sorted({site.bank for site in sites})
 
 
 def call_to(address: int) -> bytes:
-    """The bytes of a JSR to an address in the current bank."""
     return bytes([JSR, address & 0xFF, (address >> 8) & 0xFF])
 
 
 def find_trampoline_calls(
     image: bytes | bytearray, bank: int = TRAMPOLINE_BANK
 ) -> list[TrampolineCall]:
-    """Calls to a work RAM trampoline from the bank that can reach the chip.
-
-    The four trampolines are called from ten banks and most of that traffic
-    moves memory that has nothing to do with the chip. Only bank $04 ever writes
-    $3F into a trampoline operand, measured across the whole image, so only its
-    calls can arrive at the port and only they are collected here.
-    """
     found: list[Any] = []
     start = (bank & 0x7F) * BANK_SIZE
     for trampoline in TRAMPOLINES:
@@ -152,7 +123,6 @@ def find_trampoline_calls(
 
 
 def verify_trampoline_calls(calls: Sequence[TrampolineCall]) -> dict[int, int]:
-    """Refuse an image whose trampoline traffic is not the one measured."""
     found = dict.fromkeys(TRAMPOLINES, 0)
     for call in calls:
         found[call.trampoline] += 1

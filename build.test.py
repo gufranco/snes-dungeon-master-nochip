@@ -20,7 +20,6 @@ bd = load_module()
 
 
 def _recording(seen: list[Any]) -> Callable[[list[str]], int]:
-    """A stand-in for the shelling out that keeps what it was asked to run."""
 
     def _run(args: list[str]) -> int:
         seen.append(args)
@@ -30,8 +29,6 @@ def _recording(seen: list[Any]) -> Callable[[list[str]], int]:
 
 
 class StagedPathTest(unittest.TestCase):
-    """Where the assembler's output lands."""
-
     def test_it_lands_beside_the_source_being_assembled(self) -> None:
         found = bd.staged_path("/somewhere/asm/nochip.asm", "out.sfc")
 
@@ -117,8 +114,6 @@ class SafetyTest(unittest.TestCase):
 
 
 class RunTest(unittest.TestCase):
-    """What a build shells out to, checked without shelling out."""
-
     def test_a_command_is_printed_before_it_runs(self) -> None:
         said: list[Any] = []
 
@@ -141,8 +136,6 @@ class StagingTest(unittest.TestCase):
 
 
 class ShellingOutTest(unittest.TestCase):
-    """That the real path runs the command, checked with one that does nothing."""
-
     def test_with_nothing_passed_in_it_runs_the_command_itself(self) -> None:
         code = bd.run(["true"], say=lambda _line: None)
 

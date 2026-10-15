@@ -29,7 +29,6 @@ POINTER_WINDOW = (0x0400, 0x0540)
 POINTER_MASK = 0x3F
 
 MODEL = "65816"
-"""The part this cartridge runs, named because the family covers sixteen of them."""
 
 ROM_BYTES = 0x80000
 CASES_PER_BANK = 180
@@ -317,7 +316,6 @@ def emit_asm(cases: Any) -> str:
 
 
 def assemble_command() -> list[str]:
-    """What assembling the case cartridge shells out to."""
     return [
         "docker",
         "run",
@@ -342,7 +340,6 @@ def assemble(
     say: Callable[[str], None] = print,
     complain: Callable[[str], None] | None = None,
 ) -> Any:
-    """The case cartridge, assembled by the pinned toolchain."""
     complain = say if complain is None else complain
     BUILD.mkdir(exist_ok=True)
     CASES_ASM.write_text(text)
@@ -360,7 +357,6 @@ def frames_for(count: int) -> int:
 
 
 def emulator_command(frames: int) -> list[str]:
-    """What running the case cartridge shells out to."""
     return [
         "docker",
         "run",
@@ -382,7 +378,6 @@ def run_in_snes9x(
     say: Callable[[str], None] = print,
     complain: Callable[[str], None] | None = None,
 ) -> bytes | None:
-    """The cases walked by the emulator, and the memory it left behind."""
     complain = say if complain is None else complain
     result = execute(emulator_command(frames))
     if result.returncode != 0:
@@ -462,7 +457,6 @@ def compare(cases: Any, wanted: Any, found: Any) -> list[Any]:
 
 
 def lines_for(cases: Any, mismatches: Any) -> list[str]:
-    """What disagreed, named by opcode so it can be looked up."""
     lines: list[Any] = []
     for case, want, got, fields in mismatches[:EXAMPLE_LIMIT]:
         detail = ", ".join(
@@ -482,7 +476,6 @@ def main(
     say: Callable[[str], None] = print,
     complain: Callable[[str], None] | None = None,
 ) -> int:
-    """Cases run on both, with the two that shell out passed in so a run can be checked."""
     complain = say if complain is None else complain
     build = assemble if build is None else build
     walk = run_in_snes9x if walk is None else walk

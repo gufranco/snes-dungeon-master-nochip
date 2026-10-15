@@ -1,30 +1,9 @@
-"""Feed the cartridge's own recorded traffic to the routines, on the processor.
-
-The model reproduces what the chip returned across a whole recorded run, but the
-model is not what ships. The 65816 routines are, and they have to answer every
-request the cartridge ever made with the byte its chip answered.
-
-So the recorded stream is compiled into a cartridge that walks it, feeds each
-run of writes through the entry points the patched game calls, reads back what
-the routines return, and checks it against what the recording holds at that point.
-The expected bytes travel in the script and the comparison happens on the
-processor, so a run reports counters rather than a transcript and the script may
-be as large as the cartridge holds.
-
-Nothing here reconstructs a transaction. An earlier attempt did, and it put a
-parser between the cartridge and the check: twelve merges in fifteen hundred
-came back differing from the cartridge while agreeing exactly with the model,
-which is the signature of a harness feeding something the chip was never fed.
-What the trace says, in the order it says it, is what gets fed.
-"""
-
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 
 def _load_beside(name: str) -> Any:
-    """A module that sits next to this one, loaded the way the tools load each other."""
     import importlib.util
     from pathlib import Path
 
@@ -51,13 +30,6 @@ BANK_SIZE = 0x8000
 SCRIPT_BANK = 0x02
 
 STATE = 0x1000
-"""Where the replay cartridge keeps its counters, which `!R_STATE` also names.
-
-The two are separate declarations of one address and a test holds them together,
-because when they last disagreed the run still produced numbers. They were the
-bytes of a lookup table that had been placed on top of the counters, and they did
-not change with the script, which is the only reason it was noticed.
-"""
 BYTE_COUNT = 4
 TRANSACTIONS = 0x0A
 COMPARED = 0x0E
@@ -75,7 +47,6 @@ class ScriptTooLong(Exception):
 
 
 def runs_from(records: Any) -> Iterator[Any]:
-    """Consecutive bytes going the same way, as the cartridge sent them."""
     kind = None
     payload = bytearray()
     for this_kind, byte in records:
@@ -89,12 +60,6 @@ def runs_from(records: Any) -> Iterator[Any]:
 
 
 def script_for(runs: Any) -> bytes:
-    """The byte stream the cartridge walks.
-
-    A run longer than a count can declare is split across several, which changes
-    nothing about what reaches the chip: the state machine sees the same bytes
-    in the same order either way.
-    """
     out = bytearray()
     for kind, payload in runs:
         tag = FEED if kind == KIND_WRITE else CHECK
@@ -110,29 +75,14 @@ def script_for(runs: Any) -> bytes:
 
 
 WORK_RAM_BANK = 0x7E
-"""The first bank the cartridge does not reach.
-
-Banks $7E and $7F are work RAM whatever the cartridge holds, so a script laid
-into the file past that point is addressed as memory rather than as ROM and the
-cursor reads the power on fill instead of the script. A run that walked into it
-spent its last comparisons against $55 and then stopped on a byte it took for the
-end marker, which is what a script overrunning this looks like from outside.
-"""
 
 
 def capacity(image_bytes: int, bank: int = SCRIPT_BANK) -> int:
-    """How much script an image of this size can carry from this bank on."""
     banks = min(image_bytes // BANK_SIZE, WORK_RAM_BANK)
     return max(0, (banks - bank) * BANK_SIZE)
 
 
 def place_script(image: bytes | bytearray, script: bytes, bank: int = SCRIPT_BANK) -> bytes:
-    """The script laid into the image from the given bank onward.
-
-    LoROM exposes the upper half of each bank, and a file offset runs
-    continuously, so a script that outgrows one bank simply continues at the
-    next offset. The cartridge's cursor makes the same step.
-    """
     if len(script) > capacity(len(image), bank):
         raise ScriptTooLong(
             f"the script is {len(script)} bytes and the image carries "
@@ -148,32 +98,9 @@ SYNC = 0x0F
 SET_TRANSPARENT = 0x03
 
 MAX_OVERSHOOT = 2048
-"""How far a batch may run past the room it was given.
-
-A break is only taken where the chip is idle, because a break anywhere else
-splits a command from its result. When the room runs out mid command the batch
-carries on to the next safe point, and the longest command is a merge of 255,
-which is 512 bytes fed and 255 read. The caller leaves this much spare.
-"""
 
 
 def stream_batches(runs: Any, room: int, shape: Any = None) -> Any:
-    """Batches a fresh cartridge can each start from, with what it carries.
-
-    A batch is a separate run of the cartridge, so anything the part holds is
-    lost at the boundary. Two things follow. A break may only happen where the
-    part is between commands and owes nothing, or a command's payload lands in
-    one batch and its drain in the next, and the routines then return the idle
-    byte where the cartridge returned a result. And every batch after the first
-    opens with a sync and the transparent colour in force, because that colour
-    decides what a merge returns and a batch that starts without it reports
-    failures that are the harness's own.
-
-    Where the boundaries are is a question about the shape of the traffic rather
-    than about what the part computes, so it is answered by tracking the stream
-    rather than by asking a chip. Silicon cannot be asked: its status register
-    says the part wants attention and never how much it still owes.
-    """
     shape = protocol.Shape() if shape is None else shape
     current: list[Any] = []
     used = 1  # the stop marker every script carries
@@ -203,7 +130,6 @@ def stream_batches(runs: Any, room: int, shape: Any = None) -> Any:
 
 
 def batches_of(runs: Any, room: int) -> list[Any]:
-    """Runs grouped so each group's script fits the room, never splitting one."""
     batches: list[Any] = []
     current: list[Any] = []
     used = 0
@@ -231,7 +157,6 @@ def _number(dump: bytes, offset: int, width: int) -> int:
 
 
 def read_counters(dump: bytes) -> Any:
-    """What the run reported, read out of the dumped work RAM."""
     return {
         "finished": dump[STATE + DONE] == FINISHED,
         "transactions": _number(dump, TRANSACTIONS, BYTE_COUNT),
@@ -244,7 +169,6 @@ def read_counters(dump: bytes) -> Any:
 
 
 def assemble_command(root: Path, build: Path) -> list[str]:
-    """What assembling the replay cartridge shells out to."""
     return [
         "docker",
         "run",
@@ -269,7 +193,6 @@ def _shell_out(args: list[str]) -> Any:
 
 
 def assemble(root: Path, build: Path, execute: Any = _shell_out) -> Any:
-    """The replay cartridge, assembled by the pinned toolchain."""
     (build / "replay.sfc").write_bytes(bytes(IMAGE_BYTES))
     built = execute(assemble_command(root, build))
     if built.returncode:
@@ -278,7 +201,6 @@ def assemble(root: Path, build: Path, execute: Any = _shell_out) -> Any:
 
 
 def run_command(build: Path) -> list[str]:
-    """What running one batch through the emulator shells out to."""
     return [
         "docker",
         "run",
@@ -296,8 +218,7 @@ def run_command(build: Path) -> list[str]:
     ]
 
 
-class EmulatorFailed(Exception):
-    """A batch that never ran, which is a failed check rather than a skipped one."""
+class EmulatorFailed(Exception): ...
 
 
 DUMP_WAIT_SECONDS = 5.0
@@ -305,23 +226,10 @@ DUMP_POLL_SECONDS = 0.05
 
 
 def written_after(dump: Path, older_than: int) -> bool:
-    """Whether the dump on disk is newer than the moment this run started."""
     return dump.exists() and dump.stat().st_mtime_ns > older_than
 
 
 def await_dump(dump: Path, older_than: int, sleep: Any = None, clock: Any = None) -> bool:
-    """Whether this run wrote the dump, rather than an earlier one leaving it there.
-
-    The check is on the time it was written rather than on its presence, because
-    the file is never removed between runs. Removing it looked like the obvious
-    way to keep one batch's numbers out of the next, and it is the one thing that
-    does not work here: the emulator writes the dump from inside a container
-    through a shared directory, and a container cannot reliably create a name
-    this machine has just deleted. The first attempt after a delete succeeds and
-    later ones fail, and they fail silently, because the emulator's dump routine
-    returns without a word when it cannot open the file. Overwriting an existing
-    name works every time.
-    """
     import time
 
     sleep = time.sleep if sleep is None else sleep
@@ -342,13 +250,6 @@ def run_batch(
     execute: Any = _shell_out,
     appeared: Any = await_dump,
 ) -> Any:
-    """One batch walked by the cartridge, and the counters it left behind.
-
-    A dump this run did not write is a failure rather than a result, because the
-    alternative is reading the previous batch's counters and reporting them as
-    this one's. The exit code is read for the same reason: it used to be
-    discarded, so a container that could not start produced a clean result.
-    """
     script = script_for(batch)
     dump = build / "replay-wram.bin"
     before = dump.stat().st_mtime_ns if dump.exists() else -1
@@ -373,7 +274,6 @@ def walk(
     say: Callable[[str], None],
     clock: Any,
 ) -> Any:
-    """Every batch through the cartridge, or nothing when one does not finish."""
     walked = compared = wrong = 0
     failures: list[Any] = []
     for number, batch in enumerate(batches):
@@ -402,7 +302,6 @@ def walk(
 def summary_lines(
     written: int, returned: int, walked: Any, compared: int, wrong: int, failures: Any
 ) -> list[str]:
-    """What a run found, in the order somebody reading it wants it."""
     lines = [
         "",
         f"  written {written}, the chip returned {returned}",
@@ -426,7 +325,6 @@ def main(
     say: Callable[[str], None] = print,
     clock: Any = None,
 ) -> int:
-    """A recorded trace fed to the routines on the processor, and what disagreed."""
     import time
     from pathlib import Path
 

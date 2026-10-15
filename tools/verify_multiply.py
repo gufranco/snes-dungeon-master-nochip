@@ -1,23 +1,3 @@
-"""The multiply, checked over operands no recording ever contains.
-
-Every multiply in every recording taken from this cartridge has a zero first
-operand, tens of thousands of them without exception, so the arithmetic
-underneath was never exercised by replaying traffic. A check that passes on
-zero times something says nothing about the rest.
-
-What the part does is not a plain product, and the part's own program says why.
-The routine at $0478 loads $7FFF as a mask, hands both operands to the
-multiplier, and then shifts a result word right by one before masking it. The
-multiplier leaves a signed product doubled across two registers, so shifting
-back arithmetically brings bit 14 of the low word up into bit 15 and the mask
-clears bit 15 of the high word.
-
-That rule is stated here, driven against the part over operands chosen to reach
-the corners, and the answers are fed to the routines on the processor. It runs
-only where the microcode is present, and says so rather than passing when it is
-not.
-"""
-
 import random
 import sys
 from collections.abc import Callable
@@ -31,7 +11,6 @@ COMMAND = 0x09
 ANSWER_BYTES = 4
 
 SEED = 99
-"""Fixed, so a failure names a pair somebody else can reproduce."""
 
 EDGES = (
     (0, 0),
@@ -52,11 +31,6 @@ EDGES = (
     (0x4000, 2),
     (0x3FFF, 2),
 )
-"""Pairs that reach the corners the rule turns on.
-
-Zero on either side, both signs, the value whose product sets bit 14 and the one
-just below it, and the two extremes of the range.
-"""
 
 
 def signed(value: int) -> int:
@@ -64,7 +38,6 @@ def signed(value: int) -> int:
 
 
 def expected(first: int, second: int) -> tuple[int, int]:
-    """What the part answers, as a low word and a high word."""
     product = (signed(first) * signed(second)) & 0xFFFFFFFF
     low = (product & 0x7FFF) | ((product & 0x4000) << 1)
     high = (product >> 16) & 0x7FFF
@@ -72,13 +45,11 @@ def expected(first: int, second: int) -> tuple[int, int]:
 
 
 def cases(extra: int) -> list[tuple[int, int]]:
-    """The corners, and that many more drawn the same way every run."""
     picked = random.Random(SEED)
     return [*EDGES, *((picked.randrange(0x10000), picked.randrange(0x10000)) for _ in range(extra))]
 
 
 def runs_for(pairs: Any, answer: Callable[[int, int], bytes]) -> list[Any]:
-    """Each pair as the cartridge would send it, and what the part gives back."""
     out: list[Any] = []
     for first, second in pairs:
         out.append(
@@ -106,7 +77,6 @@ def report(pairs: int, compared: int, wrong: int) -> list[str]:
 
 
 def answer_from(build_chip: Callable[[], Any], first: int, second: int) -> bytes:
-    """One multiply put to a part the caller builds."""
     part = build_chip()
     part.write(COMMAND)
     for value in (first, second):

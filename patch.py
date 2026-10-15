@@ -1,30 +1,3 @@
-"""Redirect every access to the DSP-2 at the code that replaces it.
-
-The image arrives with the routines and the stubs already assembled into filler
-that no tour ever read. What remains is to point the cartridge's own
-instructions at them, and every replacement is the same width as the
-instruction it replaces, so nothing in the image moves and no address the game
-computes for itself changes meaning.
-
-    STA $3F8000     four bytes    JSL dsp_write        four bytes
-    LDA $3F8000     four bytes    JSL dsp_read         four bytes
-    LDA $3FC000     four bytes    LDA #$00 : NOP : NOP four bytes
-    MVN $3F,$7E     three bytes   JSR to a stub in the same bank
-    MVN $7E,$3F     three bytes   JSR to a stub in the same bank
-    JSR $0084       three bytes   JSR to a stub in the same bank
-
-The first write of all is the exception. The boot code sends the sync command
-six times, and sync produces nothing, so the first of the six becomes a call
-that puts the state block in order before passing the byte on. That is the
-earliest point in the run where the processor is in native mode with the data
-bank and the direct page already set.
-
-The status poll is answered with zero rather than left to read whatever sits at
-that address. Under an emulator that address falls through to a ROM mirror
-holding a byte that happens to clear the mask, so the loop happens to exit; that
-is an accident of the image's contents and not something to inherit.
-"""
-
 import sys
 from collections.abc import Mapping
 from pathlib import Path
@@ -71,7 +44,6 @@ class UnknownSite(Exception):
 
 
 def read_symbols(text: str) -> dict[str, tuple[int, int]]:
-    """The labels asar emitted, as name to bank and address."""
     found: dict[Any, Any] = {}
     for raw in text.splitlines():
         line = raw.strip()
@@ -90,7 +62,6 @@ def read_symbols(text: str) -> dict[str, tuple[int, int]]:
 
 
 def resolve(symbols: Mapping[str, tuple[int, int]]) -> dict[str, tuple[int, int]]:
-    """The labels the patch needs, refusing to guess at any it cannot find."""
     absent = [name for name in REQUIRED if name not in symbols]
     if absent:
         raise MissingSymbol(f"the assembled image declares no {', '.join(absent)}")
@@ -98,7 +69,6 @@ def resolve(symbols: Mapping[str, tuple[int, int]]) -> dict[str, tuple[int, int]
 
 
 def long_call(bank: int, address: int) -> bytes:
-    """The bytes of a JSL, which is as wide as the long store it replaces."""
     return bytes([JSL, address & 0xFF, (address >> 8) & 0xFF, bank & 0xFF])
 
 
@@ -108,7 +78,6 @@ def rewrite_site(
     symbols: Mapping[str, tuple[int, int]],
     boot: bool = False,
 ) -> bytearray:
-    """Point one site at the code that replaces it."""
     if site.kind == sites.KIND_WRITE:
         target = symbols[BOOT_WRITE] if boot else symbols["dsp_write"]
         image[site.offset : site.offset + 4] = long_call(*target)
@@ -133,7 +102,6 @@ def apply(
     symbols: Mapping[str, tuple[int, int]],
     boot_write_offset: int | None = None,
 ) -> bytes:
-    """Every site redirected, in one pass over a copy of the image."""
     found = sites.find(image)
     if boot_write_offset is None:
         writes = [site for site in found if site.kind == sites.KIND_WRITE]
@@ -160,15 +128,6 @@ WIDTHS = {
 
 
 def regions(image: bytes | bytearray) -> set[int]:
-    """Every byte the patch is entitled to alter.
-
-    A replacement is the same width as the instruction it replaces, so this is
-    also the complete set of bytes that may differ afterwards. Some of them will
-    not: a near call keeps the opcode of the near call it replaces, and the
-    answer to the status poll keeps a zero. Counting altered bytes would
-    therefore report fewer than this and prove nothing, whereas an alteration
-    outside this set is a defect whatever its size.
-    """
     covered: set[int] = set()
     for site in sites.find(image):
         covered.update(range(site.offset, site.offset + WIDTHS[site.kind]))
@@ -178,6 +137,5 @@ def regions(image: bytes | bytearray) -> set[int]:
 
 
 def residue(image: bytes | bytearray) -> dict[str, int]:
-    """Any retail access the patch failed to redirect."""
     left = sites.census(sites.find(image))
     return {kind: count for kind, count in left.items() if count}

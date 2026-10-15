@@ -28,7 +28,6 @@ hardware.install()
 import snesdsp  # noqa: E402
 
 PART = "dsp2"
-"""The part this cartridge carries, and the microcode a check runs against."""
 
 CAVEAT = (
     "  the recording holds what the emulator answered, so a disagreement here is"
@@ -36,45 +35,19 @@ CAVEAT = (
     " routines. The routines are held to the part by tools/verify_merge.py,"
     " tools/verify_multiply.py and tools/verify_commands.py."
 )
-"""Said with every result, because a number nobody can trust reads like one they can.
-
-What this reports is real and it is not evidence about the routines. It replays a
-raw byte stream against the part's microcode, and the two disagree about whether
-sync produces output, which puts every later read one byte out. The arithmetic
-agrees wherever it has been checked one transaction at a time.
-"""
 
 Result = namedtuple("Result", "path writes reads mismatches examples")
 
 PREAMBLE = {0x01: 1}
-"""Bytes the part offers before an answer, per command.
-
-A tile is preceded by one byte that is not part of its answer. Measured: skipping
-it reproduces 200 of 200 recorded tiles and not skipping it reproduces none. No
-other command has one.
-"""
 
 TRAILING = {0x0F: 1}
-"""Bytes the part leaves behind that the cartridge never reads, per command.
-
-A sync leaves one. Together with the preamble above, these two numbers are the
-whole reason a byte driven comparison could never stay in step: one byte per
-sync, across the 180,975 of them a trace carries, and one per tile.
-"""
 
 
 def chip(build: Any = None) -> Any:
-    """One DSP-2, running the microcode of the part rather than a description of it.
-
-    A trace is what the emulator the recording was made on answered, so the thing worth
-    replaying it against is that chip's program. Nothing here carries it: a copy
-    somebody already owns goes in this project's firmware directory.
-    """
     return (build or snesdsp.Chip)(PART)
 
 
 def why_not() -> Any:
-    """Why a check cannot run here, or nothing when it can."""
     return snesdsp.why_not()
 
 
@@ -87,14 +60,6 @@ Result.ok = property(_ok)  # type: ignore[attr-defined]
 
 
 PROGRESS = 2_000_000
-"""Records between one word about where the run is and the next.
-
-A trace holds sixty million of them and the part answers each one by running its
-own microcode, so a single trace takes hours. Reporting only at the end means a
-run that is killed for taking too long produces nothing at all, which is what
-happened: three hours of processor time, no output, nothing learned. Roughly two
-million records is a line every few minutes.
-"""
 
 
 def check(
@@ -105,13 +70,6 @@ def check(
     limit: int = 0,
     read_transactions: Any = None,
 ) -> Any:
-    """A whole trace, or as much of it as asked for, replayed against the part.
-
-    Driven by transaction rather than by byte. Only the protocol can say which
-    writes are a command, which are a declared length, and which byte of the
-    part's output the cartridge was never going to read, and getting any of
-    those wrong puts the two streams permanently out of step.
-    """
     path = Path(path)
     if not path.exists():
         return None

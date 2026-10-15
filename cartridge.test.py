@@ -33,7 +33,6 @@ SYMBOLS = """; wla symbolic information file
 
 
 def blank(size: int = 0x100000) -> bytes:
-    """An image with a LoROM header and nothing in it that reaches the chip."""
     image = bytearray(b"\x00" * size)
     image[0x7FC0:0x7FD5] = b"BLANK".ljust(21, b" ")
     image[0x7FD5] = 0x20
@@ -43,8 +42,6 @@ def blank(size: int = 0x100000) -> bytes:
 
 
 class SymbolNameTest(unittest.TestCase):
-    """Where the label table for an image is written."""
-
     def test_it_sits_beside_the_image_it_describes(self) -> None:
         self.assertEqual(cartridge.symbols_beside("build/dm.sfc"), Path("build/dm.sym"))
 
@@ -53,8 +50,6 @@ class SymbolNameTest(unittest.TestCase):
 
 
 class FinishTest(unittest.TestCase):
-    """Turning an assembled image into one that needs no coprocessor."""
-
     def test_the_header_stops_declaring_a_coprocessor(self) -> None:
         found = cartridge.finish(blank(), SYMBOLS)
 
@@ -71,8 +66,6 @@ class FinishTest(unittest.TestCase):
 
 
 class AssembleTest(unittest.TestCase):
-    """The step that shells out, asked to do nothing."""
-
     def test_it_hands_the_arguments_to_the_builder(self) -> None:
         said: list[str] = []
 
@@ -82,8 +75,6 @@ class AssembleTest(unittest.TestCase):
 
 
 class ReportTest(unittest.TestCase):
-    """What is still pointing at the chip, said out loud."""
-
     def test_a_finished_image_has_nothing_left(self) -> None:
         found = cartridge.unfinished(cartridge.finish(blank(), SYMBOLS))
 
@@ -96,8 +87,6 @@ class ReportTest(unittest.TestCase):
 
 
 class CommandTest(unittest.TestCase):
-    """The command line."""
-
     def test_it_asks_for_what_it_needs(self) -> None:
         said: list[str] = []
 

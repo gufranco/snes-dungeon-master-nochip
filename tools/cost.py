@@ -1,22 +1,3 @@
-"""What each command costs once it is code, measured on the processor model.
-
-The chip answered in parallel with the program that asked it, so from the
-cartridge's point of view a command cost only the bytes it pushed through the
-port. Replacing the chip with code moves that work onto the same processor the
-game runs on, and whether the conversion is worth having depends on a number:
-how many cycles the replacement spends against how many the retail path spent.
-
-Both sides are counted rather than argued. The replacement runs on the 65816
-model, which drives a bus cycle by cycle, so its cost is the cycles it actually
-took. The retail cost is derived from the accesses the recorded trace shows the
-cartridge making, priced at what the processor charges for each: a long store or
-load is five cycles and a block move is seven a byte.
-
-A command that costs more than the retail path is a regression the conversion
-has to answer for, so the comparison is printed per command rather than summed
-into one figure that would hide it.
-"""
-
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -30,7 +11,6 @@ import hardware  # noqa: E402
 mos65xx = hardware.load("mos65xx")
 
 MODEL = "65816"
-"""The part this cartridge runs, named because the family covers sixteen of them."""
 
 BANK = 0x8000
 WRAM = 0x20000
@@ -38,16 +18,12 @@ WRAM = 0x20000
 O_BUFFER = 0x000C00
 
 LONG_ACCESS_CYCLES = 5
-"""A load or store through a twenty four bit address, which is how the port was reached."""
 
 MOVE_CYCLES_PER_BYTE = 7
-"""What a block move charges for each byte, which is how payloads were delivered."""
 
 RETURN = 0x00FFFF
-"""Where a measured call is told to return to, so the run ends on a known fetch."""
 
 COLOUR_COMMAND = "transparent"
-"""The command whose every instance is replayed, because it sets state others read."""
 
 DECLARED_LENGTHS = {
     "sync": 0,
@@ -58,7 +34,6 @@ DECLARED_LENGTHS = {
     "mirror": 1,
     "scale": 2,
 }
-"""How many length bytes each command sends before its payload."""
 
 
 class Ran(Exception):
@@ -66,15 +41,6 @@ class Ran(Exception):
 
 
 class LoRom:
-    """The cartridge as the processor sees it, with work RAM behind it.
-
-    Only what a measured routine touches is modelled: the cartridge read through
-    the LoROM window, work RAM, and the processor's own multiplier. An access to
-    anything else raises rather than returning a plausible byte, because a
-    routine reading a register this does not model would otherwise be measured
-    against a fabricated answer.
-    """
-
     def __init__(self, rom: bytes) -> None:
         self.rom = rom
         self.wram = bytearray(WRAM)
@@ -118,7 +84,6 @@ class LoRom:
 
 
 def symbols(text: str) -> dict[str, int]:
-    """The labels the assembler emitted, as name to a twenty four bit address."""
     found: dict[str, int] = {}
     for raw in text.splitlines():
         line = raw.strip()
@@ -137,31 +102,15 @@ def symbols(text: str) -> dict[str, int]:
 
 
 def retail_cost(command: str, parameters: bytes, output: bytes) -> int:
-    """What the same exchange cost the cartridge when a chip answered it.
-
-    One long store carries the command byte, one carries each length the command
-    declares, the payload goes in by block move and the result comes back the
-    same way. The status poll is not counted: it was a loop whose length depended
-    on the chip, and counting a guess would flatter whichever side it was added to.
-    """
     stores = 1 + DECLARED_LENGTHS.get(command, 0)
     return stores * LONG_ACCESS_CYCLES + (len(parameters) + len(output)) * MOVE_CYCLES_PER_BYTE
 
 
 def stale(symbols_path: Path, rom_path: Path) -> bool:
-    """Whether the symbol table describes an older image than the one being measured.
-
-    The assembler emits the image and the table on separate passes, so a build
-    that ran without the second one leaves a table naming where every routine
-    used to be. Entered at those addresses the first routine runs off into the
-    stack and reports that it never returned, which reads as a fault in the code
-    rather than in the table it was found through.
-    """
     return symbols_path.stat().st_mtime < rom_path.stat().st_mtime
 
 
 def machine(rom: bytes) -> tuple[Any, LoRom]:
-    """A processor with the cartridge behind it, in native mode."""
     memory = LoRom(rom)
     cpu = mos65xx.Cpu(MODEL, memory)
     cpu.reset()
@@ -170,11 +119,6 @@ def machine(rom: bytes) -> tuple[Any, LoRom]:
 
 
 def enter(cpu: Any, address: int, limit: int = 4_000_000) -> int:
-    """Cycles spent in one call, entered so that its own return ends the run.
-
-    A return address the harness owns is pushed before the jump, so the routine's
-    RTL lands on a place nothing else reaches and the count stops there.
-    """
     cpu.s = 0x1FFF
     cpu.d = 0x0000
     cpu.db = 0x00
@@ -191,23 +135,11 @@ def enter(cpu: Any, address: int, limit: int = 4_000_000) -> int:
 
 
 SOURCE = 0x7E4000
-"""Where the harness stages a payload, standing in for the game's own buffer."""
 
 DESTINATION = 0x7E5000
-"""Where the harness drains a result to, standing in for the game's own buffer."""
 
 
 TRAMPOLINE = 0x0084
-"""The work RAM block mover this prices the dispatched path through.
-
-The cartridge reaches the chip two ways. Eighteen sites in bank $00 name their
-banks in the instruction and become a call straight to a transfer. The rest go
-through one of four block movers the boot code installs in work RAM, whose bank
-operands the caller writes first, and those became dispatchers that read the
-operands back and decide from them. Measured across a tour, 24 of the 40 million
-port transactions arrive that way, so pricing only the direct path understates
-what most of the traffic costs.
-"""
 
 DISPATCHED = "tramp_0084"
 
@@ -219,14 +151,12 @@ WORK_RAM_BANK = 0x7E
 
 
 def through(names: dict[str, int], dispatched: bool) -> tuple[int, int]:
-    """The entry points a transfer takes, direct or through a dispatcher."""
     if dispatched:
         return names[DISPATCHED], names[DISPATCHED]
     return names["dsp_feed_wram"], names["dsp_drain_wram"]
 
 
 def point(memory: LoRom, destination: int, source: int) -> None:
-    """The operand bytes a dispatcher reads back to decide what it stands in for."""
     memory.write8(DESTINATION_OPERAND, destination)
     memory.write8(SOURCE_OPERAND, source)
 
@@ -241,14 +171,6 @@ def measure(
     output_length: int,
     dispatched: bool = False,
 ) -> int:
-    """Cycles the replacement spends on one whole exchange.
-
-    The exchange is delivered the way the cartridge delivers it: the command and
-    the lengths it declares arrive as single stores, and the payload arrives as
-    one block move, because those are the two instruction forms the sites carry.
-    Measuring the payload a byte at a time would count a path the game does not
-    take and charge the replacement for it.
-    """
     feed, drain = through(names, dispatched)
     total = 0
     for byte in bytes([command]) + bytes(lengths):
@@ -277,24 +199,11 @@ def measure(
 
 
 def produced(memory: LoRom, length: int) -> bytes:
-    """What the replacement drained into the buffer the caller named."""
     at = DESTINATION & 0xFFFF
     return bytes(memory.wram[at : at + length])
 
 
 def report(rows: dict[str, list[tuple[int, int, int, bool]]], say: Any = print) -> int:
-    """One line per command, and a non-zero status when one of them answered wrongly.
-
-    The two columns of ours are the two ways the cartridge reaches the chip. The
-    direct one is the eighteen sites in bank $00 that name their banks in the
-    instruction; the dispatched one goes through a block mover in work RAM whose
-    operands the caller writes first, and most of the traffic goes that way.
-
-    A ratio above one is not a failure. It used to be, which made this unusable
-    as a gate: the chip computed while the program that fed it carried on, so
-    every command is above one and always will be. What a wrong answer means is
-    not in doubt, so that is what the status reports, and the ratios are read.
-    """
     say(
         f"  {'command':<12}{'calls':>7}{'direct':>9}{'dispatched':>12}"
         f"{'retail':>9}{'ratio':>8}  correct"
@@ -319,48 +228,13 @@ def report(rows: dict[str, list[tuple[int, int, int, bool]]], say: Any = print) 
 
 
 SETTLED_FRAME = 600
-"""The first frame a sample is taken from, which is where the game is playing.
-
-Sampling from the start measured the boot sequence and reported it as the cost
-of the game. Six hundred frames is ten seconds, which is past the title screen
-on every recording here.
-"""
 
 SCAN_LIMIT = 200_000
-"""How many exchanges a pass reads before it measures the ones it picked.
-
-Sixty consecutive exchanges are sixty exchanges of one moment. Taken that way,
-every one of the sixty merges declared a length of 4 and the whole sample
-spanned ten frames, while a merge over the following three thousand frames
-declares a mean of 17.41 and reaches 46. The report was answering what one
-instant costs and reading as though it answered what the command costs.
-
-Spacing the samples by frame does not fix it, because the cartridge issues 23
-merges in every frame and one taken per frame is one taken at the same point of
-the same drawing sequence. Spreading them evenly across everything read does:
-over forty thousand merges the mean length is 16.96, and every ninety-seventh
-of them averages 16.87.
-
-Two hundred thousand exchanges is about five and a half thousand frames, which
-is long enough to carry every command the recording issues at all. A command it
-carries fewer than sixty of is measured over what there is, and the count is in
-the report.
-"""
 
 SAMPLED = ("sync", "tile", "merge", "mirror", "multiply", "scale", "transparent")
-"""Every command the cartridge sends, including the one that computes nothing.
-
-Sync computes nothing and so looks like a command not worth pricing, which is
-how it was left out at first. It is the third most frequent thing the cartridge
-sends, 180,975 times across the three tours against 3,155,798 of everything
-else, and the replacement still walks the whole dispatch path to answer it. A
-report that omits it cannot be summed into a per frame figure, which is the one
-question the report exists to answer.
-"""
 
 
 def collect(trace: Any, after: int = SETTLED_FRAME, limit: int = SCAN_LIMIT) -> list[Any]:
-    """Every whole exchange the recording holds in the window, in the order it sent them."""
     import dsptrace
 
     found: list[Any] = []
@@ -376,13 +250,6 @@ def collect(trace: Any, after: int = SETTLED_FRAME, limit: int = SCAN_LIMIT) -> 
 
 
 def chosen(found: Any, wanted: int, colour: str = COLOUR_COMMAND) -> tuple[list[int], list[int]]:
-    """Which exchanges a pass replays, and which of those it records a cost for.
-
-    Every setting of the transparent colour is replayed whether or not it is
-    measured, because a merge answers according to the colour a previous command
-    set and a pass that skipped the one that changed it would price every merge
-    after it against the wrong pair of tables.
-    """
     places: defaultdict[str, list[int]] = defaultdict(list)
     for index, one in enumerate(found):
         places[one[0]].append(index)
@@ -408,15 +275,6 @@ def sweep(
     dispatched: bool,
     after: int = SETTLED_FRAME,
 ) -> dict[str, list[tuple[int, int, bool]]]:
-    """One ordered pass over the sample, through one of the two entry paths.
-
-    A pass gets a machine of its own and replays the sample from the start,
-    rather than measuring each exchange twice on one machine. Two of the
-    operations answer differently depending on what came before, and one of them
-    is cheaper the second time: setting the transparent colour rebuilds a pair of
-    tables only when the colour changed, so a repeat measures the early exit and
-    reports the dispatched path as 212 cycles faster than the direct one.
-    """
     found = collect(trace, after)
     replay, record = chosen(found, wanted)
     keep = set(record)
@@ -438,7 +296,6 @@ def joined(
     direct: dict[str, list[tuple[int, int, bool]]],
     dispatched: dict[str, list[tuple[int, int, bool]]],
 ) -> dict[str, list[tuple[int, int, int, bool]]]:
-    """The two passes side by side, one row per exchange."""
     return {
         name: [
             (one[0], two[0], one[1], one[2] and two[2])
@@ -449,18 +306,6 @@ def joined(
 
 
 def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = SAMPLED) -> int:
-    """Measure every command against a sample of the cartridge's own traffic.
-
-    Sampling stops once every command named has been seen the requested number
-    of times, because a trace holds millions of exchanges and the cost of one
-    command does not change with how many of them are measured.
-
-    Each pass runs the whole sample in the order the cartridge issued it, because
-    two of the commands answer differently depending on what came before: a merge
-    reads the transparent colour a previous command set, so starting each
-    exchange from a fresh chip would measure it against a colour the cartridge
-    never chose.
-    """
     rom_path = ROOT / "asm" / "dm-sym.sfc" if len(argv) < 2 else Path(argv[1])
     sym_path = rom_path.with_suffix(".sym") if len(argv) < 3 else Path(argv[2])
     trace = ROOT / "build" / "trace-s1.bin" if len(argv) < 4 else Path(argv[3])

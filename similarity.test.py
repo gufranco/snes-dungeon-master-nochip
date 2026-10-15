@@ -37,7 +37,6 @@ HEADER_AT = 0x7FC0
 
 
 def a_cartridge(size: int = 0x10000) -> bytes:
-    """An image carrying a header the library will recognise and rewrite."""
     from romimage import rewrite
 
     image = bytearray(size)
@@ -56,8 +55,6 @@ def a_cartridge(size: int = 0x10000) -> bytes:
 
 
 class DefineTest(unittest.TestCase):
-    """The bare addresses the assembly declares."""
-
     def test_every_declared_address_is_read(self) -> None:
         found = similarity.defines(ASSEMBLY)
 
@@ -75,8 +72,6 @@ class DefineTest(unittest.TestCase):
 
 
 class FillerTest(unittest.TestCase):
-    """The runs of unused space the assembler wrote into."""
-
     def test_each_declared_run_covers_the_code_written_into_it(self) -> None:
         found = similarity.filler(ASSEMBLY, SYMBOLS)
 
@@ -116,8 +111,6 @@ class FillerTest(unittest.TestCase):
 
 
 class HeaderTest(unittest.TestCase):
-    """The fields that declare a plain cartridge."""
-
     def test_every_field_of_every_mirror_is_claimed(self) -> None:
         found = similarity.header(a_cartridge())
 
@@ -139,8 +132,6 @@ class HeaderTest(unittest.TestCase):
 
 
 class DifferenceTest(unittest.TestCase):
-    """Where two images disagree."""
-
     def test_it_names_every_byte_that_moved(self) -> None:
         retail = bytes(16)
         final = bytes([0, 1]) + bytes(13) + bytes([9])
@@ -160,8 +151,6 @@ class DifferenceTest(unittest.TestCase):
 
 
 class ClaimTest(unittest.TestCase):
-    """Everything entitled to differ, gathered."""
-
     def test_the_redirected_instructions_are_claimed(self) -> None:
         found = similarity.claims(a_cartridge(), ASSEMBLY, SYMBOLS)
 
@@ -174,8 +163,6 @@ class ClaimTest(unittest.TestCase):
 
 
 class AccountTest(unittest.TestCase):
-    """Which region each differing byte belongs to."""
-
     def test_a_byte_inside_a_declared_run_is_counted_to_it(self) -> None:
         retail = bytearray(a_cartridge(0x100000))
         final = bytearray(retail)
@@ -224,8 +211,6 @@ class AccountTest(unittest.TestCase):
 
 
 class ExplainTest(unittest.TestCase):
-    """How a result reads."""
-
     def test_a_settled_result_says_every_byte_was_declared(self) -> None:
         report = similarity.Report(differ=3, counted={"routines": 3}, loose=[])
 
@@ -257,8 +242,6 @@ class ExplainTest(unittest.TestCase):
 
 
 class MainTest(unittest.TestCase):
-    """The one command."""
-
     @override
     def setUp(self) -> None:
         self.kept = (

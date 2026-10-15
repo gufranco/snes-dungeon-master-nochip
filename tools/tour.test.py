@@ -129,8 +129,6 @@ class StreamTest(unittest.TestCase):
 
 
 class EntryTest(unittest.TestCase):
-    """The command line, which is how a tour is actually produced."""
-
     def test_a_run_with_no_arguments_writes_a_tour_to_the_output(self) -> None:
         said: list[Any] = []
 
@@ -169,8 +167,6 @@ class EntryTest(unittest.TestCase):
 
 
 class SteadyTest(unittest.TestCase):
-    """The route walked at one pace, for comparing two cartridges."""
-
     def test_it_is_the_same_every_time(self) -> None:
         self.assertEqual(tour.steady(frames=4000), tour.steady(frames=4000))
 
@@ -209,8 +205,6 @@ class SteadyTest(unittest.TestCase):
 
 
 class SteadyCommandTest(unittest.TestCase):
-    """Asking the command line for the steady route."""
-
     def test_the_flag_selects_it(self) -> None:
         said: list[str] = []
 

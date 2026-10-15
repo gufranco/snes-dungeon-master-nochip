@@ -100,13 +100,6 @@ class ModelTest(unittest.TestCase):
 
 
 class FirmwareTest(unittest.TestCase):
-    """That the part is told where this project keeps the microcode it runs.
-
-    The coprocessor model looks in what its variable names and then beside
-    itself, and neither of those reaches a project two levels up. Without this
-    the part would report that it has no image on a machine that has one.
-    """
-
     def test_this_project_s_directory_is_named(self) -> None:
         where: dict[Any, Any] = {}
 

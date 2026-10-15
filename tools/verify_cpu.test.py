@@ -132,14 +132,6 @@ class PowerOnTest(unittest.TestCase):
 
 
 class NativeModeTest(unittest.TestCase):
-    """The model runs a case the way the cartridge does.
-
-    The cartridge leaves emulation mode before its first case. A model left in
-    it cannot hold either width bit clear, because the register forces both, so
-    every case declaring a sixteen bit accumulator or index came back saying
-    eight and the comparison read as the model disagreeing about arithmetic.
-    """
-
     def a_case(self, status: int) -> dict[str, Any]:
         return {
             "bytes": [0xEA],
@@ -211,8 +203,6 @@ class ResultsTest(unittest.TestCase):
 
 
 class MemoryMapTest(unittest.TestCase):
-    """Where an address lands, which decides what a case reads and writes."""
-
     def _memory(self) -> Any:
         return verify.LoRomMemory(bytes(verify.ROM_BYTES))
 
@@ -251,8 +241,6 @@ class BankCrossingTest(unittest.TestCase):
 
 
 class ShellingOutTest(unittest.TestCase):
-    """The two Docker commands, checked without Docker."""
-
     def test_assembling_names_the_pinned_assembler(self) -> None:
         self.assertIn(verify.ASAR_IMAGE, verify.assemble_command())
 

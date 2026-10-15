@@ -1,23 +1,3 @@
-"""Whether the game still leaves alone the work RAM the state block sits in.
-
-The chip kept its command and parameter state inside itself. The replacement has
-to keep it somewhere the game does not use, and where that is was found by
-measurement rather than by reading a map nobody wrote: run the cartridge,
-compare the whole of work RAM against the previous frame after every frame, and
-take the longest stretch nothing ever changed.
-
-That is a claim about the game, and a claim of that shape is only as good as the
-inputs it was made under. This is the check that lets another input be tried.
-It runs the retail cartridge, asks the emulator for the same map, and fails if
-anything wrote inside the region the block claims.
-
-The instrument matters as much as the result. An earlier one watched byte
-accesses only. This game moves work RAM by DMA, which that path does not see, so
-it reported 37,245 bytes free, the block went on top of a live table, and the
-converted image drew a blank screen. The map read here is the frame by frame
-comparison, which sees a write whatever made it.
-"""
-
 import importlib.util
 import subprocess
 import sys
@@ -29,7 +9,6 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def _load_beside(name: str) -> Any:
-    """A module that sits next to this one, loaded the way the tools load each other."""
     where = Path(__file__).resolve().parent / f"{name}.py"
     spec = importlib.util.spec_from_file_location(name, where)
     assert spec is not None and spec.loader is not None, "no loader for that path"
@@ -52,12 +31,6 @@ DEFAULT_FRAMES = 19000
 
 
 def define(name: str, source: Path) -> int:
-    """One of the assembler's `!NAME = $hex` defines, as a number.
-
-    The addresses are read from the assembly rather than repeated here, because
-    two declarations of one address drift and the drift is silent: this would go
-    on reporting a region clear while the block had moved somewhere else.
-    """
     for line in source.read_text().splitlines():
         head, _, tail = line.partition("=")
         if head.strip() != name:
@@ -71,12 +44,10 @@ STATE_END = define("!STATE_END", ROOT / "asm" / "dsp2-state.asm") & 0xFFFF
 
 
 def taken(touched: bytes) -> list[int]:
-    """Every byte inside the block's region that the game wrote or read."""
     return [at for at in range(STATE, STATE_END) if touched[at]]
 
 
 def free(touched: bytes) -> list[tuple[int, int]]:
-    """Each stretch the game left alone, longest first."""
     runs: list[tuple[int, int]] = []
     start: int | None = None
     for at in range(len(touched)):
@@ -91,7 +62,6 @@ def free(touched: bytes) -> list[tuple[int, int]]:
 
 
 def summary(used: list[int], runs: list[tuple[int, int]], frames: int) -> str:
-    """What the run found, in one line."""
     longest = f"${runs[0][0]:05X} for {runs[0][1]:,} bytes" if runs else "none"
     where = f"${STATE:05X} to ${STATE_END - 1:05X}"
     if used:
@@ -105,20 +75,11 @@ def summary(used: list[int], runs: list[tuple[int, int]], frames: int) -> str:
 
 
 def route_for(frames: int, seed: int | None) -> str:
-    """The input this run walks.
-
-    The steady route is the default because it is the one every earlier claim was
-    made under. A seed asks for a random walk instead, which reaches states the
-    steady route never does, and a claim about which bytes the game leaves alone
-    is only as good as the inputs it was tried under. Without a way to name a
-    second route there was no way to try one.
-    """
     route: str = tour.steady(frames) if seed is None else tour.build(frames, seed)
     return route
 
 
 def run_command(work: Path, cartridge: str, frames: int) -> list[str]:
-    """What mapping one run shells out to."""
     return [
         "docker",
         "run",
@@ -145,7 +106,6 @@ def main(
     say: Callable[[str], None] = print,
     execute: Any = _shell_out,
 ) -> int:
-    """One mapped run of the retail cartridge, and whether the block's region survived it."""
     cartridge = DEFAULT_CARTRIDGE if len(argv) < 2 else Path(argv[1])
     frames = DEFAULT_FRAMES if len(argv) < 3 else int(argv[2])
     seed = None if len(argv) < 4 else int(argv[3])

@@ -21,7 +21,6 @@ fuzz = load_module("fuzz", ROOT / "tools" / "fuzz.py")
 
 
 def _recording_generate(seen: list[Any], make: Any) -> Any:
-    """A stand-in for case generation that keeps what it was asked for."""
 
     def _generate(seed: int, count: int, only: Any) -> Any:
         seen.append((seed, count, only))
@@ -31,15 +30,6 @@ def _recording_generate(seen: list[Any], make: Any) -> Any:
 
 
 class Puppet:
-    """A part that counts up, so the generator can be checked without microcode.
-
-    What a real DSP-2 answers is settled by running the cartridge's own program,
-    which is what `fuzz.py` does on a machine that has it. What these tests pin
-    is the generation: which commands are reached, how long the payloads are,
-    where a result is read only in part, and that the bytes written reach the
-    runs unchanged. None of that depends on the values coming back.
-    """
-
     def __init__(self) -> None:
         self.written: list[Any] = []
         self.given = 0
@@ -198,8 +188,6 @@ class PartTest(unittest.TestCase):
 
 
 class WalkTest(unittest.TestCase):
-    """Every batch through the cartridge, and what a batch that stops means."""
-
     def test_a_run_where_every_batch_finishes_reports_what_it_checked(self) -> None:
         found = fuzz.walk(
             None, b"", [["one"], ["two"]], lambda *_: (b"script", a_batch()), lambda _l: None, int
@@ -267,7 +255,6 @@ class SummaryTest(unittest.TestCase):
 
 
 def a_sound_oracle() -> dict[str, Any]:
-    """A calibration that trusts every command, for tests about anything else."""
     return {name: fuzz.Reading(True, True) for name in fuzz.NAMES.values()}
 
 
@@ -367,7 +354,6 @@ DSP_BANK = 0x3F
 
 
 def a_record(kind: int, byte: int) -> bytes:
-    """One port access in the shape the recorder wrote it."""
     return (
         struct.pack("<II", 0, 294912)
         + struct.pack("<HH", 0, 0)
@@ -379,21 +365,11 @@ def a_record(kind: int, byte: int) -> bytes:
 
 
 def a_recorded_mirror() -> list[bytes]:
-    """One complete mirror on the port, which is the least a calibration needs."""
     written = [a_record(KIND_WRITE, byte) for byte in (fuzz.MIRROR, 0x02, 0x12, 0x34)]
     return [*written, *(a_record(KIND_READ, byte) for byte in (0x43, 0x21))]
 
 
 class Oracle:
-    """A part that answers correctly until it is asked for a command it gets wrong.
-
-    Two failures are worth telling apart and only one of them is visible in the
-    answer. A command the model computes wrongly is caught by comparing that
-    command. A command that leaves the model owing a byte the cartridge never
-    took answers correctly itself and breaks everything after it, so it is
-    caught only by asking again afterwards.
-    """
-
     def __init__(self, wrong: tuple[int, ...] = (), poisons: tuple[int, ...] = ()) -> None:
         self.wrong = wrong
         self.poisons = poisons
@@ -417,7 +393,6 @@ class Oracle:
 
 
 def an_oracle(wrong: tuple[int, ...] = (), poisons: tuple[int, ...] = ()) -> Any:
-    """A part built fresh, so a calibration gets one that has not been spoiled."""
 
     def build() -> Any:
         return Oracle(wrong, poisons)
@@ -426,8 +401,6 @@ def an_oracle(wrong: tuple[int, ...] = (), poisons: tuple[int, ...] = ()) -> Any
 
 
 class SampleTest(unittest.TestCase):
-    """One recorded exchange per command, taken out of a trace."""
-
     def test_each_named_command_contributes_one(self) -> None:
         colour, found = fuzz.sample([COLOUR, *RECORDED.values()], ("tile", "mirror"))
 
@@ -455,8 +428,6 @@ class SampleTest(unittest.TestCase):
 
 
 class CalibrateTest(unittest.TestCase):
-    """Which commands the oracle can be trusted for."""
-
     def reading(self, wrong: tuple[int, ...] = (), poisons: tuple[int, ...] = ()) -> Any:
         return fuzz.calibrate(COLOUR, RECORDED["mirror"], RECORDED, build=an_oracle(wrong, poisons))
 
@@ -497,8 +468,6 @@ class CalibrateTest(unittest.TestCase):
 
 
 class OracleTest(unittest.TestCase):
-    """Where the calibration gets the cartridge's answers from."""
-
     def test_transactions_handed_in_are_used_rather_than_a_recording(self) -> None:
         found = fuzz.oracle(transactions=[COLOUR, *RECORDED.values()], build=an_oracle())
 
@@ -527,8 +496,6 @@ class OracleTest(unittest.TestCase):
 
 
 class TrustedTest(unittest.TestCase):
-    """Turning readings into the commands a run may generate."""
-
     def readings(self, **verdicts: tuple[bool, bool]) -> dict[str, Any]:
         return {
             name: fuzz.Reading(*verdicts.get(name, (True, True)))
@@ -567,8 +534,6 @@ class TrustedTest(unittest.TestCase):
 
 
 class UncheckedTest(unittest.TestCase):
-    """What happens when the oracle cannot be checked at all."""
-
     def test_a_run_with_no_recording_refuses_rather_than_reporting(self) -> None:
         said: list[str] = []
 

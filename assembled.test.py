@@ -20,7 +20,6 @@ assembled = load_module("assembled", ROOT / "assembled.py")
 
 
 def _kept(seen: list[Any], what: Any) -> int:
-    """A stand-in for the builder that keeps what it was asked and succeeds."""
     seen.append(what)
     return 0
 
@@ -30,8 +29,6 @@ def aged(path: Path, when: float) -> None:
 
 
 class WhereTest(unittest.TestCase):
-    """What the measurements are pointed at."""
-
     def test_the_label_table_sits_beside_the_image(self) -> None:
         self.assertEqual(assembled.SYMBOLS, assembled.IMAGE.with_suffix(".sym"))
 
@@ -46,8 +43,6 @@ class WhereTest(unittest.TestCase):
 
 
 class StaleTest(unittest.TestCase):
-    """Whether what is on disk can be measured against."""
-
     def staged(self, tmp: str, image_at: float, symbols_at: float, source_at: float) -> Any:
         where = Path(tmp)
         (where / "asm").mkdir()
@@ -106,8 +101,6 @@ class StaleTest(unittest.TestCase):
 
 
 class AssembleTest(unittest.TestCase):
-    """The one call that builds both."""
-
     def test_a_missing_dump_is_reported_rather_than_assembled(self) -> None:
         said: list[str] = []
 
@@ -138,8 +131,6 @@ class AssembleTest(unittest.TestCase):
 
 
 class ReadyTest(unittest.TestCase):
-    """Assembling only when what is there will not do."""
-
     def test_an_image_that_is_current_is_left_alone(self) -> None:
         asked: list[Any] = []
         kept = (assembled.IMAGE, assembled.SYMBOLS, assembled.ASSEMBLY)

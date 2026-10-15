@@ -31,8 +31,6 @@ def mapped(touched: dict[int, int], size: int = 0x20000) -> bytes:
 
 
 class BlockTest(unittest.TestCase):
-    """Where the state block lives, read from the assembly rather than repeated."""
-
     def test_it_reads_the_base_the_assembler_declares(self) -> None:
         self.assertEqual(placement.STATE, 0x0900)
 
@@ -45,8 +43,6 @@ class BlockTest(unittest.TestCase):
 
 
 class ReadingTest(unittest.TestCase):
-    """What the map says about the region the block wants."""
-
     def test_an_untouched_region_reports_nothing_taken(self) -> None:
         self.assertEqual(placement.taken(mapped({})), [])
 
@@ -60,8 +56,6 @@ class ReadingTest(unittest.TestCase):
 
 
 class RunsTest(unittest.TestCase):
-    """The stretches of work RAM the game left alone."""
-
     def test_it_finds_the_longest_stretch(self) -> None:
         found = placement.free(bytes([1, 0, 0, 0, 1, 0, 1]))
 
@@ -77,8 +71,6 @@ class RunsTest(unittest.TestCase):
 
 
 class VerdictTest(unittest.TestCase):
-    """What the run adds up to."""
-
     def test_a_clear_region_says_so(self) -> None:
         found = placement.summary([], [(0x083E, 4078)], 19000)
 
@@ -99,8 +91,6 @@ class VerdictTest(unittest.TestCase):
 
 
 class CommandTest(unittest.TestCase):
-    """The command line."""
-
     def test_a_missing_cartridge_is_reported_rather_than_run(self) -> None:
         said: list[str] = []
 
@@ -174,15 +164,11 @@ class CommandTest(unittest.TestCase):
 
 
 class RealShellTest(unittest.TestCase):
-    """The path that actually shells out, run against a command that does nothing."""
-
     def test_it_runs_the_command_and_hands_back_what_it_returned(self) -> None:
         self.assertEqual(placement._shell_out(["true"]).returncode, 0)
 
 
 class ShellingOutTest(unittest.TestCase):
-    """The command that reaches the emulator."""
-
     def test_it_asks_for_the_map(self) -> None:
         args = placement.run_command(Path("/w"), "dm.sfc", 100)
 

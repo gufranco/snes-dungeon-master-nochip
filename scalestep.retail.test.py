@@ -25,16 +25,13 @@ SYMBOLS = IMAGE.with_suffix(".sym")
 SCALE = 0x0D
 
 PAIRS = ((72, 38), (120, 80))
-"""The two length pairs one recorded tour asks for, in 10,422 scale calls."""
 
 
 def payload_for(lengths: tuple[int, int]) -> bytes:
-    """A payload of the size those declared lengths imply, which count nibbles."""
     return bytes((0x11 * (at % 15 + 1)) & 0xFF for at in range((lengths[0] + 1) >> 1))
 
 
 def produced_for(lengths: tuple[int, int]) -> int:
-    """How many bytes a scale with those lengths hands back."""
     return (lengths[1] + 1) >> 1
 
 
@@ -80,7 +77,6 @@ class ScaleStepTest(unittest.TestCase):
         return answered
 
     def alone(self, lengths: tuple[int, int]) -> bytes:
-        """What a machine that has scaled nothing else answers for those lengths."""
         return self.scaled(self.fresh(), lengths)
 
     def test_each_pair_answers_the_same_alone_as_it_does_first(self) -> None:

@@ -46,7 +46,6 @@ def _body(steps: list[tuple[int, tuple[str, ...]]], frame: int, frames: int, rng
 
 
 def _render(steps: list[tuple[int, tuple[str, ...]]], frames: int) -> str:
-    """The steps as the harness reads them, with anything past the end dropped."""
     lines: list[str] = []
     for at, buttons in steps:
         if at >= frames:
@@ -66,22 +65,9 @@ def build(frames: int, seed: int = 0) -> str:
 STEADY_PERIOD = 48
 
 STEADY_ROUTE = ("up", "up", "up", "left", "up", "up", "up", "right")
-"""A route rather than a walk, so the view redraws on every press."""
 
 
 def steady(frames: int, period: int = STEADY_PERIOD) -> str:
-    """One route walked at one pace, for comparing two cartridges frame by frame.
-
-    A random walk is the right input for recording what the cartridge asks the
-    chip, because it reaches many states. It is the wrong input for comparing two
-    runs against each other. The harness applies a press at a fixed frame number,
-    so as soon as one run drifts behind the other the same press arrives at a
-    different point in that run's own logic and the two stop being the same
-    playthrough. Comparing what they drew after that says nothing.
-
-    A slow, regular route survives far more drift before that happens, and it
-    still turns and steps, which is what makes the view redraw and the chip work.
-    """
     steps: list[tuple[int, tuple[str, ...]]] = []
     frame = _intro(steps, 60)
     at = 0
@@ -102,7 +88,6 @@ def main(
     say: Callable[[str], Any] | None = None,
     complain: Callable[[str], Any] | None = None,
 ) -> int:
-    """The command line, with both streams passed in so a run can be checked."""
     say = sys.stdout.write if say is None else say
     complain = _to_stderr if complain is None else complain
 
