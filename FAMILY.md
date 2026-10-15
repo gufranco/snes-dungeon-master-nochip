@@ -5,7 +5,7 @@ style guide. It is the set of decisions that were expensive to reach, so that a
 repository starting today does not have to reach them again and a repository
 already running does not drift away from them quietly.
 
-The family is twenty one repositories. Where they differ from each other, the
+The family is twenty two repositories. Where they differ from each other, the
 difference is something the hardware forces rather than something nobody got
 round to.
 
@@ -27,6 +27,7 @@ round to.
 | [snes-mapper-python](https://github.com/gufranco/snes-mapper-python) | The cartridge memory map and its transfer engine | Board |
 | [snes-graphics-python](https://github.com/gufranco/snes-graphics-python) | The graphics formats: tiles, palettes, tilemaps, sprites and mode 7 | Format |
 | [snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python) | The forms a cartridge image is stored and shipped in | Format |
+| [sms-rom-image-python](https://github.com/gufranco/sms-rom-image-python) | A Master System, Game Gear or SG-1000 cartridge image as a file | Format |
 | [snes-driver-python](https://github.com/gufranco/snes-driver-python) | What a cartridge says to its coprocessor, read out of the cartridge's own code | Tool |
 | [snes-dungeon-master-nochip](https://github.com/gufranco/snes-dungeon-master-nochip) | Dungeon Master with its graphics coprocessor designed out | Tool |
 | [snes-pilotwings-nochip](https://github.com/gufranco/snes-pilotwings-nochip) | Pilotwings with its mathematical coprocessor designed out | Tool |
@@ -185,6 +186,32 @@ checks the ones a test can reach.
 - [ ] Every required field in an issue form is actually required. `validations`
       indented one level too far is ignored in silence.
 - [ ] The test count the README advertises is the count there is.
+- [ ] The doctor is tested by running it the way the readme says to, as
+      `python3 <package>/doctor.py` in a subprocess started outside the
+      repository. Every other test imports it from a process that already has
+      the root on its path, so all of them pass whether a reader gets a report
+      or a traceback. One member passed its whole suite while the documented
+      invocation failed with `ModuleNotFoundError`, which is the exact failure
+      its doctor existed to prevent.
+- [ ] The release commits every file the version script stamps, and the
+      version module and the citation say the same version. Five members
+      stamped a citation and never committed it, and one named a path inside a
+      submodule instead of its own package, so fifteen of its releases
+      reported version `0.0.0`. `conformance/family.test.py` holds both.
+- [ ] The pipeline builds the wheel and audits it: every module present, no
+      test file shipped. `exclude-package-data` filters data files and a
+      `.test.py` file is collected as a module, so every installable member
+      shipped its tests while its configuration said otherwise. Nothing
+      noticed, because nothing built the package, which is also how one member
+      declared a readme that did not exist and could not be installed at all.
+- [ ] Every gate decides on its exit code, never on a phrase in its output. A
+      failing `ruff format --check` ends with `1 file would be reformatted, 58
+      files already formatted`, which contains the success phrase, and a
+      harness reading it that way reported eighteen broken members clean.
+- [ ] Gates run at the toolchain the pipeline pins, never at whatever
+      `python3` resolves to. A machine whose default interpreter moved on
+      reports every suite failing for want of a tool, which reads as broken
+      code.
 - [ ] A pinned corpus names a repository somebody can still push to. One pinned
       here named a repository that had been archived and subdivided, so the job
       watching it for corrections was watching something nobody could correct.
@@ -252,11 +279,19 @@ checks the ones a test can reach.
       compared, how much of it failed, the test count, the coverage, and what it
       costs to install. A count of what was compared with no result beside it is
       half a claim.
-- [ ] No comment in any source file that no tool reads. Reasoning goes in the
-      docstring, where it sits with the thing it explains and is read by anyone
-      who asks for help on it. A comment is the one part of a file nothing checks,
-      so it is the one part free to drift, and once it has drifted it misleads
-      every later reader rather than merely failing to help.
+- [ ] No comment in any source file that no tool reads, and a docstring counts
+      as one. A comment is the one part of a file nothing checks, so it is the
+      one part free to drift, and once it has drifted it misleads every later
+      reader rather than merely failing to help. Names, small functions,
+      named constants and types carry what a comment would have said. When
+      removing one would lose knowledge, the code changes until it no longer
+      needs it: rename, extract a function whose name states the rule, or
+      encode the contract in a type. Measurements belong in the record.
+- [ ] A test is three blocks in order, each opened by its bare marker,
+      `# Arrange`, `# Act`, `# Assert`, one blank line between them and none
+      anywhere else. Those three markers are the only comments a test carries.
+      A test with no setup still opens with an Arrange block that binds what
+      the act uses.
 - [ ] `noqa`, `type:`, `ruff:` and the rest stay, because a tool parses them and
       reports them when they go stale. Nothing else does.
 - [ ] Every test is named as a sentence about behaviour, continuing the one its
@@ -858,9 +893,9 @@ delete.
 |:------|:-----|
 | Language | Python only |
 | Dependencies | None at runtime. The standard library is the whole budget |
-| Comments | None in source. Docstrings carry the reasoning |
+| Comments | None in source, docstrings included. Tool directives and the three test markers are the only exceptions |
 | Test layout | `<module>.test.py` beside the module it covers |
-| Test shape | Arrange, blank line, one act, blank line, assert. No section labels |
+| Test shape | `# Arrange`, `# Act`, `# Assert`, each opening its block, one blank line between, one call in the act |
 | Coverage | 100% statements and branches, enforced |
 | Types | `mypy` at strict, plus every optional error class |
 | Lint and format | `ruff`, clean, no suppressions without a stated reason |
