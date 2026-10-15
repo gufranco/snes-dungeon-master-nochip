@@ -209,8 +209,8 @@ and booted to black.
 ## Conventions that are only true here
 
 - **Comments are required in the assembly and only there.** Entry and exit state,
-  register widths, and where each recovered address came from. Python carries its
-  reasoning in docstrings.
+  register widths, and where each recovered address came from. Python carries
+  none, docstrings included.
 - **The assembler is asar 1.81, pinned in a container.** It has two traps worth
   knowing: `label+0*N` silently assembles to `$FFFFFF` rather than to `label`, and
   a define written as `!NAME = 512  ; a comment` captures the comment, so any
