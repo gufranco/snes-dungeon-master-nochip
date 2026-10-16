@@ -1,304 +1,455 @@
-<div align="center">
+English | [日本語](README.ja.md) | [简体中文](README.zh-Hans.md) | [繁體中文（香港）](README.zh-HK.md)
 
 # Dungeon Master without the DSP-2
 
-**Tooling to build a Dungeon Master ROM with the coprocessor designed out, so it runs from any flash
-cartridge that can hold it.**
+Builds a Dungeon Master cartridge image whose DSP-2 coprocessor is replaced by 65816 routines, held byte for byte to the part's own microcode and to the retail cartridge's recorded port traffic.
 
-[![licence](https://img.shields.io/github/license/gufranco/snes-dungeon-master-nochip)](LICENSE)
+[![CI](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml/badge.svg)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip)](https://github.com/gufranco/snes-dungeon-master-nochip/releases)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-</div>
+**98,333,301** recorded port bytes replayed through the routines from **4** runs of 30,000 frames, **0** wrong, **17,241,846** returned bytes reproduced by the part's microcode, **0** wrong, **6** of 6 commands held to the part on chosen inputs, **900** tests, **100%** statement and branch coverage, standard library only
 
----
+```python
+import patch
+import sites
 
-## What this is
+image = bytearray(0x10000)
+image[0x0100:0x0104] = sites.STA_PORT
+image[0x0200:0x0204] = sites.STA_PORT
+image[0x0300:0x0304] = sites.LDA_PORT
+image[0x0400:0x0404] = sites.LDA_STATUS
+image[0x0500:0x0503] = sites.MVN_TO_PORT
 
-Dungeon Master is the only SNES cartridge that carries a DSP-2. The chip converts the game's Atari ST
-bitmap graphics into the console's own tile format, scales them for the dungeon view, composites them
-against a transparent colour, and multiplies. Without it the game does not draw.
+symbols = patch.resolve(
+    patch.read_symbols(
+        """
+        00:ff00 b00_first
+        00:ff10 b00_feed
+        00:ff20 b00_drain
+        04:ff00 b04_0080
+        04:ff04 b04_0084
+        04:ff08 b04_0088
+        04:ff0c b04_008C
+        20:8000 dsp_write
+        20:8040 dsp_read
+        """
+    )
+)
 
-This project reimplements all six of the chip's commands in 65816 and points the cartridge's own
-instructions at them. Every access is redirected in place and every replacement is the same width as
-the instruction it replaces, so nothing in the image moves and no address the game computes for
-itself changes meaning. The result is an ordinary SNES ROM with no coprocessor to emulate.
+finished = patch.apply(image, symbols)
+for site in sites.find(image):
+    width = patch.WIDTHS[site.kind]
+    before = image[site.offset : site.offset + width].hex(" ")
+    after = finished[site.offset : site.offset + width].hex(" ")
+    print(f"{site.kind:<6} ${site.bank:02X}:{site.address:04X}  {before}  ->  {after}")
+print(patch.residue(image))
+print(patch.residue(finished), len(finished) == len(image))
+```
 
-Computing the answers ahead of time and storing them was the first plan, and measurement ruled it
-out. The part is a renderer rather than an unpacker: what it is asked to convert is the dungeon view
-as composed for wherever the player is standing, so there is no fixed set of answers to compute.
-Searching the retail dump for the exact bytes the cartridge sends finds every one of the mirror
-command's inputs, 1.2% of the merge command's, and 0.3% of the tile command's.
+```
+write  $00:8100  8f 00 80 3f  ->  22 00 ff 00
+write  $00:8200  8f 00 80 3f  ->  22 00 80 20
+read   $00:8300  af 00 80 3f  ->  22 40 80 20
+status $00:8400  af 00 c0 3f  ->  a9 00 ea ea
+feed   $00:8500  54 3f 7e  ->  20 10 ff
+{'write': 2, 'read': 1, 'status': 1, 'feed': 1}
+{} True
+```
 
-You supply the retail dump. Nothing here contains game data, and nothing ever will.
+The example plants five of the cartridge's port accesses in a 64 KB image and redirects them against a symbol table in the form the assembler writes. Each replacement is as wide as the instruction it replaces, so nothing in the image moves. A long store to `$3F:8000` becomes a `jsl` to `dsp_write`, except the first one, which calls the boot entry `b00_first`. A long load becomes a `jsl` to `dsp_read`, a status poll becomes `lda #$00` and two `nop`, and a block move into the port becomes a `jsr` to the feed stub in bank `$00`. `patch.residue` counts what still reaches the chip: five accesses before, none after, and the image keeps its length.
 
-## Status
+## Install
 
-It builds and it answers correctly. It costs the processor about four times what the chip path cost,
-and draws the dungeon in the same number of frames.
+| Requirement | Version | Needed for |
+|:--|:--|:--|
+| Python | 3.12 or newer | Every module and command |
+| git | Any | Fetching the six pinned models as submodules |
+| Docker | Any current | Assembling, and every command that drives the emulator |
+| A Dungeon Master dump you own | 1,048,576 bytes, digest under [The dump](#the-dump) | Building the cartridge |
+| DSP-2 microcode you own | The image `snes-dsp-python` accepts | The commands that ask the part for an answer |
 
-| part | state |
-|------|-------|
-| dump identification | works |
-| 65816 disassembly and interpretation | works, against a per-opcode suite |
-| the DSP-2's own behaviour | works, against the chip's reference implementation |
-| address arithmetic for the image | works, against a library of real cartridges |
-| pinned assembler container | builds |
-| the six operations in 65816 | answer every recorded byte, on the processor |
-| the finished cartridge | builds from a dump in one command, and boots with no coprocessor |
-| speed | 59,874 cycles a frame against 14,385 for the chip path, in a frame of 59,561 |
+```bash
+git clone --recurse-submodules https://github.com/gufranco/snes-dungeon-master-nochip.git
+cd snes-dungeon-master-nochip
+python3 doctor.py
+```
+
+Nothing is installed from a package index. A source archive from the download-zip link carries no submodules and cannot run. In a clone made without `--recurse-submodules`, run `git submodule update --init --recursive`.
+
+The dump goes in `roms/dungeon-master-usa.sfc`. The microcode goes in `firmware/`, or in a directory named by `UPD7725_FIRMWARE_DIR`. Git ignores both directories, and nothing here downloads either file.
+
+The doctor prints the machine, the Python, the version of each model, whether the part's microcode runs, the SHA-256 of each dump it finds, how many of the three recorded traces sit in `build/`, and each model's own report under that model's name. A check that throws is reported as what it threw. It exits 1 when any check fails. On a fresh checkout it ends with this line:
+
+```
+  4 of 75 checks did not pass
+```
+
+The four are the missing dump, the missing microcode as this project and as `snes-dsp-python` each report it, and the empty `snes-mapper-python/cartridges` directory. Paste the whole output into any bug report.
+
+Releases follow [Semantic Versioning](https://semver.org/) and are cut by semantic-release from the commit subjects. Every release is tagged and listed on the [releases page](https://github.com/gufranco/snes-dungeon-master-nochip/releases). A release publishes no image: the cartridge is built from your dump on your machine.
+
+## The interface
+
+Every command is a file run from the repository root with `python3`. Exit 0 is success. Exit 2 means the command was called wrongly or had nothing to work from, and the line it prints says which.
+
+### Building the cartridge
+
+| Command | Arguments | Exit codes |
+|:--|:--|:--|
+| `cartridge.py <dump> <output>` | The retail dump, and where to write the finished cartridge | 0 written. 1 an access still reaches the chip or a header mirror still declares a coprocessor, and nothing is written. 2 usage, or no file at `<dump>`. Any other code is the assembler's |
+| `build.py <patch.asm> <dump> <output-name>` | An assembly file, the dump, and a file name for the result | 0 assembled. 1 the toolchain image did not build. 2 usage. Any other code is asar's |
+| `build.py --image` | None | The exit code of `docker build` |
+| [`assembled.py`](assembled.py) | None | 0 when `asm/dm-sym.sfc` and its symbols are newer than every `asm/*.asm`, or once they have been rebuilt. 2 no dump at `roms/dungeon-master-usa.sfc` |
+| `similarity.py <dump> <cartridge>` | The retail dump and a finished cartridge | 0 every changed byte sits in a declared region. 1 at least one does not. 2 usage, or `asm/dm-sym.sfc` is missing or older than its sources |
 
 ```bash
 python3 cartridge.py roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"
 ```
 
-It assembles, points every access at the replacement, and rewrites the header so nothing declares a
-coprocessor. It refuses to write the file if either check finds anything left: an access still going
-to the chip, or a header mirror still declaring one. An image with the routines placed and the
-accesses not redirected boots and plays perfectly, because the emulator reads the header, provides a
-DSP-2 and serves every request itself.
+[`cartridge.py`](cartridge.py) copies the dump to `asm/<output-name>`, assembles [`asm/nochip.asm`](asm/nochip.asm) over it in the pinned asar 1.81 container with no network, reads the symbol table asar writes beside it, redirects every port access in place, and rewrites the header so it declares no coprocessor. It then counts what is left: an access still going to the chip, or a header mirror still declaring one. Either one stops it before the file is written. An image with the routines placed and the accesses not redirected boots and plays, because the emulator reads the header and supplies a DSP-2, so the count is the only thing that tells the two apart.
 
-**Correctness.** Four runs of 30,000 frames each were driven on the emulator with every byte in and
-out of the port recorded: three seeded random walks and one steady route. Feeding those streams back
-through the routines, on the processor, walks 8,722,303 runs and checks 98,333,301 bytes against what
-the recording holds. None are wrong.
+[`build.py`](build.py) rebuilds the `snes-dungeon-master-nochip/asar:1.81` image on every run and refuses to stage the result over the dump it was given. [`assembled.py`](assembled.py) keeps the measurement image `asm/dm-sym.sfc` current for the commands that read it.
 
-That figure is agreement with the recording, and the recording holds what the emulator answered
-rather than what the part answered. Those turn out to be the same thing: replaying a whole recording
-against the part's own microcode reproduces all 17,241,846 bytes the cartridge returned, none wrong.
+[`similarity.py`](similarity.py) lists every byte the cartridge does not share with the dump and files each one under the region that claims it: the routines, the bank `$00` stubs, the bank `$04` stubs, the redirected sites, or the header fields the rewrite touches. It prints up to 8 bytes that no region claims, with their offset, address and both values.
 
-What a recording cannot do is say anything about inputs it does not contain, and that is where the
-routines were found wrong. Every recorded multiply has a zero first operand, and no recording taken
-here holds a scale or a mirror at all. Both defects were found by asking the part directly, and
-neither could have been found by replaying traffic. All six commands are now held to the part over
-inputs chosen rather than observed.
+### Checking a dump
 
-**Speed.** The chip computed while the program that fed it carried on, so replacing it with code
-cannot be free. Weighted by how often the cartridge sends each command, the routines spend 59,874
-cycles a frame where the port traffic cost 14,385. That ratio has a floor under it: the retail figure
-counts the stores and block moves and not the time the game spent spinning on a status register
-waiting for an answer, which nobody here can measure.
-
-What it costs a player is a separate measurement. Driving both cartridges along the same route for
-30,000 frames, eight minutes of walking and turning, 29,941 frames are drawn the same. The conversion
-reaches the title screen 56 frames later, and after that never falls a frame behind. Timing the
-dungeon redraw directly, over 139 of them, both cartridges settle in 26 frames and the conversion was
-slower on none: the game paces that redraw itself, and both the chip and the routines finish inside
-it. [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries both measurements, what each cannot say, and the
-two ideas that look obvious and do not work.
-
-## The dump
-
-Named as No-Intro names it. Every digest is of the whole file with no copier header. SHA-256 is the
-one that decides; the others are there to cross-check against databases that still key on them.
-
-| file | read as | size |
-|---|---|---|
-| Dungeon Master, USA | `roms/dungeon-master-usa.sfc` | 1,048,576 |
-
-| digest | value |
-|---|---|
-| SHA-256 | `2dfc2e037679a62a960dab9682bca6d1b2737f603edd336c8b2fdf05db10cc07` |
-| SHA-1 | `e65ae62ec9a1c48a3512db66f929c7b0055ae2c3` |
-| MD5 | `3d1b171d7486438af2d9ec3d98b155cd` |
-| CRC32 | `0DFD9CEB` |
-
-The Japanese and European releases carry the same chip. Neither is declared with digests yet, because
-neither has been measured, and a guessed digest is worse than an absent one.
+| Command | Arguments | Exit codes |
+|:--|:--|:--|
+| `tools/identify.py [file name...]` | Optional file names from [`artifacts.manifest.json`](artifacts.manifest.json), all of them by default | 0 at least one dump present and correct and none wrong. 1 a dump has the wrong size, the wrong content or another entry's digest, or no dump is usable. 2 no manifest entry has that name |
 
 ```bash
 python3 tools/identify.py
 ```
 
-It reports what it found, and when a file does not match it says which way it is wrong, prints the
-digest it computed, and gives a command for working the digest out yourself on macOS, Linux or
-Windows.
+On a fresh checkout it prints:
 
-## Prerequisites
+```
+  dungeon-master-usa.sfc: missing  [Dungeon Master, USA]
+      roms/dungeon-master-usa.sfc is not there
+      macOS and Linux: shasum -a 256 roms/dungeon-master-usa.sfc
+      Linux, coreutils: sha256sum roms/dungeon-master-usa.sfc
+      Windows PowerShell: Get-FileHash -Algorithm SHA256 roms\dungeon-master-usa.sfc
+  dungeon-master-jp.sfc: no digest published  [Dungeon Master, Japan]
+      no dump measured yet
+  dungeon-master-eur.sfc: no digest published  [Dungeon Master, UK and Europe]
+      no dump measured yet
 
-| Tool | Version | Why |
-|:-----|:--------|:----|
-| [Python 3](https://www.python.org/) | 3.12 | every analysis and build module |
-| [Docker](https://www.docker.com/) | any current | pins the assembler and the emulator |
-| Your own cartridge dump | 1,048,576 bytes | placed in `roms/` under the name above |
-
-Nothing is installed from a package index at build time. The build containers pin their toolchains,
-run with no network access, and run as a non-root user.
-
-## The hardware this is checked against
-
-```bash
-git clone --recurse-submodules https://github.com/gufranco/snes-dungeon-master-nochip.git
+  0 of 3 declared dumps present and correct
 ```
 
-The models this project measures itself against are not written here. Each is its own repository,
-pinned as a submodule at the root of this one under the name of the repository it is, and each is
-held to something outside itself rather than to its author's confidence. They sit at the root rather
-than under a folder because anybody opening this should see what it is built on without going
-looking.
+The second line carries the absolute path on your machine. A 512 byte copier header is stripped before any digest is taken. A file that does not match gets its size, CRC32 and SHA-256 printed, a reason, and the commands that compute the digest on macOS, Linux and Windows.
 
-| model | what proves it |
-|---|---|
-| [65816](https://github.com/gufranco/mos65xx-python) | a per-opcode suite, 5,120,000 cases |
-| [DSP-2](https://github.com/gufranco/snes-dsp-python) | the chip's own reference implementation |
-| [cartridge map](https://github.com/gufranco/snes-mapper-python) | every header combination in a real cartridge library |
-| [ROM image](https://github.com/gufranco/snes-rom-image-python) | the whole of that same library, rewritten and checked |
-| [tile format](https://github.com/gufranco/snes-graphics-python) | the console's own bitplane layout, held to recorded output |
-| [driver](https://github.com/gufranco/snes-driver-python) | where in the cartridge's code it reaches the part |
+### Asking the part
 
-The 65816 model is also the instrument the replacement is measured with. It drives a bus cycle by
-cycle, so what a routine costs is the cycles it actually took rather than a sum from a table.
+These hold the routines to what the DSP-2's own microcode returns, run by `snes-dsp-python`. The routines run on the console's processor inside snes9x, driven by a script cartridge built from [`asm/dsp2-replay.asm`](asm/dsp2-replay.asm), so every command here except `verify_trace.py` needs Docker and the emulator image.
 
-A model is worth what has disagreed with it. Several of those above were wrong the first time they
-were measured that way, and every one of those defects sat in the part that looked obviously correct.
+| Command | Arguments | Exit codes |
+|:--|:--|:--|
+| `tools/verify_trace.py [limit] [trace...]` | A byte limit per trace, and traces, `build/trace-s1.bin` to `trace-s3.bin` by default | 0 the part reproduced every returned byte, or no trace was found. 1 it did not. 2 no microcode |
+| `tools/fuzz.py [seed] [count] [command...]` | Seed 1, 20,000 generated exchanges, and command bytes such as `0x05` to restrict them | 0 none wrong. 1 a byte wrong or a batch unfinished. 2 no microcode, no recording to calibrate against, or no command left to generate |
+| `tools/replay.py <trace> [limit]` | A recorded trace, and a record limit | 0 none wrong, or no file at `<trace>`. 1 a byte wrong or a batch did not run. 2 usage |
+| `tools/verify_merge.py [per-length]` | 3 merges per length, every length from 1 to 80, colours drawn from 16 | 0 none wrong. 1 a byte wrong, the written rule no longer matches the part, or no microcode |
+| `tools/verify_multiply.py [extra]` | 17 corner pairs plus 120 seeded pairs | 0 none wrong. 1 a byte wrong, the written rule no longer matches the part, or no microcode |
+| `tools/verify_commands.py [each]` | 2 per shape: tile, mirror at every length from 1 to 80, and both scale shapes the cartridge sends | 0 none wrong. 1 a byte wrong, or no microcode |
+| `tools/verify_cpu.py [seed] [count]` | Seed 0, 400 single-instruction cases | 0 the `mos65xx` 65816 and snes9x agree on A, X, Y and P for every case. 1 they do not, or the cartridge did not finish |
 
-They also start dirty. Memory and registers hold arbitrary but reproducible values rather than
-zeroes, because real hardware does, and anything here that wants a cleared machine has to ask for
-one. That turns a read of something never written from an accident into a question.
+`verify_trace.py` writes every recorded exchange into the part and compares what it reads back with what the cartridge read. `replay.py` sends the same recording through the routines on the console's processor instead, in batches that fit a 4 MB script cartridge, and prints a line per batch. `fuzz.py` first checks each command against a recording: a command whose model answer disagrees with the cartridge, or leaves the next exchange unanswerable, is left out and named. `verify_cpu.py` checks the processor model that prices the routines against the emulator that runs them.
 
-## When something is wrong
+### Measuring cost, play and placement
+
+| Command | Arguments | Exit codes |
+|:--|:--|:--|
+| `tools/cost.py [image] [symbols] [trace] [samples]` | `asm/dm-sym.sfc`, the `.sym` beside it, `build/trace-s1.bin`, 60 exchanges per command | 0 every sampled answer matched. 1 one did not. 2 the image or its symbols are missing, or the symbols are older |
+| `tools/pace.py <dump> <cartridge> [frames]` | Both cartridges, 4,000 frames | 0 the comparison ran. 1 the emulator failed. 2 usage, or a file is missing |
+| `tools/boot.py [cartridge] [frames]` | `build/Dungeon Master (USA) (nochip).sfc`, 8,000 frames | 0 no coprocessor declared, no chip request, every frame delivered, the screen lit. 1 any of those failed. 2 no cartridge |
+| `tools/placement.py [dump] [frames] [seed]` | `roms/dungeon-master-usa.sfc`, 19,000 frames, the steady route unless a seed is given | 0 the game never touched the state block's work RAM. 1 it did, or the run left no map. 2 no dump |
+| `tools/tour.py [--frames N] [--seed S] [--steady] [--out PATH]` | 24,000 frames, seed 0, printed to standard output | 0 written. 2 usage |
+
+`cost.py` runs each command on the `mos65xx` 65816 model, which counts every bus cycle, feeds it recorded traffic from frame 600 on, checks each answer, and prices the same exchange as the retail path paid for it: 5 cycles per long store and 7 per byte moved. It prints one row per command with the call count, the cycles direct, the cycles through a block-move dispatcher, the retail cycles, the ratio, and how many answers were right. The status-register polling the retail path spent waiting is counted for neither side.
+
+`pace.py` drives both cartridges on the steady route, digests every finished frame, and reports how many frames the conversion drew the same, how many it drew late, the worst lag and the median, then the lag curve in 8 points. `boot.py` fails on any of four things: the header still declares a coprocessor, a chip was asked for something, the run stopped early, or the screen never lit. `placement.py` reads the state block's address range out of [`asm/dsp2-state.asm`](asm/dsp2-state.asm) and reports the longest run of work RAM the game never touched. `tour.py` writes the input scripts these drive: a seeded random walk, or the steady route of up, up, up, left, up, up, up, right.
+
+The emulator image is built once, from the repository root:
 
 ```bash
-python3 doctor.py
+docker build --tag snes-dungeon-master-nochip/emu:dev emu
 ```
 
-It looks at this machine and prints what is actually there: the Python, every model this project is
-pinned to and its version, whether the coprocessor can run at all, which cartridge dumps are present
-and the SHA-256 of each, and how much recorded traffic is here. It then asks every model for its own
-report and files what comes back under that model's name, so the whole chain is in one place rather
-than one layer of it.
+### Running every gate
 
-A check that fails says what it saw, and a check that itself throws is reported as what it threw
-rather than taking the report down with it. Paste all of it into an issue.
+| Command | Arguments | Exit codes |
+|:--|:--|:--|
+| `check.py [--quick]` | `--quick` skips every gate that needs the assembled image | 0 every gate passed. 1 at least one failed, named with its last 6 lines. 2 usage |
+| [`doctor.py`](doctor.py) | None | 0 every check passed. 1 at least one did not |
+
+[`check.py`](check.py) assembles the measurement image first when it is missing or stale, then runs lint, format, types, the tests under coverage, the JSON and YAML format, the workflows and the shell script, each at the version the pipeline pins. With the image it also runs [`tools/cost.py`](tools/cost.py), the three `*.retail.test.py` checks, and the three `verify_*.py` commands. It runs every gate rather than stopping at the first failure.
+
+### Modules
+
+| Call | Returns |
+|:--|:--|
+| `sites.find(image, kinds=None)` | Every port access as a `Site(kind, offset, address, bank)`, sorted by offset. `kind` is `write`, `read`, `status`, `feed` or `drain` |
+| `sites.census(found)` | A count per kind |
+| `sites.verify(found, region="USA")` | The census, or `UnexpectedImage` when it differs from `EXPECTED[region]` |
+| `sites.find_trampoline_calls(image, bank=0x04)` | Every `jsr` in bank `$04` to the four block movers at `$0080`, `$0084`, `$0088` and `$008C` |
+| `sites.verify_trampoline_calls(calls)` | The count per mover, or `UnexpectedImage` when it differs from `EXPECTED_TRAMPOLINE_CALLS` |
+| `sites.address_of(offset)`, `sites.offset_of(bank, address)` | The LoROM bank and address of a file offset, and back |
+| `patch.read_symbols(text)` | `{name: (bank, address)}` from an asar symbol file |
+| `patch.resolve(symbols)` | The nine entries `REQUIRED` names, or `MissingSymbol` listing the absent ones |
+| `patch.apply(image, symbols, boot_write_offset=None)` | The redirected image as `bytes`, same length. The first store is the boot write unless an offset is given |
+| `patch.residue(image)` | `{kind: count}` of accesses still reaching the chip, empty when none |
+| `patch.regions(image)` | Every offset a redirect rewrites, sites and mover calls together |
+| `cartridge.finish(image, symbols_text)` | The image redirected and its header rewritten to declare no coprocessor |
+| `cartridge.unfinished(image)` | One line per thing still going to the chip, empty when finished |
+| `stateblock.fields(text)` | `{name: (offset, width)}` for every `!S_` field below `$100` in the state block's assembly |
+| `stateblock.overlaps(declared)` | Every pair of fields sharing a byte, as `(name, other, first shared offset)` |
+| `dsptrace.records(path)` | Each 28-byte record of a recorded trace as a `Record`. A short tail raises `TruncatedTrace` |
+| `dsptrace.transactions(records)` | Records grouped into one `Transaction` per command, with `command`, `name`, `lengths`, `parameters`, `output`, `source` and `complete` |
+| `dsptrace.summarise(transactions)`, `dsptrace.report(summary)` | Counts per command, per issuing site and per source bank, and their printed form |
+| `protocol.Shape()` | Tracks how many bytes a command still wants and how many it owes, from the bytes alone. `wrote(byte)`, `was_read()`, `expecting_input`, `produced`, `at_boundary` |
+| `hardware.install()`, `hardware.load(package)` | Puts `mos65xx`, `snesdsp`, `mapper` and `romimage` on the import path and names `firmware/` in `UPD7725_FIRMWARE_DIR`. `load` imports one of them |
+| `version.stamped(name, release=None)` | The file name a release gives an image |
+
+`dsptrace` and `protocol` count bytes and never compute an answer: every value comes from the recording or from the part.
+
+```python
+import hardware
+import patch
+import sites
+
+print(sites.EXPECTED["USA"])
+print({f"${mover:04X}": calls for mover, calls in sites.EXPECTED_TRAMPOLINE_CALLS.items()})
+bank, address = sites.address_of(0x012345)
+print(f"${bank:02X}:{address:04X}", hex(sites.offset_of(0x82, 0xA345)))
+
+try:
+    sites.verify([], "Japan")
+except sites.UnexpectedImage as refusal:
+    print(refusal)
+
+try:
+    patch.resolve({"dsp_write": (0x20, 0x8000)})
+except patch.MissingSymbol as refusal:
+    print(refusal)
+
+try:
+    hardware.root_of("snesgfx")
+except hardware.UnknownPackage as refusal:
+    print(refusal)
+```
+
+```
+{'write': 51, 'read': 4, 'status': 5, 'feed': 16, 'drain': 2}
+{'$0080': 2, '$0084': 5, '$0088': 4, '$008C': 1}
+$02:A345 0x12345
+no measured site counts for region Japan; measured regions are ['USA']
+the assembled image declares no b00_first, b00_feed, b00_drain, b04_0080, b04_0084, b04_0088, b04_008C, dsp_read
+snesgfx is not vendored here; this project carries mapper, mos65xx, romimage, snesdsp
+```
+
+The retail USA image holds 78 port accesses and 12 calls to the four block movers. A dump whose counts differ is refused rather than patched.
+
+```python
+import stateblock
+
+declared = stateblock.fields(stateblock.SOURCE.read_text())
+widest = max(declared.items(), key=lambda one: one[1][1])
+print(len(declared), "fields, widest", widest)
+print(stateblock.overlaps(declared))
+print(stateblock.overlaps({"!S_A": (0x10, 2), "!S_B": (0x11, 1)}))
+```
+
+```
+25 fields, widest ('!S_SCRATCH', (40, 200))
+[]
+[('!S_A', '!S_B', 17)]
+```
+
+Each field in the state block states its width in its comment, and the assembler cannot see two names for one byte. The 25 fields in [`asm/dsp2-state.asm`](asm/dsp2-state.asm) share none. The last line shows a two-byte field at `$10` and a field at `$11` reported at offset 17.
+
+```python
+import tempfile
+from pathlib import Path
+
+import dsptrace
+
+exchange = [(0, 0x09), (0, 0x03), (0, 0x00), (0, 0x04), (0, 0x00)]
+exchange += [(1, 0x0C), (1, 0x00), (1, 0x00), (1, 0x00)]
+
+with tempfile.TemporaryDirectory() as folder:
+    trace = Path(folder) / "trace.bin"
+    trace.write_bytes(
+        b"".join(
+            dsptrace.RECORD.pack(700, 0x04A123, 0, 0, kind, byte, bytes(8), 0x7E, 0x30, bytes(4))
+            for kind, byte in exchange
+        )
+    )
+    found = list(dsptrace.transactions(dsptrace.records(trace)))
+
+print(found)
+print(found[0].parameters.hex(" "), found[0].output.hex(" "), found[0].complete)
+print(dsptrace.report(dsptrace.summarise(found)))
+```
+
+```
+[<multiply frame=700 pc=$04A123 in=4 out=4>]
+03 00 04 00 0c 00 00 00 True
+  transactions 1, incomplete 0
+    $09 multiply              1
+  issuing sites 1
+    $04A123           1
+  source banks, by command
+  distinct source addresses 0
+  distinct length tuples 0
+```
+
+Nine records make one multiply: the command byte, four operand bytes written, four answer bytes read. The harness in [`emu/`](emu/) writes the trace, one 28-byte record per port access.
+
+```python
+from tools import protocol, tour
+
+shape = protocol.Shape()
+for byte in (0x05, 0x02, 0x11, 0x22, 0x33, 0x44):
+    shape.wrote(byte)
+print(shape, shape.produced)
+
+route = tour.steady(3400).splitlines()
+print(len(route), route[-4:])
+```
+
+```
+<Shape between commands, 2 owed> 2
+162 ['3260 up', '3266', '3308 up', '3314']
+```
+
+A merge of length 2 takes four payload bytes and owes two. A route line is a frame number and the buttons held from it, and a line with no button releases them. The first 3,000 frames press start every 40 frames to get through the title.
+
+### Errors
+
+| Error | Raised when |
+|:--|:--|
+| `sites.UnexpectedImage` | The access or mover counts differ from the measured USA image, or the region has no measurement |
+| `patch.MissingSymbol` | The symbol table lacks a name in `patch.REQUIRED` |
+| `patch.UnknownSite` | A site has a kind the rewrite does not cover |
+| `hardware.UnknownPackage` | A model name is not one of the four `hardware.PACKAGES` |
+| `similarity.NoRegion` | The assembly or the symbol table does not declare a region, a region ends before it starts, or the two images differ in length |
+| `dsptrace.TruncatedTrace` | A trace ends inside a record |
+| `dsptrace.UnknownLength` | A length byte arrives for a command that takes none |
+| `replay.ScriptTooLong` | A replay script exceeds the room left in the script cartridge |
+| `replay.EmulatorFailed` | The emulator exits non-zero or writes no work RAM dump within 5 seconds |
+| `cost.Ran` | A routine touches an address the cost harness does not model, or does not return within 4,000,000 steps |
+
+## What the chip did
+
+Dungeon Master is the only SNES cartridge that carries a DSP-2. The part has six commands: convert an Atari ST bitmap to the console's tile format, set a transparent colour, merge two bitmaps against it, mirror, multiply, and scale. Without it the game does not draw.
+
+What the cartridge asks it to convert is the dungeon view as composed for where the player stands, so there is no fixed set of answers to compute ahead of time and store. Searching the retail dump for the exact bytes the cartridge sends finds every one of the mirror command's inputs, 1.2% of the merge command's, and 0.3% of the tile command's. The six commands are therefore reimplemented in 65816, and the cartridge's own instructions are pointed at them.
+
+## Status
+
+| Part | State |
+|:--|:--|
+| Dump identification | Refuses a dump that is not the measured USA one |
+| The six commands in 65816 | Answer every recorded byte, on the processor |
+| The finished cartridge | Builds from a dump in one command, and boots with no coprocessor |
+| Speed | 59,874 cycles a frame against 14,385 for the chip path, in a frame of 59,561 |
+
+Weighted by how often the cartridge sends each command, the routines spend 59,874 cycles a frame where the port traffic cost 14,385. The retail figure leaves out the time the game spent polling a status register for an answer, which nothing here can measure, so the ratio is an upper bound. The 59,561 cycle frame is what the processor has.
+
+Driving both cartridges along the steady route for 30,000 frames, eight minutes of walking and turning, 29,941 frames are drawn the same. The conversion reaches the title screen 56 frames later and after that never falls a frame behind. Timed directly over 139 dungeon redraws, both cartridges settle in 26 frames and the conversion was slower on none. [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) carries both measurements and what each cannot say.
+
+## The dump
+
+Named as No-Intro names it. Every digest is of the whole file with no copier header. SHA-256 decides; the others cross-check against databases that key on them.
+
+| File | Read as | Size |
+|:--|:--|:--|
+| Dungeon Master, USA | `roms/dungeon-master-usa.sfc` | 1,048,576 |
+
+| Digest | Value |
+|:--|:--|
+| SHA-256 | `2dfc2e037679a62a960dab9682bca6d1b2737f603edd336c8b2fdf05db10cc07` |
+| SHA-1 | `e65ae62ec9a1c48a3512db66f929c7b0055ae2c3` |
+| MD5 | `3d1b171d7486438af2d9ec3d98b155cd` |
+| CRC32 | `0DFD9CEB` |
+
+The Japanese and European releases carry the same chip. [`artifacts.manifest.json`](artifacts.manifest.json) lists both with no digest, and the build refuses them until one is measured.
+
+## The models underneath
+
+Every claim about what a part does is made by another member of the family, pinned as a submodule at the root of this repository under its own name.
+
+| Model | Used here for | Held to |
+|:--|:--|:--|
+| [`mos65xx-python`](https://github.com/gufranco/mos65xx-python) | Running and pricing the routines in [`tools/cost.py`](tools/cost.py), and [`tools/verify_cpu.py`](tools/verify_cpu.py) | The 65816 per-opcode suite, 5,120,000 cases |
+| [`snes-dsp-python`](https://github.com/gufranco/snes-dsp-python) | Every expected answer, by running the part's own microcode | The microcode itself |
+| [`snes-rom-image-python`](https://github.com/gufranco/snes-rom-image-python) | Digests, copier headers and the header rewrite | A library of real cartridges |
+| [`snes-mapper-python`](https://github.com/gufranco/snes-mapper-python) | Put on the import path by [`hardware.py`](hardware.py) | Every header combination in that library |
+| [`snes-graphics-python`](https://github.com/gufranco/snes-graphics-python) | Pinned, imported by no module here | The console's bitplane layout |
+| [`snes-driver-python`](https://github.com/gufranco/snes-driver-python) | Pinned, imported by no module here | Where cartridge code reaches its coprocessor |
+
+The models start dirty: memory and registers hold reproducible scrambled values rather than zeroes, so a read of something never written shows up as a wrong answer.
 
 ## Repository guide
 
-Analysis modules in Python, each with its tests beside it, and a pinned container per toolchain.
+| Path | Holds |
+|:--|:--|
+| [`asm/`](asm/) | The 65816 routines, the state block, the stubs, the replay and self-test cartridges, and the asar 1.81 container |
+| [`emu/`](emu/) | The snes9x harness every emulator run goes through, as a container pinned to one snes9x commit |
+| [`snes9x/`](snes9x/) | The mapping change the finished image needs, as a patch against that commit |
+| [`tools/`](tools/) | The commands under [Asking the part](#asking-the-part) and [Measuring cost, play and placement](#measuring-cost-play-and-placement) |
+| [`conformance/divergences.json`](conformance/divergences.json) | Every open question in a form a program reads, held to [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) by a test |
+| `*.retail.test.py` | Checks that need the dump, kept out of the coverage gate, reported as skipped without it |
 
-| file | role |
-|------|------|
-| [`hardware.py`](hardware.py) | puts the pinned hardware models on the import path, and says where the microcode is |
-| [`doctor.py`](doctor.py) | what is actually on this machine, the whole chain, printed for a bug report |
-| [`mos65xx-python/`](mos65xx-python/) | the 65816, held to a per-opcode suite |
-| [`snes-dsp-python/`](snes-dsp-python/) | the DSP-2, running the chip's own microcode |
-| [`snes-mapper-python/`](snes-mapper-python/) | the cartridge map, held to a library of real cartridges |
-| [`snes-rom-image-python/`](snes-rom-image-python/) | image handling, held to that same library |
-| [`snes-graphics-python/`](snes-graphics-python/) | the tile format the conversion produces |
-| [`snes-driver-python/`](snes-driver-python/) | where the cartridge's own code reaches the part |
-| [`cartridge.py`](cartridge.py) | a dump in, a cartridge that needs no coprocessor out |
-| [`build.py`](build.py) | Docker wrapper around a pinned asar |
-| [`patch.py`](patch.py) | redirects every site in place, each replacement the width of what it replaces |
-| [`sites.py`](sites.py) | where those sites are, and the filler the stubs go in |
-| [`stateblock.py`](stateblock.py) | reads the block's declared layout and refuses two fields that share a byte |
-| [`similarity.py`](similarity.py) | every byte the finished cartridge does not share with the dump, and which region owns it |
-| [`check.py`](check.py) | every gate in one pass, each pinned to the version the runner installs |
-| [`assembled.py`](assembled.py) | the image the measurements read, and whether it predates its sources |
-| [`dsptrace.py`](dsptrace.py) | reads a recorded port trace back into transactions |
-| [`version.py`](version.py) | the release number, rewritten by [`scripts/set-version.sh`](scripts/set-version.sh) |
-| [`artifacts.manifest.json`](artifacts.manifest.json) | every dump this project reads, and what makes each one itself |
-| [`tools/identify.py`](tools/identify.py) | checks a dump, and says what is wrong when it is |
-| [`tools/cost.py`](tools/cost.py) | what each command costs, on the processor, against what the chip path cost |
-| [`tools/replay.py`](tools/replay.py) | the recorded stream fed back through the routines, on the processor |
-| [`tools/verify_trace.py`](tools/verify_trace.py) | the recorded stream against the chip's own microcode |
-| [`tools/boot.py`](tools/boot.py) | drives the finished cartridge and fails if it still wants a chip |
-| [`tools/pace.py`](tools/pace.py) | drives both cartridges on one input and says how far behind the conversion runs |
-| [`tools/placement.py`](tools/placement.py) | maps the work RAM the game touches, and fails if it reaches the state block |
-| [`conformance/`](conformance/) | the record of what is settled and what is not, with a test holding it to the prose |
-| [`asm/`](asm/) | assembly that goes into the ROM, with its own container pinning asar |
-| [`emu/`](emu/) | the harness everything is validated against |
-| [`ref/`](ref/) | the pinned reference the conversion is checked against |
-| [`snes9x/`](snes9x/) | the emulator change the finished image needs, as a patch against a pinned tree |
+## Is it right
 
-## Working on this
+Correctness is checked three ways, and each says something the others cannot.
 
-| What | Command |
-|:-----|:--------|
-| Everything below, in one pass | `python3 check.py` |
-| The same without the container | `python3 check.py --quick` |
-| Every test | `for t in *.test.py tools/*.test.py conformance/*.test.py; do python3 "$t" \|\| break; done` |
-| Coverage, which fails below 100% | `python3 -m coverage erase && for t in *.test.py tools/*.test.py conformance/*.test.py; do python3 -m coverage run -a "$t"; done && python3 -m coverage report` |
-| What is on this machine | `python3 doctor.py` |
-| Lint | `ruff check .` |
-| Types | `mypy .` |
-| Format | `ruff format --check .` |
-| Workflows | `actionlint` |
-| Shell | `shellcheck --severity=style --shell=bash scripts/*.sh` |
-| What each command costs | `python3 tools/cost.py` |
-| The recorded traffic through the routines | `python3 tools/replay.py build/trace-s1.bin` |
-| That the cartridge runs, and runs without a chip | `python3 tools/boot.py` |
-| That the game still leaves the state block's work RAM alone | `python3 tools/placement.py` |
-| How far behind the conversion runs | `python3 tools/pace.py roms/<dump>.sfc build/<name>.sfc` |
-| That nothing outside a declared region moved | `python3 similarity.py roms/<dump>.sfc build/<name>.sfc` |
+Four runs of 30,000 frames were recorded on the emulator with every byte in and out of the port: three seeded random walks and the steady route. [`tools/replay.py`](tools/replay.py) feeds those streams through the routines on the console's processor and checks 98,333,301 bytes, walking 8,722,303 runs. None are wrong.
 
-The last six need a dump, and each needs something built from it as well: `cost.py` the assembled
-image and its symbol table, `replay.py` a recorded trace on top of those, `boot.py` the finished
-cartridge, `placement.py` the dump alone, and `pace.py` and `similarity.py` both cartridges at once.
-Every one of them reports that it has nothing to run rather than passing.
+That recording holds what the emulator answered, and the emulator computes the part's results in C. [`tools/verify_trace.py`](tools/verify_trace.py) replays a whole recording against the part's own microcode and reproduces all 17,241,846 bytes the cartridge returned, none wrong, so the emulator and the part agree on everything recorded.
 
-### Conventions
+A recording says nothing about inputs it does not contain: every recorded multiply has a zero first operand, and the steady route holds no mirror and no scale. So all six commands are also held to the part over chosen inputs, through [`tools/verify_merge.py`](tools/verify_merge.py), [`tools/verify_multiply.py`](tools/verify_multiply.py) and [`tools/verify_commands.py`](tools/verify_commands.py). Two defects in the routines were found that way, and replaying traffic could have found neither.
 
-| Convention | Where |
-|:-----------|:------|
-| Commit messages | [Conventional Commits](https://www.conventionalcommits.org/), which drives the version number |
-| Python style | [`pyproject.toml`](pyproject.toml), ruff at line length 100, targeting 3.12 |
-| Tests | one `<module>.test.py` beside each module, standard library `unittest` |
-| Coverage | 100% of statements and branches, enforced by [`pyproject.toml`](pyproject.toml). A branch with no test fails the build rather than lowering the number |
-| Comments | required in the assembly and only there: entry and exit state, register widths, and where each recovered address came from |
-| Builds | in Docker, pinned, no network, non-root. Never on the host |
-| Releases | semantic versioning cut by the pipeline. Each image carries its version in the filename |
+What stays open, with the measurement that would settle each, is in [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) and [`conformance/divergences.json`](conformance/divergences.json).
 
-### Decisions worth knowing
+## Working on it
 
-- **No ROM data enters this repository.** Not dumps, not intermediates, not test fixtures. It is why
-  parts of the suite skip rather than fail without a dump, and why the checks that need one live in
-  `*.retail.test.py` files kept out of the coverage measurement: a machine with the dump runs one set
-  of paths and a machine without it runs the other, so no single build can exercise both.
-- **The part's own microcode answers for the part.** Nothing here computes a DSP-2 result. What a
-  command answers is whatever the program the chip carries answers, and a check that needs that
-  program reports it had nothing to run rather than passing without it.
-- **The cartridge is the only oracle.** A source and size pair is a request because the retail
-  cartridge asks for it. Producing a plausible result for a pair nobody asked for proves nothing,
-  since any bitmap scales to something of exactly the size requested.
-- **The build depends on nothing outside this repository.** A fresh clone plus a dump is enough, with
-  no network and no second checkout.
-- **Speed is a number, never an adjective.** Every claim about how fast something is comes from
-  [`tools/cost.py`](tools/cost.py), which runs the routine on the processor model against recorded
-  traffic and prices it against what the same exchange cost when a chip answered it. Both figures
-  print per command, because a single total would hide which one regressed.
-- **What is not known is written down.** [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) carries every place
-  a claim here is narrower than it looks, with the measurement that would settle it, and
-  [`conformance/divergences.json`](conformance/divergences.json) carries the same record in a form a
-  program can read. A test holds the two together so an entry cannot be added to one and forgotten in
-  the other.
+| Need | Where |
+|:--|:--|
+| Every gate and the order to run them | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| The same material for a coding agent | [AGENTS.md](AGENTS.md) |
+| The standard this repository shares with the rest of the family | [FAMILY.md](FAMILY.md) |
+| Bug reports | [GitHub Issues](https://github.com/gufranco/snes-dungeon-master-nochip/issues) |
+| Security reports | [SECURITY.md](SECURITY.md) |
 
-## Contributing
+```bash
+uvx ruff@0.16.3 format --check .
+uvx ruff@0.16.3 check .
+uvx --python 3.12 mypy==1.14.1 .
+python3 -m coverage erase
+for module in *.test.py tools/*.test.py conformance/*.test.py; do python3 -m coverage run -a "$module"; done
+python3 -m coverage report
+```
 
-Measurements first. [CONTRIBUTING.md](CONTRIBUTING.md) has the gates a change is expected to pass,
-[SECURITY.md](SECURITY.md) says what belongs in a private report, and the
-[Code of Conduct](CODE_OF_CONDUCT.md) applies wherever this project is discussed.
+Each module has a `<module>.test.py` beside it, and each runs on its own. Coverage is a hard gate at 100% of statements and branches, met on a machine holding neither the dump nor the microcode. `python3 check.py` runs every gate in one pass.
 
-Never attach a cartridge or a microcode image, and never link to somewhere either can be downloaded.
-A digest identifies a file without carrying it.
+Never attach a cartridge or a microcode image to an issue, and never link to somewhere either can be downloaded. A digest identifies a file without carrying it.
+
+## References
+
+- snes9x, `dsp2.cpp` at commit `2971061cf07fdc6fc7d18883edf4e648eb16a6d2`, https://github.com/snes9xgit/snes9x, the emulator every run and recording goes through.
+- asar 1.81, https://github.com/RPGHacker/asar, the assembler, pinned in [`asm/Dockerfile`](asm/Dockerfile).
+- neviksti's Star Ocean chip-free conversion, the source of the addressing rule for images too large for the address space.
+- The Zeldix community, where much of the SNES romhacking knowledge this relies on is written down.
+- FTL Games and Software Heaven made the game and the port.
 
 ## Citing this
 
-[CITATION.cff](CITATION.cff) is kept in step with the released version by the same script that
-stamps the release, so the version it names is the version that shipped.
+[CITATION.cff](CITATION.cff) is updated with each release by the script that stamps [`version.py`](version.py).
 
-## Acknowledgements
+## License
 
-**FTL Games and Software Heaven**, for the game and for the port.
-
-**The snes9x team**, for the emulator, for `dsp2.cpp` as the reference this conversion is checked
-against, and for reviewing the mapper this image relies on.
-
-**neviksti and the Star Ocean chip-free conversion**, which is where the addressing rule for images
-too large for the address space comes from.
-
-**The Zeldix community**, where most of the SNES romhacking knowledge this leans on is written down.
-
-## Legal
-
-No ROM data is distributed here. Everything in this repository operates on a file you must already
-own, and the patches are derived from analysis of a retail cartridge you supply.
-
-The tooling, the assembly and this document are released under the [MIT licence](LICENSE). That
-covers my own work and nothing else. It grants no rights in the game.
+MIT. See [LICENSE](LICENSE). The license covers the tooling, the assembly and this document. It grants no rights in the game, and no ROM data is distributed here.

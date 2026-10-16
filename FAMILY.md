@@ -276,6 +276,23 @@ checks the ones a test can reach.
       member adds sits in that same middle, so the spine reads the same
       everywhere. A reader who learned where something lives in one member finds
       it in the same place in the next, which is most of what a shared shape buys.
+- [ ] The readme is written four times, once per language: `README.md` in
+      English, then `README.ja.md` in Japanese, `README.zh-Hans.md` in
+      Simplified Chinese and `README.zh-HK.md` in Traditional Chinese as Hong
+      Kong writes it. English is the source, and each translation is made from
+      it, never from another translation, because Traditional converted from
+      Simplified carries the wrong characters and the wrong region's words.
+      Every file opens with the same line of links between the four, keeps the
+      English headings in the English order, and carries every code block byte
+      for byte, so the worked example checked in English is the one a reader of
+      any language runs.
+- [ ] The readme is technical and plain. It documents the whole interface,
+      each entry point with a call a reader can paste and the output it prints,
+      and it says what the member does with the number that shows it rather than
+      with an adjective. Every sentence could not appear unchanged in another
+      member's readme, would change what a reader does if it were deleted, and
+      sits in a structure its content chose. A sentence that fails any of the
+      three is filler, and filler is cut rather than reworded.
 - [ ] It opens with a line of numbers somebody ran, before any prose: what was
       compared, how much of it failed, the test count, the coverage, and what it
       costs to install. A count of what was compared with no result beside it is
