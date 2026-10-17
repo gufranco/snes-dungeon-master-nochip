@@ -14,29 +14,32 @@ and severity, so a program can read what a person reads here.
 
 ## The replacement costs about one extra frame of processor time per frame
 
-Priced against the cartridge's own recorded traffic, the routines spend **63,168
-cycles a frame** where the chip path spent **7,600**. A frame holds 59,561. So
+Priced against the cartridge's own recorded traffic, the routines spend **68,616
+cycles a frame** where the chip path spent **15,009**. A frame holds 59,561. So
 the conversion adds very nearly a whole frame of work to every frame, averaged
-over three tours that walk the dungeon continuously.
+over 86,837 frames of three tours that walk the dungeon continuously.
+[`tools/frame_cost.py`](tools/frame_cost.py) produces every figure in this
+section.
 
 Two commands carry almost all of it:
 
 | command | calls across three tours | cycles a frame, ours | cycles a frame, the chip path |
 |:--|--:|--:|--:|
-| tile | 1,031,195 | 30,031 | 5,190 |
-| merge | 2,023,023 | 28,278 | 2,113 |
-| scale | 29,267 | 3,552 | 233 |
-| everything else | 253,288 | 1,307 | 64 |
+| tile | 1,031,194 | 26,125 | 5,379 |
+| merge | 2,023,022 | 37,771 | 9,372 |
+| scale | 29,267 | 3,474 | 187 |
+| everything else | 253,270 | 1,246 | 70 |
 
 The figure is a weighted one, because the cartridge reaches the chip two ways and
 they do not cost the same. Eighteen sites in bank $00 name their banks in the
 instruction and become a call straight to a transfer. The rest go through one of
 four block movers the boot code installs in work RAM, whose bank operands the
 caller writes first; those became dispatchers that read the operands back and
-decide from them, and that costs 42 cycles a transfer. Sixty per cent of the
-traffic arrives that way. Priced through the direct path alone the total is
-61,387, which is the number to compare against when changing an operation and
-the wrong one to quote as what the cartridge costs.
+decide from them, and that costs 42 cycles a transfer. Every merge, mirror and
+scale arrives that way and every tile does not, which is 62% of the calls.
+Priced through the direct path alone the total is 66,592, which is the number to
+compare against when changing an operation and the wrong one to quote as what
+the cartridge costs.
 
 The merge row is the one that says where the cost actually is. A merge computes
 four bytes, and the arithmetic for those four bytes is about 180 cycles of the
@@ -47,9 +50,11 @@ frame. No arrangement of lookup tables removes them, because they are not
 computation.
 
 This is not a shortfall that closes with more optimisation of the same shape.
-Since this was first measured the figure has come down from 95,258 cycles a
-frame to 63,168, and every remaining idea that has been costed is worth low
-thousands rather than tens of thousands. Reaching the chip's own figure is not
+The first measurement was 95,258 cycles a frame. A later one read 63,168 against
+7,600, but its sample held only the short merges of the boot sequence; priced
+over every recorded exchange, the same routines cost what the table shows. Every
+remaining idea that has been costed is worth low thousands rather than tens of
+thousands. Reaching the chip's own figure is not
 possible at all: the chip computed while the program that fed it carried on, so
 its work was free to the program in a way software never is.
 
@@ -92,7 +97,7 @@ out. The retail path polls a status register in a loop until the chip answers,
 and how long that takes is not something a table can price, so
 [`tools/cost.py`](tools/cost.py) counts it for neither side. The replacement
 answers that poll immediately. Whatever the retail cartridge spent spinning is
-time the conversion gets back, and it does not appear in the 55,567.
+time the conversion gets back, and it does not appear in the 53,607.
 
 Two limits, both of which cap what this can say:
 

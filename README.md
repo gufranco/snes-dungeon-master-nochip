@@ -8,7 +8,7 @@ English &nbsp;|&nbsp; [日本語](README.ja.md) &nbsp;|&nbsp; [简体中文](REA
 [![Release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip)](https://github.com/gufranco/snes-dungeon-master-nochip/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**98,333,301** recorded port bytes replayed through the routines from **4** runs of 30,000 frames, **0** wrong, **17,241,846** returned bytes reproduced by the part's microcode, **0** wrong, **6** of 6 commands held to the part on chosen inputs, **900** tests, **100%** statement and branch coverage, standard library only
+**98,333,301** recorded port bytes replayed through the routines from **4** runs of 30,000 frames, **0** wrong, **17,241,846** returned bytes reproduced by the part's microcode, **0** wrong, **6** of 6 commands held to the part on chosen inputs, **924** tests, **100%** statement and branch coverage, standard library only
 
 ```python
 import patch
@@ -162,12 +162,13 @@ These hold the routines to what the DSP-2's own microcode returns, run by `snes-
 | Command | Arguments | Exit codes |
 |:--|:--|:--|
 | `tools/cost.py [image] [symbols] [trace] [samples]` | `asm/dm-sym.sfc`, the `.sym` beside it, `build/trace-s1.bin`, 60 exchanges per command | 0 every sampled answer matched. 1 one did not. 2 the image or its symbols are missing, or the symbols are older |
+| `tools/frame_cost.py [image] [trace ...]` | `asm/dm-sym.sfc` and `build/trace-s1.bin` to `trace-s3.bin` | 0 priced. 1 no complete exchange after frame 600. 2 the image, its symbols or a trace is missing |
 | `tools/pace.py <dump> <cartridge> [frames]` | Both cartridges, 4,000 frames | 0 the comparison ran. 1 the emulator failed. 2 usage, or a file is missing |
 | `tools/boot.py [cartridge] [frames]` | `build/Dungeon Master (USA) (nochip).sfc`, 8,000 frames | 0 no coprocessor declared, no chip request, every frame delivered, the screen lit. 1 any of those failed. 2 no cartridge |
 | `tools/placement.py [dump] [frames] [seed]` | `roms/dungeon-master-usa.sfc`, 19,000 frames, the steady route unless a seed is given | 0 the game never touched the state block's work RAM. 1 it did, or the run left no map. 2 no dump |
 | `tools/tour.py [--frames N] [--seed S] [--steady] [--out PATH]` | 24,000 frames, seed 0, printed to standard output | 0 written. 2 usage |
 
-`cost.py` runs each command on the `mos65xx` 65816 model, which counts every bus cycle, feeds it recorded traffic from frame 600 on, checks each answer, and prices the same exchange as the retail path paid for it: 5 cycles per long store and 7 per byte moved. It prints one row per command with the call count, the cycles direct, the cycles through a block-move dispatcher, the retail cycles, the ratio, and how many answers were right. The status-register polling the retail path spent waiting is counted for neither side.
+`cost.py` runs each command on the `mos65xx` 65816 model, which counts every bus cycle, feeds it recorded traffic from frame 600 on, checks each answer, and prices the same exchange as the retail path paid for it: 5 cycles per long store and 7 per byte moved. It prints one row per command with the call count, the cycles direct, the cycles through a block-move dispatcher, the retail cycles, the ratio, and how many answers were right. The status-register polling the retail path spent waiting is counted for neither side. `frame_cost.py` counts every complete exchange from frame 600 on in each trace, tells a call that came through one of the four block movers in work RAM from one that came straight from a cartridge site, prices this side at `cost.py`'s mean for that command and path and the retail path exactly, and prints a row per command and the cost of a frame on both sides.
 
 `pace.py` drives both cartridges on the steady route, digests every finished frame, and reports how many frames the conversion drew the same, how many it drew late, the worst lag and the median, then the lag curve in 8 points. `boot.py` fails on any of four things: the header still declares a coprocessor, a chip was asked for something, the run stopped early, or the screen never lit. `placement.py` reads the state block's address range out of [`asm/dsp2-state.asm`](asm/dsp2-state.asm) and reports the longest run of work RAM the game never touched. `tour.py` writes the input scripts these drive: a seeded random walk, or the steady route of up, up, up, left, up, up, up, right.
 
@@ -354,9 +355,9 @@ What the cartridge asks it to convert is the dungeon view as composed for where 
 | Dump identification | Refuses a dump that is not the measured USA one |
 | The six commands in 65816 | Answer every recorded byte, on the processor |
 | The finished cartridge | Builds from a dump in one command, and boots with no coprocessor |
-| Speed | 59,874 cycles a frame against 14,385 for the chip path, in a frame of 59,561 |
+| Speed | 68,616 cycles a frame against 15,009 for the chip path, in a frame of 59,561 |
 
-Weighted by how often the cartridge sends each command, the routines spend 59,874 cycles a frame where the port traffic cost 14,385. The retail figure leaves out the time the game spent polling a status register for an answer, which nothing here can measure, so the ratio is an upper bound. The 59,561 cycle frame is what the processor has.
+Weighted by how often the cartridge sends each command, the routines spend 68,616 cycles a frame where the port traffic cost 15,009. The retail figure leaves out the time the game spent polling a status register for an answer, which nothing here can measure, so the ratio is an upper bound. The 59,561 cycle frame is what the processor has.
 
 Driving both cartridges along the steady route for 30,000 frames, eight minutes of walking and turning, 29,941 frames are drawn the same. The conversion reaches the title screen 56 frames later and after that never falls a frame behind. Timed directly over 139 dungeon redraws, both cartridges settle in 26 frames and the conversion was slower on none. [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) carries both measurements and what each cannot say.
 
