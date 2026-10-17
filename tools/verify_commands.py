@@ -75,6 +75,7 @@ def _default_chip(load: Callable[[str], Any] | None = None) -> Any:
 
 def _default_answer_for(build_chip: Callable[[], Any] | None = None) -> Any:
     build = _default_chip if build_chip is None else build_chip
+    build()
     return lambda one: answer_from(build, one)
 
 
@@ -113,7 +114,7 @@ def main(
         answer = answer_for()
     except Exception as trouble:
         say(f"  the part had nothing to run here, so this check did not run: {trouble}")
-        return 0
+        return 1
 
     pairs = cases(each)
     _, compared, wrong = walk(runs_for(pairs, answer))

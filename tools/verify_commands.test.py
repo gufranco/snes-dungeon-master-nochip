@@ -162,13 +162,18 @@ class ReportTest(unittest.TestCase):
 
 
 class MainTest(unittest.TestCase):
-    def test_a_machine_without_the_part_reports_that_rather_than_failing(self) -> None:
+    def test_a_machine_without_the_part_fails_rather_than_passing_unchecked(self) -> None:
+        # Arrange
         said: list[str] = []
 
         def refuse() -> Any:
             raise RuntimeError("no microcode")
 
-        self.assertEqual(verify_commands.main((), answer_for=refuse, say=said.append), 0)
+        # Act
+        code = verify_commands.main((), answer_for=refuse, say=said.append)
+
+        # Assert
+        self.assertEqual(code, 1)
 
     def test_it_says_what_it_could_not_do(self) -> None:
         said: list[str] = []
