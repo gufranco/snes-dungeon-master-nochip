@@ -93,9 +93,10 @@ checks the ones a test can reach.
       that reset does is either quoted from a document or recorded as not stated,
       with the measurement that would settle it. A reset nobody can account for
       is an invented pin.
-- [ ] It is cycle accurate, built unknown until `reset()`, and held by a test
-      to every fact the manufacturer printed, per "Three requirements every
-      member meets". A gap in any of the three is named in `OPEN-QUESTIONS.md`.
+- [ ] It is cycle accurate, built unknown until `reset()`, held by a test to
+      every fact the manufacturer printed, and tested end to end through its
+      public interface over every file, per "Four requirements every member
+      meets". A gap in any of the four is named in `OPEN-QUESTIONS.md`.
 - [ ] A part publishes its catalogue even when it holds one model: `MODELS`,
       `Model` and `UnknownModelError`. There is no default model and nothing that
       hands back a description of a part instead of a part. A name no model goes
@@ -404,7 +405,7 @@ rediscovered:
   by doing the work a second time, and until it is, every result built on it is
   suspect.
 
-## Three requirements every member meets
+## Four requirements every member meets
 
 Each follows from fidelity. They are written down because each one has been
 argued away at least once. A member that falls short of one names the gap in its
@@ -443,6 +444,19 @@ under `heldBy`, as `path::Class.test_name`, or says under `unreachable` why no
 test can reach it. A supporting quote under `alsoSays` belongs to its fact. The
 family test fails on an entry that does neither, on a name that resolves to no
 test, and on a test that never names the entry it is said to hold.
+
+**Tested end to end, through the public interface, over every file.** Every
+test drives the package the way a host does: through the names the package
+exports in `__all__`, and through the attributes its README documents on what
+those return. No test imports an inner module of the package, and no test
+reaches a private name of any module in the repository. A tool, such as the
+doctor or a conformance script, is driven through its public functions, and
+anything it keeps private is reached through one of them. Coverage is 100% of
+statements and branches over every Python file the repository tracks, with
+`setup.py` included, and it is reached through that interface. A line no caller
+can reach is a line to delete. The family test fails on a test that imports an
+inner module or touches a private name, and each member names its tool modules
+in `TOOL_MODULES` at the top of that test.
 
 ## The authority ladder
 
@@ -956,9 +970,9 @@ delete.
 | Language | Python only |
 | Dependencies | None at runtime. The standard library is the whole budget |
 | Comments | None in source, docstrings included. Tool directives and the three test markers are the only exceptions |
-| Test layout | `<module>.test.py` beside the module it covers |
+| Test layout | `<module>.test.py` beside the module whose behaviour it covers, driving it through the public interface |
 | Test shape | `# Arrange`, `# Act`, `# Assert`, each opening its block, one blank line between, one call in the act |
-| Coverage | 100% statements and branches, enforced |
+| Coverage | 100% statements and branches over every file the repository tracks, `setup.py` included, enforced |
 | Types | `mypy` at strict, plus every optional error class |
 | Lint and format | `ruff`, clean, no suppressions without a stated reason |
 | Variants in the readme | Every model or variant the package accepts is shown being built, with every alias it answers to named beside it. A part nobody can find is a part nobody uses, and the check is for the call rather than the bare name because the call is what a reader came for |
