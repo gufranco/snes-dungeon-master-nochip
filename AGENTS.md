@@ -191,6 +191,7 @@ The gates it runs, for reference:
 | types | `mypy .` |
 | lint | `ruff check .` |
 | format | `ruff format --check .` |
+| yaml | `uvx yamllint==1.38.0 --strict .` |
 | workflows | `actionlint` |
 | this machine | `python3 doctor.py` |
 | the cartridge | `python3 cartridge.py roms/<dump>.sfc build/<name>.sfc` |

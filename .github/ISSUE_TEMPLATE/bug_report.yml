@@ -1,3 +1,4 @@
+---
 name: Something is wrong
 description: The converted cartridge misbehaves, or a check will not run
 labels: ["bug"]

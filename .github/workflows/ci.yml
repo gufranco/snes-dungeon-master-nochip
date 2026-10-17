@@ -1,3 +1,4 @@
+---
 name: ci
 
 on:
@@ -35,9 +36,7 @@ jobs:
       - name: Lint
         run: ruff check .
 
-      # The models are separate repositories with their own checks, so this only
-      # needs the submodules present for the imports to resolve.
-      - name: Types
+      - name: Types, with the submodules present only so the imports resolve
         run: mypy .
 
       - uses: pnpm/action-setup@v6
@@ -58,6 +57,11 @@ jobs:
 
       - name: Lint the workflows
         uses: raven-actions/actionlint@v2
+
+      - name: Lint every YAML file
+        run: |
+          pipx install yamllint==1.38.0
+          yamllint --strict .
 
       - name: Lint the shell scripts
         run: |
@@ -95,11 +99,7 @@ jobs:
           done
           exit "${failed}"
 
-      # The gate is total, and it is met on a machine holding neither the
-      # cartridge nor the microcode, which is what this runner is. Anything that
-      # needs either is a script rather than a test, or lives in a file kept out
-      # of the measurement and reports as skipped.
-      - name: Coverage must be total
+      - name: Coverage must be total, on a runner with no cartridge and no microcode
         run: python3 -m coverage report
 
   release:
@@ -127,9 +127,7 @@ jobs:
       - name: Install release tooling
         run: pnpm install --frozen-lockfile
 
-      # npm's signature verification has no equivalent here, so what is checked
-      # is the advisory database rather than the provenance of each tarball.
-      - name: Check the release tooling against known advisories
+      - name: Check the release tooling against known advisories, since npm signatures cannot be
         run: pnpm audit --audit-level=high
 
       - name: Release

@@ -13,6 +13,7 @@ Run every gate, and read the output rather than the exit code:
 uvx ruff@0.16.3 format --check .
 uvx ruff@0.16.3 check .
 pnpm install --frozen-lockfile && pnpm run format:check
+uvx yamllint==1.38.0 --strict .
 python3 -m coverage erase
 for module in *.test.py tools/*.test.py; do python3 -m coverage run -a "$module"; done
 python3 -m coverage report
