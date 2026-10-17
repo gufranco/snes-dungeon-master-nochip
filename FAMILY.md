@@ -438,6 +438,12 @@ sits under `notStated`, marked unverified, with its source and the measurement
 that would settle it. A member with no manufacturer document says so, and names
 the rung below that holds its code instead.
 
+Each printed fact in `conformance/hardware.json` names the tests that hold it
+under `heldBy`, as `path::Class.test_name`, or says under `unreachable` why no
+test can reach it. A supporting quote under `alsoSays` belongs to its fact. The
+family test fails on an entry that does neither, on a name that resolves to no
+test, and on a test that never names the entry it is said to hold.
+
 ## The authority ladder
 
 Every factual question is answered by the highest rung that has an answer, and a
