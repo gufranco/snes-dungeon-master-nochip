@@ -93,6 +93,9 @@ checks the ones a test can reach.
       that reset does is either quoted from a document or recorded as not stated,
       with the measurement that would settle it. A reset nobody can account for
       is an invented pin.
+- [ ] It is cycle accurate, built unknown until `reset()`, and held by a test
+      to every fact the manufacturer printed, per "Three requirements every
+      member meets". A gap in any of the three is named in `OPEN-QUESTIONS.md`.
 - [ ] A part publishes its catalogue even when it holds one model: `MODELS`,
       `Model` and `UnknownModelError`. There is no default model and nothing that
       hands back a description of a part instead of a part. A name no model goes
@@ -400,6 +403,40 @@ rediscovered:
   problem is fixable afterwards by anyone. An accuracy shortcut has to be undone
   by doing the work a second time, and until it is, every result built on it is
   suspect.
+
+## Three requirements every member meets
+
+Each follows from fidelity. They are written down because each one has been
+argued away at least once. A member that falls short of one names the gap in its
+README and in `OPEN-QUESTIONS.md`, with what would close it. It never quietly
+does less.
+
+**Cycle accurate.** A member that models hardware advances one cycle of the
+part's own clock at a time: a processor's machine cycle, a video chip's dot, a
+sound chip's input clock. Every access lands on the cycle the hardware makes it,
+and every cycle is counted. An instruction or a frame computed in one step and
+charged afterwards is not cycle accurate, however right its totals are. A member
+that models a format or builds a tool has no clock of its own. It is held to
+byte accuracy against the format, and to cycle accuracy through the parts it
+runs.
+
+**Unknown until `reset()`.** A part is built in the state the rail coming up
+leaves it. Every register, counter, latch and store is scrambled from a seed,
+reproducibly, and nothing is cleared. Nothing the documents define holds until
+the caller calls `reset()`, and the constructor never calls it. `reset()` sets
+exactly what the manufacturer says a reset sets, costs what the manufacturer
+says it costs, and leaves everything else holding what it held. A part with no
+reset pin still offers `reset()`. It changes nothing and hands the part back,
+and the README says what software has to write before the part is defined.
+
+**Held, all of it, to the manufacturer's documents.** Every behaviour the
+manufacturer printed that a test can reach is a test. Each of those tests reads
+its expected value from the record of the sentence and page it came from, never
+from the code. One hundred percent means every printed fact, not a sample. A
+behaviour the manufacturer did not print is never tested as if it had been. It
+sits under `notStated`, marked unverified, with its source and the measurement
+that would settle it. A member with no manufacturer document says so, and names
+the rung below that holds its code instead.
 
 ## The authority ladder
 
