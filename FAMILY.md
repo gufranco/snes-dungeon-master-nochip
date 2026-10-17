@@ -282,10 +282,10 @@ checks the ones a test can reach.
       Kong writes it. English is the source, and each translation is made from
       it, never from another translation, because Traditional converted from
       Simplified carries the wrong characters and the wrong region's words.
-      Every file opens with the same line of links between the four, keeps the
-      English headings in the English order, and carries every code block byte
-      for byte, so the worked example checked in English is the one a reader of
-      any language runs.
+      Every file carries the same line of links between the four under its
+      tagline and above its badges, keeps the English headings in the English
+      order, and carries every code block byte for byte, so the worked example
+      checked in English is the one a reader of any language runs.
 - [ ] The readme is technical and plain. It documents the whole interface,
       each entry point with a call a reader can paste and the output it prints,
       and it says what the member does with the number that shows it rather than
