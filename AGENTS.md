@@ -42,8 +42,11 @@ processor cannot be free, so every statement about it here is a cycle count.
 
 [`tools/cost.py`](tools/cost.py) runs each command on the 65816 model, which
 drives a bus cycle by cycle, feeds it the cartridge's own recorded traffic, checks
-every answer against what the recording holds, and prices the exchange against what
-it cost when a chip answered it. Both figures print per command. A single total
+every answer against what the part's own microcode returns for the same traffic,
+and prices the exchange against what it cost when a chip answered it. The
+recording is not the reference: it holds what the emulator answered, and the
+emulator's scale divides by one less than the part does, so 248 of the 254 scales
+the tool reads from `trace-s1.bin` hold answers the part does not give. Both figures print per command. A single total
 would hide which one regressed, which is the whole reason for the tool.
 
 Three things follow for anybody changing the assembly:

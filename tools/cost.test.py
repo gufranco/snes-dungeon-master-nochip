@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import unittest
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -396,6 +397,42 @@ class ChosenTest(unittest.TestCase):
         self.assertEqual(replay, sorted(replay))
 
 
+class Scripted:
+    def __init__(self, answers: bytes = b"") -> None:
+        self.answers = iter(answers)
+
+    def write(self, _byte: int) -> None:
+        return None
+
+    def read(self) -> int:
+        return next(self.answers, 0)
+
+
+def scripted(answers: bytes = b"") -> Callable[[str], Scripted]:
+    return lambda _name: Scripted(answers)
+
+
+SILENT_PART: dict[str, Any] = {"build": scripted(), "refuses": lambda: None}
+
+MULTIPLY = 0x09
+
+RECORDED_ANSWER = bytes([0x12, 0x34, 0x56, 0x78])
+
+
+def recorded_multiply(answer: bytes = RECORDED_ANSWER) -> bytes:
+    import dsptrace
+
+    rows = (
+        (MULTIPLY, dsptrace.KIND_WRITE),
+        *((0x00, dsptrace.KIND_WRITE) for _ in range(4)),
+        *((byte, dsptrace.KIND_READ) for byte in answer),
+    )
+    return b"".join(
+        dsptrace.RECORD.pack(900, 0x008000, 0, 0, kind, byte, b"\x00" * 8, 0x00, 0x30, b"\x00" * 4)
+        for byte, kind in rows
+    )
+
+
 class WholeRunTest(unittest.TestCase):
     def setUpFiles(self) -> tuple[Path, Path, Path]:
         where = Path(tempfile.mkdtemp())
@@ -413,7 +450,7 @@ class WholeRunTest(unittest.TestCase):
         rom, sym, trace = self.setUpFiles()
         said: list[str] = []
 
-        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append)
+        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append, **SILENT_PART)
 
         self.assertTrue(any("transparent" in one for one in said))
 
@@ -421,7 +458,12 @@ class WholeRunTest(unittest.TestCase):
         rom, sym, trace = self.setUpFiles()
         said: list[str] = []
 
-        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append, ("transparent",))
+        cost.main(
+            ["cost.py", str(rom), str(sym), str(trace), "1"],
+            said.append,
+            ("transparent",),
+            **SILENT_PART,
+        )
 
         self.assertIn("       1", said[1])
 
@@ -429,7 +471,7 @@ class WholeRunTest(unittest.TestCase):
         rom, sym, trace = self.setUpFiles()
         said: list[str] = []
 
-        cost.main(["cost.py", str(rom), str(sym), str(trace), "2"], said.append)
+        cost.main(["cost.py", str(rom), str(sym), str(trace), "2"], said.append, **SILENT_PART)
 
         self.assertIn("       2", said[1])
 
@@ -437,7 +479,7 @@ class WholeRunTest(unittest.TestCase):
         rom, sym, trace = self.setUpFiles()
         said: list[str] = []
 
-        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append)
+        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append, **SILENT_PART)
 
         self.assertIn("1/1", "\n".join(said))
 
@@ -445,7 +487,7 @@ class WholeRunTest(unittest.TestCase):
         rom, sym, trace = self.setUpFiles()
         said: list[str] = []
 
-        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append)
+        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append, **SILENT_PART)
 
         self.assertTrue(any(one.strip().startswith("sync") for one in said))
 
@@ -454,7 +496,7 @@ class WholeRunTest(unittest.TestCase):
         trace.write_bytes(recorded(frame=0))
         said: list[str] = []
 
-        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append)
+        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append, **SILENT_PART)
 
         self.assertFalse(any("transparent" in one for one in said))
 
@@ -463,7 +505,7 @@ class WholeRunTest(unittest.TestCase):
         trace.write_bytes(recorded(frame=cost.SETTLED_FRAME))
         said: list[str] = []
 
-        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append)
+        cost.main(["cost.py", str(rom), str(sym), str(trace), "1"], said.append, **SILENT_PART)
 
         self.assertTrue(any("transparent" in one for one in said))
 
@@ -474,9 +516,113 @@ class WholeRunTest(unittest.TestCase):
         trace.write_bytes(recorded()[: -dsptrace.RECORD_BYTES])
         said: list[str] = []
 
-        cost.main(["cost.py", str(rom), str(sym), str(trace), "9"], said.append)
+        cost.main(["cost.py", str(rom), str(sym), str(trace), "9"], said.append, **SILENT_PART)
 
         self.assertIn("      2", said[2])
+
+    def test_an_answer_is_held_to_the_part_rather_than_to_the_emulator_recording(self) -> None:
+        # Arrange
+        rom, sym, trace = self.setUpFiles()
+        trace.write_bytes(recorded_multiply())
+        said: list[str] = []
+
+        # Act
+        code = cost.main(
+            ["cost.py", str(rom), str(sym), str(trace), "1"],
+            said.append,
+            build=scripted(bytes(4)),
+            refuses=lambda: None,
+        )
+
+        # Assert
+        self.assertEqual((code, "1/1" in said[1]), (0, True))
+
+    def test_an_answer_the_part_does_not_give_fails_even_when_the_recording_agrees(self) -> None:
+        # Arrange
+        rom, sym, trace = self.setUpFiles()
+        trace.write_bytes(recorded_multiply(bytes(4)))
+        said: list[str] = []
+
+        # Act
+        code = cost.main(
+            ["cost.py", str(rom), str(sym), str(trace), "1"],
+            said.append,
+            build=scripted(RECORDED_ANSWER),
+            refuses=lambda: None,
+        )
+
+        # Assert
+        self.assertEqual((code, "0/1" in said[1]), (1, True))
+
+    def test_with_no_part_to_ask_nothing_is_called_correct(self) -> None:
+        # Arrange
+        rom, sym, trace = self.setUpFiles()
+        said: list[str] = []
+
+        # Act
+        code = cost.main(
+            ["cost.py", str(rom), str(sym), str(trace), "1"],
+            said.append,
+            build=scripted(),
+            refuses=lambda: "no microcode",
+        )
+
+        # Assert
+        self.assertEqual((code, said), (2, ["  nothing to hold the answers to: no microcode"]))
+
+
+class ExchangeTest(unittest.TestCase):
+    def test_a_tile_answer_starts_after_the_byte_that_precedes_it(self) -> None:
+        # Arrange
+        one = ("tile", 0x01, (), bytes(32), bytes(2))
+
+        # Act
+        answer = cost.exchange(Scripted(bytes([0xEE, 0x01, 0x02])), one)
+
+        # Assert
+        self.assertEqual(answer, bytes([0x01, 0x02]))
+
+    def test_the_byte_a_sync_leaves_behind_is_not_taken_for_the_next_answer(self) -> None:
+        # Arrange
+        found = [("sync", 0x0F, (), b"", b""), ("multiply", MULTIPLY, (), bytes(4), bytes(4))]
+
+        # Act
+        answers = cost.answered(Scripted(bytes([0xEE, 1, 2, 3, 4])), found, [0, 1])
+
+        # Assert
+        self.assertEqual(answers, {0: b"", 1: bytes([1, 2, 3, 4])})
+
+    def test_the_recording_answers_with_what_the_cartridge_was_given(self) -> None:
+        # Arrange
+        found = [("multiply", MULTIPLY, (), bytes(4), RECORDED_ANSWER)]
+
+        # Act
+        answers = cost.recorded(found, [0])
+
+        # Assert
+        self.assertEqual(answers, {0: RECORDED_ANSWER})
+
+
+class PartTest(unittest.TestCase):
+    def test_the_part_built_is_the_dsp2(self) -> None:
+        # Arrange
+        asked: list[str] = []
+
+        # Act
+        cost.chip(build=asked.append)
+
+        # Assert
+        self.assertEqual(asked, ["dsp2"])
+
+    def test_whether_the_part_can_run_is_a_reason_or_nothing(self) -> None:
+        # Arrange
+        expected_kinds = (type(None), str)
+
+        # Act
+        reason = cost.why_not()
+
+        # Assert
+        self.assertIsInstance(reason, expected_kinds)
 
 
 if __name__ == "__main__":

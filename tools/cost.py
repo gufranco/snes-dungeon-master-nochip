@@ -1,16 +1,27 @@
 import sys
 from collections import defaultdict
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+import dsptrace  # noqa: E402
 import hardware  # noqa: E402
 
 mos65xx = hardware.load("mos65xx")
+snesdsp = hardware.load("snesdsp")
 
 MODEL = "65816"
+
+PART = "dsp2"
+
+PREAMBLE = {dsptrace.COMMAND_TILE: 1}
+
+TRAILING = {dsptrace.COMMAND_SYNC: 1}
+
+Expected = Callable[[list[Any], list[int]], dict[int, bytes]]
 
 BANK = 0x8000
 WRAM = 0x20000
@@ -266,6 +277,34 @@ def chosen(found: Any, wanted: int, colour: str = COLOUR_COMMAND) -> tuple[list[
     return sorted(replay), sorted(record)
 
 
+def chip(build: Callable[[str], Any] | None = None) -> Any:
+    return (build or snesdsp.Chip)(PART)
+
+
+def why_not() -> Any:
+    return snesdsp.why_not()
+
+
+def recorded(found: list[Any], replay: list[int]) -> dict[int, bytes]:
+    return {index: found[index][4] for index in replay}
+
+
+def exchange(part: Any, one: Any) -> bytes:
+    _, command, lengths, parameters, output = one
+    for byte in (command, *lengths, *parameters):
+        part.write(byte)
+    for _ in range(PREAMBLE.get(command, 0)):
+        part.read()
+    answer = bytes(part.read() for _ in range(len(output)))
+    for _ in range(TRAILING.get(command, 0)):
+        part.read()
+    return answer
+
+
+def answered(part: Any, found: list[Any], replay: list[int]) -> dict[int, bytes]:
+    return {index: exchange(part, found[index]) for index in replay}
+
+
 def sweep(
     rom: bytes,
     names: dict[str, int],
@@ -274,10 +313,12 @@ def sweep(
     wanted_commands: tuple[str, ...],
     dispatched: bool,
     after: int = SETTLED_FRAME,
+    expected: Expected = recorded,
 ) -> dict[str, list[tuple[int, int, bool]]]:
     found = collect(trace, after)
     replay, record = chosen(found, wanted)
     keep = set(record)
+    answers = expected(found, replay)
 
     rows: defaultdict[str, list[tuple[int, int, bool]]] = defaultdict(list)
     cpu, memory = machine(rom)
@@ -288,7 +329,7 @@ def sweep(
         if index not in keep:
             continue
         got = produced(memory, len(output))
-        rows[name].append((spent, retail_cost(name, parameters, output), got == output))
+        rows[name].append((spent, retail_cost(name, parameters, output), got == answers[index]))
     return rows
 
 
@@ -305,7 +346,13 @@ def joined(
     }
 
 
-def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = SAMPLED) -> int:
+def main(
+    argv: list[str],
+    say: Any = print,
+    wanted_commands: tuple[str, ...] = SAMPLED,
+    build: Callable[[str], Any] | None = None,
+    refuses: Callable[[], Any] = why_not,
+) -> int:
     rom_path = ROOT / "asm" / "dm-sym.sfc" if len(argv) < 2 else Path(argv[1])
     sym_path = rom_path.with_suffix(".sym") if len(argv) < 3 else Path(argv[2])
     trace = ROOT / "build" / "trace-s1.bin" if len(argv) < 4 else Path(argv[3])
@@ -319,13 +366,21 @@ def main(argv: list[str], say: Any = print, wanted_commands: tuple[str, ...] = S
         say(f"  {sym_path.name} is older than {rom_path.name}; assemble them together")
         return 2
 
+    reason = refuses()
+    if reason:
+        say(f"  nothing to hold the answers to: {reason}")
+        return 2
+
     rom = rom_path.read_bytes()
     names = symbols(sym_path.read_text())
 
+    def against_the_part(found: list[Any], replay: list[int]) -> dict[int, bytes]:
+        return answered(chip(build), found, replay)
+
     return report(
         joined(
-            sweep(rom, names, trace, wanted, wanted_commands, dispatched=False),
-            sweep(rom, names, trace, wanted, wanted_commands, dispatched=True),
+            sweep(rom, names, trace, wanted, wanted_commands, False, expected=against_the_part),
+            sweep(rom, names, trace, wanted, wanted_commands, True, expected=against_the_part),
         ),
         say,
     )
