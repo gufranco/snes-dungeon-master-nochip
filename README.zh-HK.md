@@ -8,7 +8,7 @@
 [![Release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip)](https://github.com/gufranco/snes-dungeon-master-nochip/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-來自 **4** 次各 30,000 幀運行的 **98,333,301** 個錄得埠位元組經例程重播，錯誤 **0** 個；**17,241,846** 個返回位元組由晶片微碼重現，錯誤 **0** 個；**6** 個指令中 6 個在選定輸入上與晶片一致；**924** 個測試；**100%** 語句及分支覆蓋率；只用標準函式庫
+一份不含 scale 的錄音中 **17,241,846** 個返回位元組由晶片微碼重現，錯誤 **0** 個；**6** 個指令中 6 個在選定輸入上與晶片一致；**924** 個測試；**100%** 語句及分支覆蓋率；只用標準函式庫
 
 ```python
 import patch
@@ -414,9 +414,9 @@ Dungeon Master 是唯一載有 DSP-2 的 SNES 卡帶。該晶片有六個指令�
 
 正確性以三種方式檢查，每種都說明了其他方式無法說明的事。
 
-在模擬器上錄得四次各 30,000 幀的運行，包括進出埠的每個位元組：三次帶種子的隨機漫步，以及固定路線。[`tools/replay.py`](tools/replay.py) 把這些數據流送經主機處理器上的例程，檢查 98,333,301 個位元組，共執行 8,722,303 次運行。沒有任何錯誤。
+在模擬器上錄得四次各 30,000 幀的運行，包括進出埠的每個位元組：三次帶種子的隨機漫步，以及固定路線。[`tools/replay.py`](tools/replay.py) 把這些數據流送經主機處理器上的例程，檢查 98,333,301 個位元組，共執行 8,722,303 次運行，在 scale 例程按晶片修正之前沒有任何錯誤。隨機漫步錄下的是 snes9x 對每次 scale 的回答，而晶片不會給出這個回答，所以現在第一次隨機漫步的首 2,014,446 個位元組中有 598 個錯誤。
 
-該錄音保存的是模擬器的回答，而模擬器以 C 計算晶片的結果。[`tools/verify_trace.py`](tools/verify_trace.py) 把整份錄音以晶片本身的微碼重播，重現了卡帶返回的全部 17,241,846 個位元組，沒有錯誤，所以模擬器與晶片在所有錄得的內容上一致。
+該錄音保存的是模擬器的回答，而模擬器以 C 計算晶片的結果。[`tools/verify_trace.py`](tools/verify_trace.py) 把錄音以晶片本身的微碼重播。對不含 scale 的 `build/trace-t1.bin`，它重現了卡帶返回的全部 17,241,846 個位元組，沒有錯誤。對三次隨機漫步，它在 10,416、1,050 及 17,302 次交換上不一致，而這三次分別含 10,422、1,068 及 17,777 次 scale：snes9x 以 `(out << 1) + 1` 除 scale 的步長，而微碼以 `(out << 1) + 2` 除。按指令統計第一次隨機漫步的首 12,000,000 個位元組，所有不一致都是 scale。所以模擬器與晶片在 scale 以外所有錄得的指令上一致。
 
 錄音無法說明它不包含的輸入：每個錄得的 multiply 的第一個運算元都是零，而固定路線不含 mirror 和 scale。所以六個指令也透過 [`tools/verify_merge.py`](tools/verify_merge.py)、[`tools/verify_multiply.py`](tools/verify_multiply.py) 和 [`tools/verify_commands.py`](tools/verify_commands.py)，在選定的輸入上與晶片對照。例程中的兩個缺陷就是這樣找到的，而重播通訊兩個都找不到。
 

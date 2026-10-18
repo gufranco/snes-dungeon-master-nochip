@@ -8,7 +8,7 @@ English | [日本語](README.ja.md) | [简体中文](README.zh-Hans.md) | [繁�
 [![Release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip)](https://github.com/gufranco/snes-dungeon-master-nochip/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**98,333,301** recorded port bytes replayed through the routines from **4** runs of 30,000 frames, **0** wrong, **17,241,846** returned bytes reproduced by the part's microcode, **0** wrong, **6** of 6 commands held to the part on chosen inputs, **924** tests, **100%** statement and branch coverage, standard library only
+**17,241,846** returned bytes of a recording with no scale reproduced by the part's microcode, **0** wrong, **6** of 6 commands held to the part on chosen inputs, **924** tests, **100%** statement and branch coverage, standard library only
 
 ```python
 import patch
@@ -408,9 +408,9 @@ The models start dirty: memory and registers hold reproducible scrambled values 
 
 Correctness is checked three ways, and each says something the others cannot.
 
-Four runs of 30,000 frames were recorded on the emulator with every byte in and out of the port: three seeded random walks and the steady route. [`tools/replay.py`](tools/replay.py) feeds those streams through the routines on the console's processor and checks 98,333,301 bytes, walking 8,722,303 runs. None are wrong.
+Four runs of 30,000 frames were recorded on the emulator with every byte in and out of the port: three seeded random walks and the steady route. [`tools/replay.py`](tools/replay.py) feeds those streams through the routines on the console's processor and checked 98,333,301 bytes, walking 8,722,303 runs, with none wrong before the scale routine was corrected to the part. The walks hold what snes9x answered for each scale, which the part does not give, so the first 2,014,446 bytes of the first walk now give 598 wrong.
 
-That recording holds what the emulator answered, and the emulator computes the part's results in C. [`tools/verify_trace.py`](tools/verify_trace.py) replays a whole recording against the part's own microcode and reproduces all 17,241,846 bytes the cartridge returned, none wrong, so the emulator and the part agree on everything recorded.
+That recording holds what the emulator answered, and the emulator computes the part's results in C. [`tools/verify_trace.py`](tools/verify_trace.py) replays a recording against the part's own microcode. Over `build/trace-t1.bin`, which holds no scale, it reproduces all 17,241,846 bytes the cartridge returned, none wrong. Over the three walks it disagrees on 10,416, 1,050 and 17,302 exchanges, against 10,422, 1,068 and 17,777 scales: snes9x divides the scale step by `(out << 1) + 1` where the microcode divides by `(out << 1) + 2`. Tallied by command over the first 12,000,000 bytes of the first walk, every disagreement is a scale. So the emulator and the part agree on every recorded command but the scale.
 
 A recording says nothing about inputs it does not contain: every recorded multiply has a zero first operand, and the steady route holds no mirror and no scale. So all six commands are also held to the part over chosen inputs, through [`tools/verify_merge.py`](tools/verify_merge.py), [`tools/verify_multiply.py`](tools/verify_multiply.py) and [`tools/verify_commands.py`](tools/verify_commands.py). Two defects in the routines were found that way, and replaying traffic could have found neither.
 

@@ -120,10 +120,13 @@ Every claim of correctness here rests on 4,636,076 transactions recorded from
 four runs: three seeded random walks of 30,000 frames each, and one steady route
 of the same length. A command shape none of them produced has never been checked.
 
-Replaying all four through the routines, on the processor, checks **98,333,301
-bytes** against what the emulator the recording was made on answered. None are
-wrong. That emulator computes the part's results in C rather than running its
-microcode, so this is a statement about agreement with snes9x.
+Replaying all four through the routines, on the processor, checked **98,333,301
+bytes** against what the emulator the recording was made on answered, none
+wrong, before the scale routine was corrected to the part. That emulator computes
+the part's results in C rather than running its microcode, so this was a
+statement about agreement with snes9x, and its scale is the one command where
+snes9x and the part differ. Replaying the first 2,014,446 bytes of the first walk
+through today's routines finds 598 wrong.
 
 What the fourth recording shows is why this question stays open. It is a
 different shape of workload, not merely more of the same: over 30,000 frames it
@@ -185,10 +188,10 @@ the driving is unproven, not that the routines are wrong. It is left out of the
 gate rather than shipped as a passing check that avoids the hard case.
 
 **What would settle it:** establishing how the cartridge drives a scale, from its
-own code or from a recording that contains one. No recording taken here contains
-a scale at all, which is the same coverage hole the mirror had.
+own code or from a recording that contains one. The three walks contain scales,
+but what they hold is the emulator's answer, which the part does not give.
 
-## The recordings and the part agree, and the verifier that says so now works
+## The recordings and the part agree on every command but the scale
 
 Both of these were open, and both are closed by the same measurement.
 
@@ -197,19 +200,29 @@ preceded by one byte that is not part of its answer**, and **a sync leaves one
 byte behind that the cartridge never reads.** Those two, with the length byte the
 parser strips into its own field written back, are the whole of it.
 
-With them, replaying a whole recording against the part's own program walks
+With them, replaying `build/trace-t1.bin` against the part's own program walks
 45,313,954 records and reproduces **all 17,241,846 bytes the cartridge returned,
-none wrong.** Without them it disagreed on more than nine tenths.
+none wrong.** Without them it disagreed on more than nine tenths. That recording
+holds no scale.
 
-So the emulator's C and the part's microcode give the same answers for everything
-the cartridge actually asks, and a figure quoted against a recording is a figure
-against the part as well.
+The three seeded walks do, and there the two part company. snes9x derives the
+scale step as `(in << 17) / ((out << 1) + 1)` and the part's microcode divides by
+`(out << 1) + 2`, so the emulator's cursor runs ahead from the sixth output nibble
+on. Replayed against the part, the walks disagree on **10,416, 1,050 and 17,302
+exchanges**, against 10,422, 1,068 and 17,777 scales. Tallied by command over the
+first 12,000,000 bytes of the first walk, every disagreement is a scale: 248 of
+254, and none of 130,034 merges, 66,018 tiles, 10,784 syncs, 1,875 multiplies,
+1,668 transparent colours or 44 mirrors.
+
+So a figure quoted against a recording is a figure against the part for five
+commands, and for the scale it is a figure against snes9x. The routines follow
+the part, so a replay of a walk through them no longer matches the walk: the
+first 2,014,446 bytes of the first walk give 598 wrong.
 
 What a recording still cannot say is anything about inputs it does not contain,
-and that is exactly where the routines were found wrong. Every recorded multiply
-has a zero first operand. No recording taken here contains a scale or a mirror at
-all. Both defects were found by asking the part directly, and neither could ever
-have been found by replaying traffic.
+and that is where the multiply was found wrong: every recorded multiply has a
+zero first operand. The scale defect was found by asking the part directly too,
+since the recordings that hold scales hold the emulator's answer.
 
 [`tools/verify_trace.py`](tools/verify_trace.py) drives by transaction rather
 than by byte, because only the protocol can say which write is a command, which

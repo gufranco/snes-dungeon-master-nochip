@@ -8,7 +8,7 @@
 [![Release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip)](https://github.com/gufranco/snes-dungeon-master-nochip/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-来自 **4** 次各 30,000 帧运行的 **98,333,301** 个录制端口字节经例程重放，**0** 个错误；**17,241,846** 个返回字节由芯片的微码重现，**0** 个错误；**6** 条命令中的 6 条在选定输入上与芯片一致；**924** 个测试；**100%** 语句与分支覆盖率；仅使用标准库
+一份不含 scale 的录制中的 **17,241,846** 个返回字节由芯片的微码重现，**0** 个错误；**6** 条命令中的 6 条在选定输入上与芯片一致；**924** 个测试；**100%** 语句与分支覆盖率；仅使用标准库
 
 ```python
 import patch
@@ -414,9 +414,9 @@ Dungeon Master 是唯一带有 DSP-2 的 SNES 卡带。该芯片有六条命令�
 
 正确性从三个方面检查，每个方面都能说明其他方面说明不了的事情。
 
-在模拟器上录制了四次各 30,000 帧的运行，包含进出端口的每个字节：三次带种子的随机行走和一次固定路线。[`tools/replay.py`](tools/replay.py) 把这些数据流送入在主机处理器上运行的例程，检查了 98,333,301 个字节，共执行 8,722,303 次。没有一个错误。
+在模拟器上录制了四次各 30,000 帧的运行，包含进出端口的每个字节：三次带种子的随机行走和一次固定路线。[`tools/replay.py`](tools/replay.py) 把这些数据流送入在主机处理器上运行的例程，检查了 98,333,301 个字节，共执行 8,722,303 次，在 scale 例程按芯片修正之前没有一个错误。随机行走录下的是 snes9x 对每次 scale 给出的答案，而芯片不会给出这个答案，所以现在第一次随机行走的前 2,014,446 个字节中有 598 个错误。
 
-这份录制保存的是模拟器给出的答案，而模拟器用 C 计算芯片的结果。[`tools/verify_trace.py`](tools/verify_trace.py) 将一整份录制对照芯片自身的微码重放，重现了卡带返回的全部 17,241,846 个字节，没有一个错误，因此模拟器与芯片在所有录制内容上一致。
+这份录制保存的是模拟器给出的答案，而模拟器用 C 计算芯片的结果。[`tools/verify_trace.py`](tools/verify_trace.py) 将录制对照芯片自身的微码重放。对不含 scale 的 `build/trace-t1.bin`，它重现了卡带返回的全部 17,241,846 个字节，没有一个错误。对三次随机行走，它在 10,416、1,050 和 17,302 次交换上不一致，而这三次分别含 10,422、1,068 和 17,777 次 scale：snes9x 用 `(out << 1) + 1` 除 scale 的步长，而微码用 `(out << 1) + 2`。按命令统计第一次随机行走的前 12,000,000 个字节，所有不一致都是 scale。因此模拟器与芯片在除 scale 外的所有录制命令上一致。
 
 录制无法说明它未包含的输入：每次录制到的 multiply 第一个操作数都为零，而固定路线中没有 mirror 也没有 scale。因此这六条命令还通过 [`tools/verify_merge.py`](tools/verify_merge.py)、[`tools/verify_multiply.py`](tools/verify_multiply.py) 和 [`tools/verify_commands.py`](tools/verify_commands.py) 在选定输入上对照芯片。例程中的两个缺陷就是这样发现的，而重放通信无法发现其中任何一个。
 
