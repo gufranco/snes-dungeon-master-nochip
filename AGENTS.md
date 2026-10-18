@@ -243,6 +243,39 @@ and booted to black.
   [`tools/placement.py`](tools/placement.py), which reads the addresses out of
   the assembly rather than repeating them.
 
+The configuration files carry no comments, so the reasons for their ignores and
+exclusions live here:
+
+- `BLE001` in [`doctor.py`](doctor.py): the doctor exists so nothing fails
+  silently. It reports whatever a check throws, and a narrower catch would let an
+  unforeseen failure end the report as a traceback.
+- `BLE001` and `T201` in [`environment.py`](environment.py): a check that throws
+  has to become a line in the report rather than end the run, and the printed
+  report is the product.
+- `BLE001` in [`tools/verify_multiply.py`](tools/verify_multiply.py),
+  [`tools/verify_merge.py`](tools/verify_merge.py) and
+  [`tools/verify_commands.py`](tools/verify_commands.py): a check that needs the
+  part reports what it could not run rather than ending the suite, whether the
+  absence is a missing image, a missing submodule or a refusal from the loader.
+- The submodule paths in the coverage `omit` and the mypy `exclude`: each model
+  is measured and checked in its own repository against its own gate, so a
+  figure taken from here would mean nothing. `build/` holds recordings and
+  generated sources this project does not own.
+- The `if __name__ == "__main__":` coverage exclusion: the guard hands argv to a
+  function that is tested directly, and importing the module to cover it would
+  run the tool rather than test it.
+- The optional mypy error classes: this project rewrites cartridge code, so the
+  errors worth catching are a length, an offset or a None crossing a boundary.
+- The mypy override for `snesdsp`, `mos65xx`, `mapper` and `romimage`: they are
+  imported after `hardware.install()` puts them on the path, which the checker
+  cannot follow. Only the import is silenced.
+- The local scratch entries in [`.gitignore`](.gitignore): each is listed even
+  when a machine-global ignore file covers it, because that file does not travel
+  with a clone.
+- `!snes9x/*.patch`: the emulator patch is source. A machine-global `*.patch`
+  ignore would drop it and leave the container unbuildable in a fresh clone while
+  local status stayed clean.
+
 ## Bound the domain before building a table, never after
 
 A table keyed on values taken from a recording covers the recording and nothing

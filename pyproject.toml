@@ -39,19 +39,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "*.test.py" = ["PLR2004"]
-# The doctor exists so that nothing fails silently, which means it has to survive
-# whatever a check throws at it and report that rather than propagate it. A
-# narrower catch would let an unforeseen failure escape as a traceback and take
-# the rest of the report with it, which is the one outcome it must avoid.
 "doctor.py" = ["BLE001"]
-# The environment checks are the same shape and exist for the same reason: they
-# report what a machine is, so a check that throws has to become a line in the
-# report rather than end the run, and its output is the product.
 "environment.py" = ["BLE001", "T201"]
-# A check that needs the part reports that it had nothing to run rather than
-# ending the suite, and what it could not do is the line it prints. Whatever the
-# absence looks like on a given machine, a missing image or a missing submodule
-# or a refusal from the loader, it becomes the report rather than a traceback.
 "tools/verify_multiply.py" = ["BLE001"]
 "tools/verify_merge.py" = ["BLE001"]
 "tools/verify_commands.py" = ["BLE001"]
@@ -59,15 +48,6 @@ ignore = [
 [tool.coverage.run]
 branch = true
 source = ["."]
-# The models are measured in their own repositories, where each is held to its
-# own oracle and its own gate. Measuring them again from here would report the
-# fraction of somebody else's project this one happens to reach, which is a
-# number with no meaning and no way to move.
-# The checks that need the cartridge are kept apart and measured out of the gate.
-# A machine that has the dump runs one set of paths and a machine that does not
-# runs the other, so no single build can exercise both, and a gate that demands
-# the impossible gets switched off rather than met. Those files report every
-# check they could not run as skipped, out loud.
 omit = [
   "*.retail.test.py",
   "mos65xx-python/*",
@@ -89,17 +69,10 @@ fail_under = 100
 show_missing = true
 skip_covered = true
 exclude_also = [
-  # The command line guard hands argv to a function that is itself tested, so
-  # there is nothing behind it left to exercise. Importing the module to cover
-  # the guard would run the tool rather than test it.
   'if __name__ == "__main__":',
 ]
 
 [tool.mypy]
-# The family's flag set: strict, plus every optional error class the checker
-# offers. This project rewrites cartridge code, so the errors worth catching are
-# the ones where a length, an offset or a None crosses a boundary, which is what
-# the optional classes are for.
 strict = true
 python_version = "3.12"
 warn_unreachable = true
@@ -116,15 +89,8 @@ enable_error_code = [
   "unused-awaitable",
 ]
 files = ["."]
-# The pinned models are separate repositories, each checked against its own
-# configuration. Checking them from here would report on a toolchain nobody
-# ships. build/ holds recordings and generated sources this project does not own.
 exclude = "^(?!tools/|[^/]+\\.py$)"
 
-# The models are imported by name after hardware.install() puts them on the
-# path, which the checker cannot follow because it does not run that call. Each
-# is checked in its own repository against its own configuration, so what is
-# silenced here is the import and nothing about how this project uses it.
 [[tool.mypy.overrides]]
 module = ["snesdsp.*", "snesdsp", "mos65xx.*", "mos65xx", "mapper.*", "mapper", "romimage.*", "romimage"]
 ignore_missing_imports = true

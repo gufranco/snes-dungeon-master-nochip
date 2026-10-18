@@ -1,4 +1,3 @@
-# No ROM data, ever. Not the retail dump, not anything built from it.
 roms/
 build/
 dist/
@@ -9,9 +8,6 @@ dist/
 *.srm
 *.ppm
 
-# Local scratch. Everything here must be listed even when a machine-global
-# ignore file already covers it, because that file does not travel with a clone
-# and a path protected only there is exposed in CI and in every other checkout.
 __pycache__/
 .ruff_cache/
 .mypy_cache/
@@ -24,8 +20,5 @@ specs/
 ref/
 .DS_Store
 
-# The emulator patch is source, not scratch. A machine-global ignore file
-# carrying *.patch would drop it and leave the container unbuildable in a
-# fresh clone, while local status stayed clean.
 !snes9x/*.patch
 firmware/
