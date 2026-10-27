@@ -92,6 +92,8 @@ def faithful(first: int, second: int) -> bytes:
 
 
 class Chip:
+    asking = True
+
     def __init__(self) -> None:
         self.written: list[int] = []
         self.given = [0x40, 0xC2, 0x0F, 0x00]

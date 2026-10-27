@@ -6,6 +6,9 @@ from typing import Any, NamedTuple
 
 ROOT = Path(__file__).resolve().parent.parent
 
+sys.path.insert(0, str(ROOT))
+import hardware  # noqa: E402
+
 COLOUR_COMMAND = 0x03
 MERGE_COMMAND = 0x05
 
@@ -69,7 +72,7 @@ def answer_from(build_chip: Callable[[], Any], one: Case) -> bytes:
     part.write(one.length)
     for byte in one.first + one.second:
         part.write(byte)
-    return bytes(part.read() for _ in range(one.length))
+    return bytes(hardware.answer(part) for _ in range(one.length))
 
 
 def _default_chip(load: Callable[[str], Any] | None = None) -> Any:

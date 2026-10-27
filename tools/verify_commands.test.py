@@ -11,6 +11,8 @@ import verify_commands  # noqa: E402
 
 
 class Chip:
+    asking = True
+
     def __init__(self, given: int = 0x77) -> None:
         self.written: list[int] = []
         self.given = given

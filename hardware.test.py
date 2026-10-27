@@ -137,5 +137,53 @@ class FirmwareTest(unittest.TestCase):
         self.assertIn(hardware.FIRMWARE_VARIABLE, where)
 
 
+class Slow:
+    def __init__(self, ready_after: int) -> None:
+        self.waits = ready_after
+        self.steps = 0
+
+    @property
+    def asking(self) -> bool:
+        return self.steps >= self.waits
+
+    def step(self) -> None:
+        self.steps += 1
+
+    def read(self) -> int:
+        return 0x5A
+
+
+class AnswerTest(unittest.TestCase):
+    def test_a_part_already_asking_is_read_without_a_step(self) -> None:
+        # Arrange
+        part = Slow(ready_after=0)
+
+        # Act
+        got = hardware.answer(part)
+
+        # Assert
+        self.assertEqual((got, part.steps), (0x5A, 0))
+
+    def test_a_part_still_working_is_stepped_until_it_asks(self) -> None:
+        # Arrange
+        part = Slow(ready_after=3)
+
+        # Act
+        got = hardware.answer(part)
+
+        # Assert
+        self.assertEqual((got, part.steps), (0x5A, 3))
+
+    def test_a_part_that_never_asks_is_refused_at_the_limit(self) -> None:
+        # Arrange
+        part = Slow(ready_after=10)
+
+        # Act
+        attempt = lambda: hardware.answer(part, limit=4)  # noqa: E731
+
+        # Assert
+        self.assertRaisesRegex(hardware.PartNeverAsked, "in 4 steps", attempt)
+
+
 if __name__ == "__main__":
     unittest.main()

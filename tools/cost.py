@@ -294,10 +294,10 @@ def exchange(part: Any, one: Any) -> bytes:
     for byte in (command, *lengths, *parameters):
         part.write(byte)
     for _ in range(PREAMBLE.get(command, 0)):
-        part.read()
-    answer = bytes(part.read() for _ in range(len(output)))
+        hardware.answer(part)
+    answer = bytes(hardware.answer(part) for _ in range(len(output)))
     for _ in range(TRAILING.get(command, 0)):
-        part.read()
+        hardware.answer(part)
     return answer
 
 

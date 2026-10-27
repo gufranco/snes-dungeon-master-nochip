@@ -30,6 +30,8 @@ def _recording_generate(seen: list[Any], make: Any) -> Any:
 
 
 class Puppet:
+    asking = True
+
     def __init__(self) -> None:
         self.written: list[Any] = []
         self.given = 0
@@ -370,6 +372,8 @@ def a_recorded_mirror() -> list[bytes]:
 
 
 class Oracle:
+    asking = True
+
     def __init__(self, wrong: tuple[int, ...] = (), poisons: tuple[int, ...] = ()) -> None:
         self.wrong = wrong
         self.poisons = poisons

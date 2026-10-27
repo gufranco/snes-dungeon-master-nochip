@@ -1,8 +1,12 @@
+import sys
 from collections import namedtuple
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
+
+sys.path.insert(0, str(ROOT))
+import hardware  # noqa: E402
 
 FEED = 0x01
 DRAIN = 0x02
@@ -75,7 +79,7 @@ def case_for(
     for byte in feed:
         chip.write(byte)
     wanted = output_size(command, lengths)
-    produced = bytes(chip.read() for _ in range(wanted))
+    produced = bytes(hardware.answer(chip) for _ in range(wanted))
     return Case(feed, wanted, produced)
 
 

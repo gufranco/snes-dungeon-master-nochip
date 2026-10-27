@@ -22,6 +22,8 @@ dt = load_module("dsptrace", ROOT / "dsptrace.py")
 
 
 class Puppet:
+    asking = True
+
     def __init__(self, answers: Any = ()) -> None:
         self.answers = list(answers)
         self.written: list[Any] = []

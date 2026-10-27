@@ -6,6 +6,9 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 
+sys.path.insert(0, str(ROOT))
+import hardware  # noqa: E402
+
 COMMAND = 0x09
 
 ANSWER_BYTES = 4
@@ -82,7 +85,7 @@ def answer_from(build_chip: Callable[[], Any], first: int, second: int) -> bytes
     for value in (first, second):
         part.write(value & 0xFF)
         part.write((value >> 8) & 0xFF)
-    return bytes(part.read() for _ in range(ANSWER_BYTES))
+    return bytes(hardware.answer(part) for _ in range(ANSWER_BYTES))
 
 
 def _default_chip(load: Callable[[str], Any] | None = None) -> Any:

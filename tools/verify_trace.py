@@ -90,15 +90,15 @@ def check(
         writes += 1 + len(one.lengths) + len(one.parameters)
 
         for _ in range(PREAMBLE.get(one.command, 0)):
-            part.read()
-        produced = bytes(part.read() for _ in range(len(one.output)))
+            hardware.answer(part)
+        produced = bytes(hardware.answer(part) for _ in range(len(one.output)))
         reads += len(one.output)
         if produced != one.output:
             mismatches += 1
             if len(examples) < EXAMPLE_LIMIT:
                 examples.append((one.frame, one.pc, one.output, produced))
         for _ in range(TRAILING.get(one.command, 0)):
-            part.read()
+            hardware.answer(part)
 
         seen = writes + reads
         if say is not None and seen - said_at >= every:

@@ -6,6 +6,9 @@ from typing import Any, NamedTuple
 
 ROOT = Path(__file__).resolve().parent.parent
 
+sys.path.insert(0, str(ROOT))
+import hardware  # noqa: E402
+
 TILE = 0x01
 MIRROR = 0x06
 SCALE = 0x0D
@@ -54,8 +57,8 @@ def answer_from(build_chip: Callable[[], Any], one: Case) -> bytes:
     for byte in one.payload:
         part.write(byte)
     for _ in range(PREAMBLE[one.command]):
-        part.read()
-    return bytes(part.read() for _ in range(one.reads))
+        hardware.answer(part)
+    return bytes(hardware.answer(part) for _ in range(one.reads))
 
 
 def runs_for(pairs: Any, answer: Callable[[Case], bytes]) -> list[Any]:

@@ -11,6 +11,8 @@ FIRMWARE = ROOT / "firmware"
 
 FIRMWARE_VARIABLE = "UPD7725_FIRMWARE_DIR"
 
+POLL_LIMIT = 1_000_000
+
 PACKAGES = {
     "mos65xx": "mos65xx-python",
     "snesdsp": "snes-dsp-python",
@@ -20,6 +22,10 @@ PACKAGES = {
 
 
 class UnknownPackage(Exception):
+    pass
+
+
+class PartNeverAsked(Exception):
     pass
 
 
@@ -53,3 +59,11 @@ def load(package: str) -> Any:
     root_of(package)
     install()
     return importlib.import_module(package)
+
+
+def answer(part: Any, limit: int = POLL_LIMIT) -> int:
+    for _ in range(limit):
+        if part.asking:
+            return int(part.read())
+        part.step()
+    raise PartNeverAsked(f"the part did not raise its request in {limit} steps")

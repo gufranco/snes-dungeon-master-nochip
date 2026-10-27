@@ -91,6 +91,8 @@ class ScriptTest(unittest.TestCase):
 class AdapterTest(unittest.TestCase):
     def test_an_exchange_sets_the_colour_then_merges(self) -> None:
         class Chip:
+            asking = True
+
             def __init__(self) -> None:
                 self.written: list[int] = []
 
@@ -117,6 +119,8 @@ class AdapterTest(unittest.TestCase):
 
     def test_the_default_answer_builds_a_part_when_it_is_asked(self) -> None:
         class Chip:
+            asking = True
+
             @staticmethod
             def write(value: int) -> None:
                 return None

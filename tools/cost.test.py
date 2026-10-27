@@ -398,6 +398,8 @@ class ChosenTest(unittest.TestCase):
 
 
 class Scripted:
+    asking = True
+
     def __init__(self, answers: bytes = b"") -> None:
         self.answers = iter(answers)
 

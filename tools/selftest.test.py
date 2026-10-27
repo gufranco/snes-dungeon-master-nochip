@@ -101,6 +101,8 @@ class OutputSizeTest(unittest.TestCase):
 
 
 class Puppet:
+    asking = True
+
     def __init__(self) -> None:
         self.written: list[Any] = []
         self.given = 0

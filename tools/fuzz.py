@@ -124,7 +124,7 @@ def build_cases(seed: int, count: int, only: Any = None, build: Any = chip) -> l
             wanted = rng.randrange(0, pending)
         collected = bytearray()
         for _ in range(wanted):
-            collected.append(part.read())
+            collected.append(hardware.answer(part))
             shape.was_read()
         cases.append(Case(command, lengths, bytes(written), bytes(collected)))
     return cases
@@ -163,7 +163,7 @@ def answered(part: Any, transaction: Any) -> bool:
         bytes([transaction.command]) + bytes(transaction.lengths) + bytes(transaction.parameters)
     ):
         part.write(byte)
-    given = bytes(part.read() for _ in range(len(transaction.output)))
+    given = bytes(hardware.answer(part) for _ in range(len(transaction.output)))
     return given == bytes(transaction.output)
 
 
