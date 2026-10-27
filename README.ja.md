@@ -182,6 +182,17 @@ python3 tools/identify.py
 docker build --tag snes-dungeon-master-nochip/emu:dev emu
 ```
 
+`build/`の3つのトレースはこのイメージで記録します。ダンプのコピーを`build/dungeon-master-usa.sfc`に置きます。それぞれシード付きの30,000フレームの巡回で、約1.7 GBになります。
+
+```bash
+for seed in 1 2 3; do
+  python3 tools/tour.py --frames 30000 --seed "$seed" --out "build/tour-s$seed.script"
+  docker run --rm --network=none --env "DMTRACE=trace-s$seed.bin" \
+    --env "DMSCRIPT=tour-s$seed.script" --volume "$PWD/build:/work" \
+    snes-dungeon-master-nochip/emu:dev dungeon-master-usa.sfc 30000
+done
+```
+
 ### すべてのゲートの実行
 
 | コマンド | 引数 | 終了コード |

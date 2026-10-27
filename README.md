@@ -178,6 +178,17 @@ The emulator image is built once, from the repository root:
 docker build --tag snes-dungeon-master-nochip/emu:dev emu
 ```
 
+The three traces in `build/` are recorded from it, with a copy of the dump at `build/dungeon-master-usa.sfc`. Each is a seeded 30,000 frame tour and runs to about 1.7 GB:
+
+```bash
+for seed in 1 2 3; do
+  python3 tools/tour.py --frames 30000 --seed "$seed" --out "build/tour-s$seed.script"
+  docker run --rm --network=none --env "DMTRACE=trace-s$seed.bin" \
+    --env "DMSCRIPT=tour-s$seed.script" --volume "$PWD/build:/work" \
+    snes-dungeon-master-nochip/emu:dev dungeon-master-usa.sfc 30000
+done
+```
+
 ### Running every gate
 
 | Command | Arguments | Exit codes |

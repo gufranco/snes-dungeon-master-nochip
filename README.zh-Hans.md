@@ -182,6 +182,17 @@ python3 tools/identify.py
 docker build --tag snes-dungeon-master-nochip/emu:dev emu
 ```
 
+`build/` 中的三个追踪文件用这个镜像录制，需在 `build/dungeon-master-usa.sfc` 放一份转储的副本。每个都是带种子的 30,000 帧巡游，约 1.7 GB：
+
+```bash
+for seed in 1 2 3; do
+  python3 tools/tour.py --frames 30000 --seed "$seed" --out "build/tour-s$seed.script"
+  docker run --rm --network=none --env "DMTRACE=trace-s$seed.bin" \
+    --env "DMSCRIPT=tour-s$seed.script" --volume "$PWD/build:/work" \
+    snes-dungeon-master-nochip/emu:dev dungeon-master-usa.sfc 30000
+done
+```
+
 ### 运行所有门禁检查
 
 | 命令 | 参数 | 退出码 |
