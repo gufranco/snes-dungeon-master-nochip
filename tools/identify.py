@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
-ROMS = ROOT / "roms"
+ROMS = ROOT / "external" / "roms"
 MANIFEST_PATH = ROOT / "artifacts.manifest.json"
 
 
@@ -38,9 +38,9 @@ BLOCKING_STATES = frozenset(
 )
 
 DIGEST_COMMANDS = (
-    ("macOS and Linux", "shasum -a 256 roms/{filename}"),
-    ("Linux, coreutils", "sha256sum roms/{filename}"),
-    ("Windows PowerShell", "Get-FileHash -Algorithm SHA256 roms\\{filename}"),
+    ("macOS and Linux", "shasum -a 256 external/roms/{filename}"),
+    ("Linux, coreutils", "sha256sum external/roms/{filename}"),
+    ("Windows PowerShell", "Get-FileHash -Algorithm SHA256 external\\roms\\{filename}"),
 )
 
 

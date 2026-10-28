@@ -159,19 +159,20 @@ class CartridgeTest(unittest.TestCase):
         self.assertIn("abc123", found[0].detail)
 
     def test_one_that_is_absent_is_reported_without_pretending_otherwise(self) -> None:
-        found = doctor._cartridges(
-            lambda: [
-                doctor.identify.Finding(
-                    "Dungeon Master, USA",
-                    "dungeon-master-usa.sfc",
-                    doctor.identify.STATE_MISSING,
-                    "roms/dungeon-master-usa.sfc is not there",
-                    None,
-                    None,
-                )
-            ]
+        # Arrange
+        absent = doctor.identify.Finding(
+            "Dungeon Master, USA",
+            "dungeon-master-usa.sfc",
+            doctor.identify.STATE_MISSING,
+            "external/roms/dungeon-master-usa.sfc is not there",
+            None,
+            None,
         )
 
+        # Act
+        found = doctor._cartridges(lambda: [absent])
+
+        # Assert
         self.assertFalse(found[0].ok)
         self.assertIn("not there", found[0].detail)
 

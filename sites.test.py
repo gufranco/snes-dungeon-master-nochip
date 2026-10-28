@@ -16,7 +16,7 @@ def load_module(name: str, path: Path) -> Any:
 
 sites = load_module("sites", ROOT / "sites.py")
 
-RETAIL = ROOT / "roms" / "dungeon-master-usa.sfc"
+RETAIL = ROOT / "external" / "roms" / "dungeon-master-usa.sfc"
 
 
 def image_with(pieces: Any) -> Any:

@@ -35,7 +35,7 @@ oracle for what the answer is. Nothing here computes a DSP-2 result, and nothing
 a value that did not come from the part is a value nobody can act on.
 
 The microcode is not carried in this repository and never will be. A copy you already own goes in
-`firmware/`, which is ignored, or anywhere `UPD7725_FIRMWARE_DIR` names. Without one the checks that
+`external/firmware/`, which is ignored, or anywhere `UPD7725_FIRMWARE_DIR` names. Without one the checks that
 drive the part report that they had nothing to run rather than passing.
 
 ## Tests

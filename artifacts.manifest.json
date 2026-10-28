@@ -68,5 +68,62 @@
       "name": "An image this project already produced",
       "why": "A build output declares chipset 0x02 and is larger than the retail dump. Feeding one back in is a mistake, not a dump, and the build says so rather than patching it twice."
     }
-  ]
+  ],
+  "externalNote": "Every file this repository reads and may not ship, each kept under external/, which git and Dropbox both ignore. The artifacts list above identifies the dump; this mapping is where every file sits. python3 -m conformance.external reports which are here, which are missing and which are not the file named; SHA-256 alone decides.",
+  "external": {
+    "roms-dungeon-master-usa-sfc": {
+      "required": false,
+      "purpose": "The Dungeon Master (USA) cartridge dump the patch, the placement and the census read; the artifacts list above declares the same digests.",
+      "usedBy": ["assembled.py", "tools/identify.py", "tools/placement.py"],
+      "canonical_form": {
+        "container": "raw",
+        "header": "none",
+        "notes": "The 1,048,576-byte dump with no copier header."
+      },
+      "accepted": [
+        {
+          "label": "dungeon-master-usa",
+          "path": "roms/dungeon-master-usa.sfc",
+          "common_filename": "dungeon-master-usa.sfc",
+          "size": 1048576,
+          "crc32": "0dfd9ceb",
+          "md5": "3d1b171d7486438af2d9ec3d98b155cd",
+          "sha1": "e65ae62ec9a1c48a3512db66f929c7b0055ae2c3",
+          "sha256": "2dfc2e037679a62a960dab9682bca6d1b2737f603edd336c8b2fdf05db10cc07",
+          "preferred": true,
+          "provenance": {
+            "db": "a dump the author holds",
+            "dat_version": "copied 2026-10-27"
+          }
+        }
+      ]
+    },
+    "firmware-dsp2-bin": {
+      "required": false,
+      "purpose": "The DSP-2 microcode image the models run.",
+      "usedBy": ["hardware.py"],
+      "canonical_form": {
+        "container": "raw",
+        "header": "none",
+        "notes": "The 8,192-byte image in the published word order."
+      },
+      "accepted": [
+        {
+          "label": "dsp2",
+          "path": "firmware/dsp2.bin",
+          "common_filename": "dsp2.bin",
+          "size": 8192,
+          "crc32": "f0221c90",
+          "md5": "e500ec7f6005e78cb935eea5289c8cc4",
+          "sha1": "9179f61b8823b4e9a4130e1fb732424a2f6daa1a",
+          "sha256": "5efbdf96ed0652790855225964f3e90e6a4d466cfa64df25b110933c6cf94ea1",
+          "preferred": true,
+          "provenance": {
+            "db": "a dump the author holds",
+            "dat_version": "copied 2026-10-27"
+          }
+        }
+      ]
+    }
+  }
 }

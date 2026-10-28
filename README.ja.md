@@ -77,7 +77,7 @@ python3 doctor.py
 
 パッケージインデックスからは何もインストールしません。ZIPダウンロードのリンクから得たソースアーカイブにはサブモジュールが含まれず、実行できません。`--recurse-submodules`なしで作ったクローンでは、`git submodule update --init --recursive`を実行してください。
 
-ダンプは`roms/dungeon-master-usa.sfc`に置きます。マイクロコードは`firmware/`、または`UPD7725_FIRMWARE_DIR`で指定したディレクトリに置きます。Gitは両方のディレクトリを無視し、ここにあるものはどちらのファイルもダウンロードしません。
+ダンプは`external/roms/dungeon-master-usa.sfc`に置きます。マイクロコードは`external/firmware/`、または`UPD7725_FIRMWARE_DIR`で指定したディレクトリに置きます。Gitは両方のディレクトリを無視し、ここにあるものはどちらのファイルもダウンロードしません。
 
 ドクターは、マシン、Python、各モデルのバージョン、チップのマイクロコードが動くかどうか、見つけた各ダンプのSHA-256、記録した3つのトレースのうち`build/`にあるものの数、そして各モデル自身のレポートをそのモデル名の下に表示します。例外を投げたチェックは、投げた内容として報告します。いずれかのチェックが失敗すると終了コード1で終わります。新しいチェックアウトでは、次の行で終わります。
 
@@ -100,11 +100,11 @@ python3 doctor.py
 | `cartridge.py <dump> <output>` | 市販版のダンプと、完成したカートリッジの書き出し先 | 0は書き出し完了。1はアクセスがまだチップに届くか、ヘッダのミラーがまだコプロセッサを宣言しており、何も書き出されない。2は使い方の誤り、または`<dump>`にファイルがない。それ以外のコードはアセンブラのもの |
 | `build.py <patch.asm> <dump> <output-name>` | アセンブリファイル、ダンプ、結果のファイル名 | 0はアセンブル完了。1はツールチェーンのイメージがビルドできなかった。2は使い方の誤り。それ以外のコードはasarのもの |
 | `build.py --image` | なし | `docker build`の終了コード |
-| [`assembled.py`](assembled.py) | なし | 0は`asm/dm-sym.sfc`とそのシンボルがすべての`asm/*.asm`より新しいか、再ビルドが済んだ。2は`roms/dungeon-master-usa.sfc`にダンプがない |
+| [`assembled.py`](assembled.py) | なし | 0は`asm/dm-sym.sfc`とそのシンボルがすべての`asm/*.asm`より新しいか、再ビルドが済んだ。2は`external/roms/dungeon-master-usa.sfc`にダンプがない |
 | `similarity.py <dump> <cartridge>` | 市販版のダンプと完成したカートリッジ | 0は変更されたすべてのバイトが宣言された領域内にある。1は少なくとも1つがそうでない。2は使い方の誤り、または`asm/dm-sym.sfc`がないかソースより古い |
 
 ```bash
-python3 cartridge.py roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"
+python3 cartridge.py external/roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"
 ```
 
 [`cartridge.py`](cartridge.py)は、ダンプを`asm/<output-name>`にコピーし、ネットワークなしの固定版asar 1.81コンテナで[`asm/nochip.asm`](asm/nochip.asm)をその上にアセンブルし、asarが隣に書き出すシンボルテーブルを読み、すべてのポートアクセスをその場でリダイレクトし、コプロセッサを宣言しないようにヘッダを書き換えます。その後、残っているものを数えます。まだチップに向かうアクセスか、まだコプロセッサを宣言しているヘッダのミラーです。どちらか一方でもあれば、ファイルを書き出す前に止まります。ルーチンを配置してアクセスをリダイレクトしていないイメージも起動してプレイできます。エミュレータがヘッダを読んでDSP-2を用意するためです。そのため、この2つを区別できるのはこのカウントだけです。
@@ -127,10 +127,10 @@ python3 tools/identify.py
 
 ```
   dungeon-master-usa.sfc: missing  [Dungeon Master, USA]
-      roms/dungeon-master-usa.sfc is not there
-      macOS and Linux: shasum -a 256 roms/dungeon-master-usa.sfc
-      Linux, coreutils: sha256sum roms/dungeon-master-usa.sfc
-      Windows PowerShell: Get-FileHash -Algorithm SHA256 roms\dungeon-master-usa.sfc
+      external/roms/dungeon-master-usa.sfc is not there
+      macOS and Linux: shasum -a 256 external/roms/dungeon-master-usa.sfc
+      Linux, coreutils: sha256sum external/roms/dungeon-master-usa.sfc
+      Windows PowerShell: Get-FileHash -Algorithm SHA256 external\roms\dungeon-master-usa.sfc
   dungeon-master-jp.sfc: no digest published  [Dungeon Master, Japan]
       no dump measured yet
   dungeon-master-eur.sfc: no digest published  [Dungeon Master, UK and Europe]
@@ -169,7 +169,7 @@ python3 tools/identify.py
 | `tools/frame_cost.py [image] [trace ...]` | `asm/dm-sym.sfc`と`build/trace-s1.bin`から`trace-s3.bin`まで | 0は計算した。1はフレーム600以降に完了したやり取りがない。2はイメージ、そのシンボル、またはトレースがない |
 | `tools/pace.py <dump> <cartridge> [frames]` | 両方のカートリッジ、4,000フレーム | 0は比較を実行した。1はエミュレータが失敗した。2は使い方の誤り、またはファイルがない |
 | `tools/boot.py [cartridge] [frames]` | `build/Dungeon Master (USA) (nochip).sfc`、8,000フレーム | 0はコプロセッサの宣言なし、チップへの要求なし、すべてのフレームが出力され、画面が点灯した。1はそのいずれかが失敗した。2はカートリッジがない |
-| `tools/placement.py [dump] [frames] [seed]` | `roms/dungeon-master-usa.sfc`、19,000フレーム、シードを指定しない限り定常ルート | 0はゲームがステートブロックのワークRAMに一度も触れなかった。1は触れたか、実行がマップを残さなかった。2はダンプがない |
+| `tools/placement.py [dump] [frames] [seed]` | `external/roms/dungeon-master-usa.sfc`、19,000フレーム、シードを指定しない限り定常ルート | 0はゲームがステートブロックのワークRAMに一度も触れなかった。1は触れたか、実行がマップを残さなかった。2はダンプがない |
 | `tools/tour.py [--frames N] [--seed S] [--steady] [--out PATH]` | 24,000フレーム、シード0、標準出力に表示 | 0は書き出し完了。2は使い方の誤り |
 
 `cost.py`は、すべてのバスサイクルを数える`mos65xx`の65816モデルで各コマンドを実行し、フレーム600以降の記録した通信を与え、同じ通信に対してチップ自身のマイクロコードが返す答えと各答えを照合し、同じやり取りに市販版の経路が払ったコストを見積もります。ロングストア1回につき5サイクル、転送1バイトにつき7サイクルです。コマンドごとに1行、呼び出し回数、直接呼び出しのサイクル数、ブロック転送ディスパッチャ経由のサイクル数、市販版のサイクル数、比率、正しかった答えの数を表示します。市販版の経路がステータスレジスタのポーリングで待った時間は、どちらの側にも数えません。`frame_cost.py`は、各トレースのフレーム600以降の完了したやり取りをすべて数え、ワークRAMにある4つのブロック転送ルーチンを経由した呼び出しと、カートリッジ上の呼び出し箇所から直接来た呼び出しを区別します。こちらの側はコマンドと経路ごとの`cost.py`の平均で、市販版の経路は正確に計算し、コマンドごとに1行と、両側の1フレームあたりのコストを表示します。
@@ -225,7 +225,7 @@ done
 | `dsptrace.transactions(records)` | レコードをコマンドごとに1つの`Transaction`にまとめたもの。`command`、`name`、`lengths`、`parameters`、`output`、`source`、`complete`を持つ |
 | `dsptrace.summarise(transactions)`, `dsptrace.report(summary)` | コマンドごと、発行箇所ごと、転送元バンクごとの数と、その表示形式 |
 | `protocol.Shape()` | コマンドがあと何バイトを必要とし、何バイトを返す義務があるかを、バイト列だけから追跡する。`wrote(byte)`、`was_read()`、`expecting_input`、`produced`、`at_boundary` |
-| `hardware.install()`, `hardware.load(package)` | `mos65xx`、`snesdsp`、`mapper`、`romimage`をインポートパスに置き、`UPD7725_FIRMWARE_DIR`に`firmware/`を設定する。`load`はそのうち1つをインポートする |
+| `hardware.install()`, `hardware.load(package)` | `mos65xx`、`snesdsp`、`mapper`、`romimage`をインポートパスに置き、`UPD7725_FIRMWARE_DIR`に`external/firmware/`を設定する。`load`はそのうち1つをインポートする |
 | `version.stamped(name, release=None)` | リリースがイメージに付けるファイル名 |
 
 `dsptrace`と`protocol`はバイトを数えるだけで、答えを計算することはありません。すべての値は記録かチップから得ます。
@@ -384,7 +384,7 @@ Dungeon Masterは、DSP-2を搭載した唯一のSNESカートリッジです。
 
 | ファイル | 読み込み先 | サイズ |
 |:--|:--|:--|
-| Dungeon Master, USA | `roms/dungeon-master-usa.sfc` | 1,048,576 |
+| Dungeon Master, USA | `external/roms/dungeon-master-usa.sfc` | 1,048,576 |
 
 | ダイジェスト | 値 |
 |:--|:--|

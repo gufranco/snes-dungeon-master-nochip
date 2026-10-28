@@ -14,7 +14,7 @@ IMAGE = ROOT / "asm" / "dm-sym.sfc"
 
 SYMBOLS = IMAGE.with_suffix(".sym")
 
-DUMP = ROOT / "roms" / "dungeon-master-usa.sfc"
+DUMP = ROOT / "external" / "roms" / "dungeon-master-usa.sfc"
 
 
 def sources() -> list[Path]:

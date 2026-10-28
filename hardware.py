@@ -7,7 +7,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 
-FIRMWARE = ROOT / "firmware"
+FIRMWARE = ROOT / "external" / "firmware"
 
 FIRMWARE_VARIABLE = "UPD7725_FIRMWARE_DIR"
 

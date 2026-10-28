@@ -77,7 +77,7 @@ python3 doctor.py
 
 Nothing is installed from a package index. A source archive from the download-zip link carries no submodules and cannot run. In a clone made without `--recurse-submodules`, run `git submodule update --init --recursive`.
 
-The dump goes in `roms/dungeon-master-usa.sfc`. The microcode goes in `firmware/`, or in a directory named by `UPD7725_FIRMWARE_DIR`. Git ignores both directories, and nothing here downloads either file.
+The dump goes in `external/roms/dungeon-master-usa.sfc`. The microcode goes in `external/firmware/`, or in a directory named by `UPD7725_FIRMWARE_DIR`. Git ignores both directories, and nothing here downloads either file.
 
 The doctor prints the machine, the Python, the version of each model, whether the part's microcode runs, the SHA-256 of each dump it finds, how many of the three recorded traces sit in `build/`, and each model's own report under that model's name. A check that throws is reported as what it threw. It exits 1 when any check fails. On a fresh checkout it ends with this line:
 
@@ -100,11 +100,11 @@ Every command is a file run from the repository root with `python3`. Exit 0 is s
 | `cartridge.py <dump> <output>` | The retail dump, and where to write the finished cartridge | 0 written. 1 an access still reaches the chip or a header mirror still declares a coprocessor, and nothing is written. 2 usage, or no file at `<dump>`. Any other code is the assembler's |
 | `build.py <patch.asm> <dump> <output-name>` | An assembly file, the dump, and a file name for the result | 0 assembled. 1 the toolchain image did not build. 2 usage. Any other code is asar's |
 | `build.py --image` | None | The exit code of `docker build` |
-| [`assembled.py`](assembled.py) | None | 0 when `asm/dm-sym.sfc` and its symbols are newer than every `asm/*.asm`, or once they have been rebuilt. 2 no dump at `roms/dungeon-master-usa.sfc` |
+| [`assembled.py`](assembled.py) | None | 0 when `asm/dm-sym.sfc` and its symbols are newer than every `asm/*.asm`, or once they have been rebuilt. 2 no dump at `external/roms/dungeon-master-usa.sfc` |
 | `similarity.py <dump> <cartridge>` | The retail dump and a finished cartridge | 0 every changed byte sits in a declared region. 1 at least one does not. 2 usage, or `asm/dm-sym.sfc` is missing or older than its sources |
 
 ```bash
-python3 cartridge.py roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"
+python3 cartridge.py external/roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"
 ```
 
 [`cartridge.py`](cartridge.py) copies the dump to `asm/<output-name>`, assembles [`asm/nochip.asm`](asm/nochip.asm) over it in the pinned asar 1.81 container with no network, reads the symbol table asar writes beside it, redirects every port access in place, and rewrites the header so it declares no coprocessor. It then counts what is left: an access still going to the chip, or a header mirror still declaring one. Either one stops it before the file is written. An image with the routines placed and the accesses not redirected boots and plays, because the emulator reads the header and supplies a DSP-2, so the count is the only thing that tells the two apart.
@@ -127,10 +127,10 @@ On a fresh checkout it prints:
 
 ```
   dungeon-master-usa.sfc: missing  [Dungeon Master, USA]
-      roms/dungeon-master-usa.sfc is not there
-      macOS and Linux: shasum -a 256 roms/dungeon-master-usa.sfc
-      Linux, coreutils: sha256sum roms/dungeon-master-usa.sfc
-      Windows PowerShell: Get-FileHash -Algorithm SHA256 roms\dungeon-master-usa.sfc
+      external/roms/dungeon-master-usa.sfc is not there
+      macOS and Linux: shasum -a 256 external/roms/dungeon-master-usa.sfc
+      Linux, coreutils: sha256sum external/roms/dungeon-master-usa.sfc
+      Windows PowerShell: Get-FileHash -Algorithm SHA256 external\roms\dungeon-master-usa.sfc
   dungeon-master-jp.sfc: no digest published  [Dungeon Master, Japan]
       no dump measured yet
   dungeon-master-eur.sfc: no digest published  [Dungeon Master, UK and Europe]
@@ -165,7 +165,7 @@ These hold the routines to what the DSP-2's own microcode returns, run by `snes-
 | `tools/frame_cost.py [image] [trace ...]` | `asm/dm-sym.sfc` and `build/trace-s1.bin` to `trace-s3.bin` | 0 priced. 1 no complete exchange after frame 600. 2 the image, its symbols or a trace is missing |
 | `tools/pace.py <dump> <cartridge> [frames]` | Both cartridges, 4,000 frames | 0 the comparison ran. 1 the emulator failed. 2 usage, or a file is missing |
 | `tools/boot.py [cartridge] [frames]` | `build/Dungeon Master (USA) (nochip).sfc`, 8,000 frames | 0 no coprocessor declared, no chip request, every frame delivered, the screen lit. 1 any of those failed. 2 no cartridge |
-| `tools/placement.py [dump] [frames] [seed]` | `roms/dungeon-master-usa.sfc`, 19,000 frames, the steady route unless a seed is given | 0 the game never touched the state block's work RAM. 1 it did, or the run left no map. 2 no dump |
+| `tools/placement.py [dump] [frames] [seed]` | `external/roms/dungeon-master-usa.sfc`, 19,000 frames, the steady route unless a seed is given | 0 the game never touched the state block's work RAM. 1 it did, or the run left no map. 2 no dump |
 | `tools/tour.py [--frames N] [--seed S] [--steady] [--out PATH]` | 24,000 frames, seed 0, printed to standard output | 0 written. 2 usage |
 
 `cost.py` runs each command on the `mos65xx` 65816 model, which counts every bus cycle, feeds it recorded traffic from frame 600 on, checks each answer against what the part's own microcode returns for the same traffic, and prices the same exchange as the retail path paid for it: 5 cycles per long store and 7 per byte moved. It prints one row per command with the call count, the cycles direct, the cycles through a block-move dispatcher, the retail cycles, the ratio, and how many answers were right. The status-register polling the retail path spent waiting is counted for neither side. `frame_cost.py` counts every complete exchange from frame 600 on in each trace, tells a call that came through one of the four block movers in work RAM from one that came straight from a cartridge site, prices this side at `cost.py`'s mean for that command and path and the retail path exactly, and prints a row per command and the cost of a frame on both sides.
@@ -221,7 +221,7 @@ done
 | `dsptrace.transactions(records)` | Records grouped into one `Transaction` per command, with `command`, `name`, `lengths`, `parameters`, `output`, `source` and `complete` |
 | `dsptrace.summarise(transactions)`, `dsptrace.report(summary)` | Counts per command, per issuing site and per source bank, and their printed form |
 | `protocol.Shape()` | Tracks how many bytes a command still wants and how many it owes, from the bytes alone. `wrote(byte)`, `was_read()`, `expecting_input`, `produced`, `at_boundary` |
-| `hardware.install()`, `hardware.load(package)` | Puts `mos65xx`, `snesdsp`, `mapper` and `romimage` on the import path and names `firmware/` in `UPD7725_FIRMWARE_DIR`. `load` imports one of them |
+| `hardware.install()`, `hardware.load(package)` | Puts `mos65xx`, `snesdsp`, `mapper` and `romimage` on the import path and names `external/firmware/` in `UPD7725_FIRMWARE_DIR`. `load` imports one of them |
 | `version.stamped(name, release=None)` | The file name a release gives an image |
 
 `dsptrace` and `protocol` count bytes and never compute an answer: every value comes from the recording or from the part.
@@ -378,7 +378,7 @@ Named as No-Intro names it. Every digest is of the whole file with no copier hea
 
 | File | Read as | Size |
 |:--|:--|:--|
-| Dungeon Master, USA | `roms/dungeon-master-usa.sfc` | 1,048,576 |
+| Dungeon Master, USA | `external/roms/dungeon-master-usa.sfc` | 1,048,576 |
 
 | Digest | Value |
 |:--|:--|

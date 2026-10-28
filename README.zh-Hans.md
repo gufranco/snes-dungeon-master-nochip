@@ -77,7 +77,7 @@ python3 doctor.py
 
 不从任何软件包索引安装任何东西。通过下载 zip 链接得到的源码归档不含子模块，无法运行。若克隆时未使用 `--recurse-submodules`，请运行 `git submodule update --init --recursive`。
 
-转储放在 `roms/dungeon-master-usa.sfc`。微码放在 `firmware/`，或放在 `UPD7725_FIRMWARE_DIR` 指定的目录。Git 忽略这两个目录，本项目不会下载其中任何一个文件。
+转储放在 `external/roms/dungeon-master-usa.sfc`。微码放在 `external/firmware/`，或放在 `UPD7725_FIRMWARE_DIR` 指定的目录。Git 忽略这两个目录，本项目不会下载其中任何一个文件。
 
 诊断脚本会打印机器、Python、每个模型的版本、芯片的微码能否运行、它找到的每个转储的 SHA-256、三份录制跟踪中有多少位于 `build/`，以及每个模型自身的报告，列在该模型名下。抛出异常的检查会报告它抛出的内容。任一检查失败时以 1 退出。在全新的检出上，它以这一行结束：
 
@@ -100,11 +100,11 @@ python3 doctor.py
 | `cartridge.py <dump> <output>` | 零售版转储，以及成品卡带的写入位置 | 0 已写出。1 仍有访问到达芯片，或某个头部镜像仍声明协处理器，此时不写出任何文件。2 用法错误，或 `<dump>` 处没有文件。其他任何退出码来自汇编器 |
 | `build.py <patch.asm> <dump> <output-name>` | 一个汇编文件、转储，以及结果的文件名 | 0 已汇编。1 工具链镜像未能构建。2 用法错误。其他任何退出码来自 asar |
 | `build.py --image` | 无 | `docker build` 的退出码 |
-| [`assembled.py`](assembled.py) | 无 | 0 `asm/dm-sym.sfc` 及其符号比所有 `asm/*.asm` 都新，或已重新构建。2 `roms/dungeon-master-usa.sfc` 处没有转储 |
+| [`assembled.py`](assembled.py) | 无 | 0 `asm/dm-sym.sfc` 及其符号比所有 `asm/*.asm` 都新，或已重新构建。2 `external/roms/dungeon-master-usa.sfc` 处没有转储 |
 | `similarity.py <dump> <cartridge>` | 零售版转储和一个成品卡带 | 0 每个改动的字节都位于已声明的区域内。1 至少有一个不在。2 用法错误，或 `asm/dm-sym.sfc` 缺失或比其源文件旧 |
 
 ```bash
-python3 cartridge.py roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"
+python3 cartridge.py external/roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"
 ```
 
 [`cartridge.py`](cartridge.py) 将转储复制到 `asm/<output-name>`，在固定版本、无网络的 asar 1.81 容器中把 [`asm/nochip.asm`](asm/nochip.asm) 汇编到其上，读取 asar 在旁边写出的符号表，就地重定向每处端口访问，并重写头部使其不声明任何协处理器。随后它统计剩余的问题：仍然通往芯片的访问，或仍然声明协处理器的头部镜像。任意一种都会让它在写出文件之前停止。一个放置了例程但未重定向访问的镜像也能启动并游玩，因为模拟器读取头部并提供一个 DSP-2，所以这项统计是区分两者的唯一手段。
@@ -127,10 +127,10 @@ python3 tools/identify.py
 
 ```
   dungeon-master-usa.sfc: missing  [Dungeon Master, USA]
-      roms/dungeon-master-usa.sfc is not there
-      macOS and Linux: shasum -a 256 roms/dungeon-master-usa.sfc
-      Linux, coreutils: sha256sum roms/dungeon-master-usa.sfc
-      Windows PowerShell: Get-FileHash -Algorithm SHA256 roms\dungeon-master-usa.sfc
+      external/roms/dungeon-master-usa.sfc is not there
+      macOS and Linux: shasum -a 256 external/roms/dungeon-master-usa.sfc
+      Linux, coreutils: sha256sum external/roms/dungeon-master-usa.sfc
+      Windows PowerShell: Get-FileHash -Algorithm SHA256 external\roms\dungeon-master-usa.sfc
   dungeon-master-jp.sfc: no digest published  [Dungeon Master, Japan]
       no dump measured yet
   dungeon-master-eur.sfc: no digest published  [Dungeon Master, UK and Europe]
@@ -169,7 +169,7 @@ python3 tools/identify.py
 | `tools/frame_cost.py [image] [trace ...]` | `asm/dm-sym.sfc` 以及 `build/trace-s1.bin` 至 `trace-s3.bin` | 0 已计价。1 第 600 帧之后没有完整的交换。2 镜像、其符号或某个跟踪文件缺失 |
 | `tools/pace.py <dump> <cartridge> [frames]` | 两个卡带，4,000 帧 | 0 比较已运行。1 模拟器失败。2 用法错误，或缺少文件 |
 | `tools/boot.py [cartridge] [frames]` | `build/Dungeon Master (USA) (nochip).sfc`，8,000 帧 | 0 未声明协处理器、无芯片请求、每帧都已输出、屏幕点亮。1 其中任一项失败。2 没有卡带 |
-| `tools/placement.py [dump] [frames] [seed]` | `roms/dungeon-master-usa.sfc`，19,000 帧，除非给出种子，否则走固定路线 | 0 游戏从未触及状态块的工作 RAM。1 触及了，或运行未留下映射。2 没有转储 |
+| `tools/placement.py [dump] [frames] [seed]` | `external/roms/dungeon-master-usa.sfc`，19,000 帧，除非给出种子，否则走固定路线 | 0 游戏从未触及状态块的工作 RAM。1 触及了，或运行未留下映射。2 没有转储 |
 | `tools/tour.py [--frames N] [--seed S] [--steady] [--out PATH]` | 24,000 帧，种子 0，输出到标准输出 | 0 已写出。2 用法错误 |
 
 `cost.py` 在统计每个总线周期的 `mos65xx` 65816 模型上运行每条命令，从第 600 帧起向其输入录制的通信，将每个答案与芯片自身微码对同一通信返回的答案核对，并按零售路径为同一次交换付出的代价计价：每次长存储 5 个周期，每个搬运的字节 7 个周期。它为每条命令打印一行，包括调用次数、直接调用的周期、经由块传送分派器的周期、零售周期、比值，以及正确答案的数量。零售路径等待时轮询状态寄存器所花的时间，双方都不计入。`frame_cost.py` 统计每个跟踪文件中从第 600 帧起的每次完整交换，区分经由工作 RAM 中四个块传送例程到达的调用与直接来自卡带调用点的调用；我方按 `cost.py` 对该命令和路径的平均值计价，零售路径则精确计价，并为每条命令打印一行，以及双方每帧的开销。
@@ -225,7 +225,7 @@ done
 | `dsptrace.transactions(records)` | 按命令把记录分组为 `Transaction`，带有 `command`、`name`、`lengths`、`parameters`、`output`、`source` 和 `complete` |
 | `dsptrace.summarise(transactions)`, `dsptrace.report(summary)` | 按命令、按发出位置和按源 bank 的计数，以及其打印形式 |
 | `protocol.Shape()` | 仅凭字节跟踪一条命令还需要多少字节、还欠多少字节。`wrote(byte)`、`was_read()`、`expecting_input`、`produced`、`at_boundary` |
-| `hardware.install()`, `hardware.load(package)` | 把 `mos65xx`、`snesdsp`、`mapper` 和 `romimage` 加入导入路径，并在 `UPD7725_FIRMWARE_DIR` 中指定 `firmware/`。`load` 导入其中一个 |
+| `hardware.install()`, `hardware.load(package)` | 把 `mos65xx`、`snesdsp`、`mapper` 和 `romimage` 加入导入路径，并在 `UPD7725_FIRMWARE_DIR` 中指定 `external/firmware/`。`load` 导入其中一个 |
 | `version.stamped(name, release=None)` | 发布时给镜像的文件名 |
 
 `dsptrace` 和 `protocol` 只统计字节，从不计算答案：每个值都来自录制或芯片。
@@ -384,7 +384,7 @@ Dungeon Master 是唯一带有 DSP-2 的 SNES 卡带。该芯片有六条命令�
 
 | 文件 | 读取路径 | 大小 |
 |:--|:--|:--|
-| Dungeon Master, USA | `roms/dungeon-master-usa.sfc` | 1,048,576 |
+| Dungeon Master, USA | `external/roms/dungeon-master-usa.sfc` | 1,048,576 |
 
 | 摘要 | 值 |
 |:--|:--|

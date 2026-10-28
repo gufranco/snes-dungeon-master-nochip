@@ -169,6 +169,27 @@ checks that need one live in `*.retail.test.py` files kept out of the coverage
 measurement: a machine with the dump runs one set of paths and a machine without
 it runs the other, so no single run can exercise both.
 
+## Files kept in `external/`
+
+Everything this member reads and may not ship sits in `external/`, which git
+ignores and Dropbox is told to leave alone, per FAMILY.md's "Where the files a
+member reads are kept". [`artifacts.manifest.json`](artifacts.manifest.json)
+names all 2 by size, CRC32, MD5, SHA-1 and SHA-256:
+
+- `external/roms/dungeon-master-usa.sfc`, the cartridge dump the patch, the
+  placement and the census read; the `artifacts` list in the manifest
+  identifies it.
+- `external/firmware/dsp2.bin`, the DSP-2 microcode the models run.
+
+```bash
+python3 -m conformance.external
+python3 -m conformance.external --describe external/<file>
+```
+
+The first says which are here, verified, missing or wrong. The second prints
+the manifest entry for a file being added, which gets its entry in the same
+change.
+
 ## Gates
 
 Everything below must pass before a change is done. There is no partial credit,
@@ -197,10 +218,10 @@ The gates it runs, for reference:
 | yaml | `uvx yamllint==1.38.0 --strict .` |
 | workflows | `actionlint` |
 | this machine | `python3 doctor.py` |
-| the cartridge | `python3 cartridge.py roms/<dump>.sfc build/<name>.sfc` |
-| how far behind it runs | `python3 tools/pace.py roms/<dump>.sfc build/<name>.sfc` |
+| the cartridge | `python3 cartridge.py external/roms/<dump>.sfc build/<name>.sfc` |
+| how far behind it runs | `python3 tools/pace.py external/roms/<dump>.sfc build/<name>.sfc` |
 | that the block's work RAM is still free | `python3 tools/placement.py` |
-| that nothing outside a declared region moved | `python3 similarity.py roms/<dump>.sfc build/<name>.sfc` |
+| that nothing outside a declared region moved | `python3 similarity.py external/roms/<dump>.sfc build/<name>.sfc` |
 
 A change to the assembly adds two more: rebuild, then run
 [`tools/cost.py`](tools/cost.py) and read both columns, and run

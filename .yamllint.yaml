@@ -1,6 +1,7 @@
 ---
 extends: default
 ignore: |
+  external/
   pnpm-lock.yaml
   node_modules/
   mos65xx-python/

@@ -25,7 +25,7 @@ MAP = "wram-map.bin"
 
 SCRIPT = "placement.script"
 
-DEFAULT_CARTRIDGE = ROOT / "roms" / "dungeon-master-usa.sfc"
+DEFAULT_CARTRIDGE = ROOT / "external" / "roms" / "dungeon-master-usa.sfc"
 
 DEFAULT_FRAMES = 19000
 
