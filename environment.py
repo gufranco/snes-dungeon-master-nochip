@@ -44,6 +44,8 @@ TEXT_SUFFIXES = (".md", ".py", ".yml", ".yaml", ".json", ".toml", ".txt", ".cfg"
 
 SAMPLE = 200
 
+REPOSITORY = Path(__file__).resolve().parent
+
 
 def interpreter(look: Callable[[str], bool] | None = None) -> Observation:
     resolve = (lambda name: shutil.which(name) is not None) if look is None else look
@@ -295,10 +297,10 @@ def lines(root: Path, found: list[Observation] | None = None) -> list[str]:
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parent.parent
-    for line in lines(root):
+    found = observations(REPOSITORY)
+    for line in lines(REPOSITORY, found):
         print(line)
-    return 0 if all(one.ok for one in observations(root)) else 1
+    return 0 if all(one.ok for one in found) else 1
 
 
 if __name__ == "__main__":

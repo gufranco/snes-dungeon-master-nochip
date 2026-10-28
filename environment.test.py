@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 
@@ -345,6 +345,13 @@ class ReportTest(unittest.TestCase):
 
     def test_a_run_from_the_command_line_reports_what_it_found(self) -> None:
         self.assertIn(environment.main(), (0, 1))
+
+    def test_a_run_from_the_command_line_looks_at_this_repository(self) -> None:
+        # Act
+        found = environment.REPOSITORY
+
+        # Assert
+        self.assertEqual(found, Path(__file__).resolve().parent)
 
 
 class SurveyTest(unittest.TestCase):
