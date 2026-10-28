@@ -218,7 +218,7 @@ The gates it runs, for reference:
 | yaml | `uvx yamllint==1.38.0 --strict .` |
 | workflows | `actionlint` |
 | this machine | `python3 doctor.py` |
-| the cartridge | `python3 cartridge.py external/roms/<dump>.sfc build/<name>.sfc` |
+| the cartridge | `python3 cartridge.py external/roms/<dump>.sfc`, one folder per device under `dist/v<version>/` |
 | how far behind it runs | `python3 tools/pace.py external/roms/<dump>.sfc build/<name>.sfc` |
 | that the block's work RAM is still free | `python3 tools/placement.py` |
 | that nothing outside a declared region moved | `python3 similarity.py external/roms/<dump>.sfc build/<name>.sfc` |

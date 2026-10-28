@@ -97,17 +97,19 @@ python3 doctor.py
 
 | コマンド | 引数 | 終了コード |
 |:--|:--|:--|
-| `cartridge.py <dump> <output>` | 市販版のダンプと、完成したカートリッジの書き出し先 | 0は書き出し完了。1はアクセスがまだチップに届くか、ヘッダのミラーがまだコプロセッサを宣言しており、何も書き出されない。2は使い方の誤り、または`<dump>`にファイルがない。それ以外のコードはアセンブラのもの |
+| `cartridge.py <dump> [<destination>]` | 市販版のダンプと書き出し先のフォルダー。デフォルトは`dist` | 0は書き出し完了。1はアクセスがまだチップに届くか、ヘッダのミラーがまだコプロセッサを宣言しており、何も書き出しません。2は使い方の誤り、または`<dump>`にファイルがない。それ以外のコードはアセンブラのものです |
 | `build.py <patch.asm> <dump> <output-name>` | アセンブリファイル、ダンプ、結果のファイル名 | 0はアセンブル完了。1はツールチェーンのイメージがビルドできなかった。2は使い方の誤り。それ以外のコードはasarのもの |
 | `build.py --image` | なし | `docker build`の終了コード |
 | [`assembled.py`](assembled.py) | なし | 0は`asm/dm-sym.sfc`とそのシンボルがすべての`asm/*.asm`より新しいか、再ビルドが済んだ。2は`external/roms/dungeon-master-usa.sfc`にダンプがない |
 | `similarity.py <dump> <cartridge>` | 市販版のダンプと完成したカートリッジ | 0は変更されたすべてのバイトが宣言された領域内にある。1は少なくとも1つがそうでない。2は使い方の誤り、または`asm/dm-sym.sfc`がないかソースより古い |
 
 ```bash
-python3 cartridge.py external/roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"
+python3 cartridge.py external/roms/dungeon-master-usa.sfc
 ```
 
 [`cartridge.py`](cartridge.py)は、ダンプを`asm/<output-name>`にコピーし、ネットワークなしの固定版asar 1.81コンテナで[`asm/nochip.asm`](asm/nochip.asm)をその上にアセンブルし、asarが隣に書き出すシンボルテーブルを読み、すべてのポートアクセスをその場でリダイレクトし、コプロセッサを宣言しないようにヘッダを書き換えます。その後、残っているものを数えます。まだチップに向かうアクセスか、まだコプロセッサを宣言しているヘッダのミラーです。どちらか一方でもあれば、ファイルを書き出す前に止まります。ルーチンを配置してアクセスをリダイレクトしていないイメージも起動してプレイできます。エミュレータがヘッダを読んでDSP-2を用意するためです。そのため、この2つを区別できるのはこのカウントだけです。
+
+完成したカートリッジは、機器ごとに1回ずつ`<destination>/v<version>/`へ書き出します。`emulator`、`supereverdrive`、`sd2snes`、`fxpak`には、ダンプ名とバージョンを付けたイメージをそのまま置き、`gamedoctor`には、512バイトのGame Doctorヘッダーを前に付けた`.smc`を置きます。このヘッダーは、ucon64の表と同じように8 Mbitのイメージと32 KBのセーブメモリーをマップします。ヘッダーは[snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python)の`copier`モジュールが書き出します。カートリッジが宣言するヘッダーはバッテリーバックアップのセーブメモリーを残し、チップセットは`0x02`です。そのため、宣言されたバッテリーがあるときだけセーブRAMを保存するエミュレーターもセーブを保存します。
 
 [`build.py`](build.py)は、実行のたびに`snes-dungeon-master-nochip/asar:1.81`イメージを再ビルドし、渡されたダンプの上に結果を置くことを拒否します。[`assembled.py`](assembled.py)は、計測用イメージ`asm/dm-sym.sfc`を、それを読むコマンドのために最新に保ちます。
 
@@ -168,7 +170,7 @@ python3 tools/identify.py
 | `tools/cost.py [image] [symbols] [trace] [samples]` | `asm/dm-sym.sfc`、その隣の`.sym`、`build/trace-s1.bin`、コマンドごとに60件のやり取り | 0はサンプルしたすべての答えがチップ自身の答えと一致した。1は一致しないものがあった。2はイメージかそのシンボルがない、シンボルの方が古い、またはチップが実行するマイクロコードがない |
 | `tools/frame_cost.py [image] [trace ...]` | `asm/dm-sym.sfc`と`build/trace-s1.bin`から`trace-s3.bin`まで | 0は計算した。1はフレーム600以降に完了したやり取りがない。2はイメージ、そのシンボル、またはトレースがない |
 | `tools/pace.py <dump> <cartridge> [frames]` | 両方のカートリッジ、4,000フレーム | 0は比較を実行した。1はエミュレータが失敗した。2は使い方の誤り、またはファイルがない |
-| `tools/boot.py [cartridge] [frames]` | `build/Dungeon Master (USA) (nochip).sfc`、8,000フレーム | 0はコプロセッサの宣言なし、チップへの要求なし、すべてのフレームが出力され、画面が点灯した。1はそのいずれかが失敗した。2はカートリッジがない |
+| `tools/boot.py [cartridge] [frames]` | `dist/v<version>/emulator/dungeon-master-usa-nochip-v<version>.sfc`、8,000フレーム | 0はコプロセッサの宣言なし、チップへの要求なし、すべてのフレームが出力され、画面が点灯した。1はそのいずれかが失敗した。2はカートリッジがない |
 | `tools/placement.py [dump] [frames] [seed]` | `external/roms/dungeon-master-usa.sfc`、19,000フレーム、シードを指定しない限り定常ルート | 0はゲームがステートブロックのワークRAMに一度も触れなかった。1は触れたか、実行がマップを残さなかった。2はダンプがない |
 | `tools/tour.py [--frames N] [--seed S] [--steady] [--out PATH]` | 24,000フレーム、シード0、標準出力に表示 | 0は書き出し完了。2は使い方の誤り |
 

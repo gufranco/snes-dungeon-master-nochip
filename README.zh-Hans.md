@@ -97,17 +97,19 @@ python3 doctor.py
 
 | 命令 | 参数 | 退出码 |
 |:--|:--|:--|
-| `cartridge.py <dump> <output>` | 零售版转储，以及成品卡带的写入位置 | 0 已写出。1 仍有访问到达芯片，或某个头部镜像仍声明协处理器，此时不写出任何文件。2 用法错误，或 `<dump>` 处没有文件。其他任何退出码来自汇编器 |
+| `cartridge.py <dump> [<destination>]` | 零售版转储，以及写入的文件夹，默认为 `dist` | 0 已写出。1 仍有访问到达芯片，或某个头部镜像仍声明协处理器，此时不写出任何文件。2 用法错误，或 `<dump>` 处没有文件。其他代码来自汇编器 |
 | `build.py <patch.asm> <dump> <output-name>` | 一个汇编文件、转储，以及结果的文件名 | 0 已汇编。1 工具链镜像未能构建。2 用法错误。其他任何退出码来自 asar |
 | `build.py --image` | 无 | `docker build` 的退出码 |
 | [`assembled.py`](assembled.py) | 无 | 0 `asm/dm-sym.sfc` 及其符号比所有 `asm/*.asm` 都新，或已重新构建。2 `external/roms/dungeon-master-usa.sfc` 处没有转储 |
 | `similarity.py <dump> <cartridge>` | 零售版转储和一个成品卡带 | 0 每个改动的字节都位于已声明的区域内。1 至少有一个不在。2 用法错误，或 `asm/dm-sym.sfc` 缺失或比其源文件旧 |
 
 ```bash
-python3 cartridge.py external/roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"
+python3 cartridge.py external/roms/dungeon-master-usa.sfc
 ```
 
 [`cartridge.py`](cartridge.py) 将转储复制到 `asm/<output-name>`，在固定版本、无网络的 asar 1.81 容器中把 [`asm/nochip.asm`](asm/nochip.asm) 汇编到其上，读取 asar 在旁边写出的符号表，就地重定向每处端口访问，并重写头部使其不声明任何协处理器。随后它统计剩余的问题：仍然通往芯片的访问，或仍然声明协处理器的头部镜像。任意一种都会让它在写出文件之前停止。一个放置了例程但未重定向访问的镜像也能启动并游玩，因为模拟器读取头部并提供一个 DSP-2，所以这项统计是区分两者的唯一手段。
+
+它把成品卡带按设备各写一次，写入 `<destination>/v<version>/`：`emulator`、`supereverdrive`、`sd2snes` 和 `fxpak` 中是原样构建的镜像，以转储名和版本号命名；`gamedoctor` 中是前面带 512 字节 Game Doctor 头部的 `.smc`，该头部按 ucon64 的表映射 8 Mbit 镜像及其 32 KB 存档内存。该头部来自 [snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python) 的 `copier` 模块。卡带声明的头部保留带电池的存档内存，芯片组为 `0x02`，所以只为声明了电池的卡带保存存档 RAM 的模拟器也会保存存档。
 
 [`build.py`](build.py) 每次运行都会重新构建 `snes-dungeon-master-nochip/asar:1.81` 镜像，并拒绝把结果放到它所接收的转储之上。[`assembled.py`](assembled.py) 为读取测量镜像 `asm/dm-sym.sfc` 的命令保持该镜像为最新。
 
@@ -168,7 +170,7 @@ python3 tools/identify.py
 | `tools/cost.py [image] [symbols] [trace] [samples]` | `asm/dm-sym.sfc`、其旁边的 `.sym`、`build/trace-s1.bin`，每条命令 60 次交换 | 0 每个采样答案都与芯片自身的答案匹配。1 有一个不匹配。2 镜像或其符号缺失，符号较旧，或芯片没有可运行的微码 |
 | `tools/frame_cost.py [image] [trace ...]` | `asm/dm-sym.sfc` 以及 `build/trace-s1.bin` 至 `trace-s3.bin` | 0 已计价。1 第 600 帧之后没有完整的交换。2 镜像、其符号或某个跟踪文件缺失 |
 | `tools/pace.py <dump> <cartridge> [frames]` | 两个卡带，4,000 帧 | 0 比较已运行。1 模拟器失败。2 用法错误，或缺少文件 |
-| `tools/boot.py [cartridge] [frames]` | `build/Dungeon Master (USA) (nochip).sfc`，8,000 帧 | 0 未声明协处理器、无芯片请求、每帧都已输出、屏幕点亮。1 其中任一项失败。2 没有卡带 |
+| `tools/boot.py [cartridge] [frames]` | `dist/v<version>/emulator/dungeon-master-usa-nochip-v<version>.sfc`，8,000 帧 | 0 未声明协处理器、无芯片请求、每帧都已输出、屏幕点亮。1 其中任一项失败。2 没有卡带 |
 | `tools/placement.py [dump] [frames] [seed]` | `external/roms/dungeon-master-usa.sfc`，19,000 帧，除非给出种子，否则走固定路线 | 0 游戏从未触及状态块的工作 RAM。1 触及了，或运行未留下映射。2 没有转储 |
 | `tools/tour.py [--frames N] [--seed S] [--steady] [--out PATH]` | 24,000 帧，种子 0，输出到标准输出 | 0 已写出。2 用法错误 |
 

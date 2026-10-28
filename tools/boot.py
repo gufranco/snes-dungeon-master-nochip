@@ -9,8 +9,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def _load_beside(name: str) -> Any:
-    where = Path(__file__).resolve().parent / f"{name}.py"
+def _load_beside(name: str, folder: Path | None = None) -> Any:
+    where = (Path(__file__).resolve().parent if folder is None else folder) / f"{name}.py"
     spec = importlib.util.spec_from_file_location(name, where)
     assert spec is not None and spec.loader is not None, "no loader for that path"
     module = importlib.util.module_from_spec(spec)
@@ -22,7 +22,14 @@ tour = _load_beside("tour")
 
 EMULATOR = "snes-dungeon-master-nochip/emu:dev"
 
-DEFAULT_CARTRIDGE = ROOT / "build" / "Dungeon Master (USA) (nochip).sfc"
+cartridge = _load_beside("cartridge", ROOT)
+
+DEFAULT_CARTRIDGE = (
+    cartridge.DIST
+    / cartridge.release_folder()
+    / cartridge.EMULATOR
+    / cartridge.output_name("dungeon-master-usa.sfc")
+)
 
 DEFAULT_FRAMES = 8000
 

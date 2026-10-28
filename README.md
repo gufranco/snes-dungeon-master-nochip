@@ -97,17 +97,19 @@ Every command is a file run from the repository root with `python3`. Exit 0 is s
 
 | Command | Arguments | Exit codes |
 |:--|:--|:--|
-| `cartridge.py <dump> <output>` | The retail dump, and where to write the finished cartridge | 0 written. 1 an access still reaches the chip or a header mirror still declares a coprocessor, and nothing is written. 2 usage, or no file at `<dump>`. Any other code is the assembler's |
+| `cartridge.py <dump> [<destination>]` | The retail dump, and the folder to write into, `dist` by default | 0 written. 1 an access still reaches the chip or a header mirror still declares a coprocessor, and nothing is written. 2 usage, or no file at `<dump>`. Any other code is the assembler's |
 | `build.py <patch.asm> <dump> <output-name>` | An assembly file, the dump, and a file name for the result | 0 assembled. 1 the toolchain image did not build. 2 usage. Any other code is asar's |
 | `build.py --image` | None | The exit code of `docker build` |
 | [`assembled.py`](assembled.py) | None | 0 when `asm/dm-sym.sfc` and its symbols are newer than every `asm/*.asm`, or once they have been rebuilt. 2 no dump at `external/roms/dungeon-master-usa.sfc` |
 | `similarity.py <dump> <cartridge>` | The retail dump and a finished cartridge | 0 every changed byte sits in a declared region. 1 at least one does not. 2 usage, or `asm/dm-sym.sfc` is missing or older than its sources |
 
 ```bash
-python3 cartridge.py external/roms/dungeon-master-usa.sfc "build/Dungeon Master (USA) (nochip).sfc"
+python3 cartridge.py external/roms/dungeon-master-usa.sfc
 ```
 
 [`cartridge.py`](cartridge.py) copies the dump to `asm/<output-name>`, assembles [`asm/nochip.asm`](asm/nochip.asm) over it in the pinned asar 1.81 container with no network, reads the symbol table asar writes beside it, redirects every port access in place, and rewrites the header so it declares no coprocessor. It then counts what is left: an access still going to the chip, or a header mirror still declaring one. Either one stops it before the file is written. An image with the routines placed and the accesses not redirected boots and plays, because the emulator reads the header and supplies a DSP-2, so the count is the only thing that tells the two apart.
+
+It writes the finished cartridge once per device, into `<destination>/v<version>/`: `emulator`, `supereverdrive`, `sd2snes` and `fxpak` get the image as built, named after the dump and the version, and `gamedoctor` gets a `.smc` with the 512 byte Game Doctor header in front, which maps the 8 Mbit image and its 32 KB of save memory as ucon64's tables do. That header comes from the `copier` module of [snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python). The header the cartridge declares keeps the battery-backed save memory, chipset `0x02`, so an emulator that keeps save RAM only for a declared battery keeps the saves.
 
 [`build.py`](build.py) rebuilds the `snes-dungeon-master-nochip/asar:1.81` image on every run and refuses to stage the result over the dump it was given. [`assembled.py`](assembled.py) keeps the measurement image `asm/dm-sym.sfc` current for the commands that read it.
 
@@ -164,7 +166,7 @@ These hold the routines to what the DSP-2's own microcode returns, run by `snes-
 | `tools/cost.py [image] [symbols] [trace] [samples]` | `asm/dm-sym.sfc`, the `.sym` beside it, `build/trace-s1.bin`, 60 exchanges per command | 0 every sampled answer matched the part's own. 1 one did not. 2 the image or its symbols are missing, the symbols are older, or the part has no microcode to run |
 | `tools/frame_cost.py [image] [trace ...]` | `asm/dm-sym.sfc` and `build/trace-s1.bin` to `trace-s3.bin` | 0 priced. 1 no complete exchange after frame 600. 2 the image, its symbols or a trace is missing |
 | `tools/pace.py <dump> <cartridge> [frames]` | Both cartridges, 4,000 frames | 0 the comparison ran. 1 the emulator failed. 2 usage, or a file is missing |
-| `tools/boot.py [cartridge] [frames]` | `build/Dungeon Master (USA) (nochip).sfc`, 8,000 frames | 0 no coprocessor declared, no chip request, every frame delivered, the screen lit. 1 any of those failed. 2 no cartridge |
+| `tools/boot.py [cartridge] [frames]` | `dist/v<version>/emulator/dungeon-master-usa-nochip-v<version>.sfc`, 8,000 frames | 0 no coprocessor declared, no chip request, every frame delivered, the screen lit. 1 any of those failed. 2 no cartridge |
 | `tools/placement.py [dump] [frames] [seed]` | `external/roms/dungeon-master-usa.sfc`, 19,000 frames, the steady route unless a seed is given | 0 the game never touched the state block's work RAM. 1 it did, or the run left no map. 2 no dump |
 | `tools/tour.py [--frames N] [--seed S] [--steady] [--out PATH]` | 24,000 frames, seed 0, printed to standard output | 0 written. 2 usage |
 
