@@ -61,6 +61,65 @@ The example plants five of the cartridge's port accesses in a 64 KB image and re
 
 ## Install
 
+### Step by step
+
+Five steps from nothing to a working checkout. The doctor in step 4 confirms the first three.
+
+1. **Install Python, git and Docker.**
+
+   | | Windows | macOS | Linux |
+   |:--|:--|:--|:--|
+   | Python 3.12 or newer | `winget install Python.Python.3.12` | `brew install python@3.12` | your distribution's `python3` package |
+   | git | `winget install Git.Git` | `xcode-select --install` | your distribution's `git` package |
+   | Docker | `winget install Docker.DockerDesktop`, then start Docker Desktop | Docker Desktop, or `brew install colima docker` then `colima start` | Docker Engine, then `sudo systemctl start docker` |
+
+   On Windows, type `py -3.12` wherever this page says `python3`.
+
+2. **Clone the repository. Do not download it.**
+
+   ```bash
+   git clone --recurse-submodules https://github.com/gufranco/snes-dungeon-master-nochip.git
+   cd snes-dungeon-master-nochip
+   ```
+
+   > [!CAUTION]
+   > Cloning is the only way to get a copy that works. The green **Code** button on GitHub also offers **Download ZIP**, and a ZIP never works here: the 6 models this project runs on are separate repositories pinned as git submodules, a ZIP carries none of them, and nothing can add them afterwards. The doctor names such a copy a downloaded archive; delete it and clone. A clone made without `--recurse-submodules` is repaired in place with `git submodule update --init --recursive`.
+
+3. **Put your dump in `external/roms/`** under its name in [the dump list](#the-dump): `dungeon-master-usa.sfc`. The microcode goes in `external/firmware/`. Then check it; each dump you supplied should read `ok`:
+
+   ```bash
+   python3 tools/identify.py
+   ```
+
+4. **Run the doctor.** It checks the checkout, every model, each dump, and whether Docker's engine is running, and ends by naming the next thing to run:
+
+   ```bash
+   python3 doctor.py
+   ```
+
+   ```
+     N checks, nothing to report
+     next: python3 cartridge.py external/roms/dungeon-master-usa.sfc
+   ```
+
+   A line marked `!` carries what to do on the line below it. The setup mistakes it catches:
+
+   | The doctor says | Do this |
+   |:--|:--|
+   | `checkout: no git metadata` | Delete the folder and clone, step 2 |
+   | `... is not checked out` | `git submodule update --init --recursive` |
+   | `cartridge ...: missing` | Step 3 |
+   | `docker engine: docker is not installed` | Step 1 |
+   | `docker engine: installed but not answering` | Start Docker Desktop, or `sudo systemctl start docker` |
+
+5. **Build.** This writes every image into `dist/v<version>/`, one folder per device; copy the file from the folder named after your cartridge or emulator.
+
+   ```bash
+   python3 cartridge.py external/roms/dungeon-master-usa.sfc
+   ```
+
+### Requirements and the doctor
+
 | Requirement | Version | Needed for |
 |:--|:--|:--|
 | Python | 3.12 or newer | Every module and command |
@@ -69,20 +128,15 @@ The example plants five of the cartridge's port accesses in a 64 KB image and re
 | A Dungeon Master dump you own | 1,048,576 bytes, digest under [The dump](#the-dump) | Building the cartridge |
 | DSP-2 microcode you own | The image `snes-dsp-python` accepts | The commands that ask the part for an answer |
 
-```bash
-git clone --recurse-submodules https://github.com/gufranco/snes-dungeon-master-nochip.git
-cd snes-dungeon-master-nochip
-python3 doctor.py
-```
-
-Nothing is installed from a package index. A source archive from the download-zip link carries no submodules and cannot run. In a clone made without `--recurse-submodules`, run `git submodule update --init --recursive`.
+Nothing is installed from a package index.
 
 The dump goes in `external/roms/dungeon-master-usa.sfc`. The microcode goes in `external/firmware/`, or in a directory named by `UPD7725_FIRMWARE_DIR`. Git ignores both directories, and nothing here downloads either file.
 
-The doctor prints the machine, the Python, the version of each model, whether the part's microcode runs, the SHA-256 of each dump it finds, how many of the three recorded traces sit in `build/`, and each model's own report under that model's name. A check that throws is reported as what it threw. It exits 1 when any check fails. On a fresh checkout it ends with this line:
+The doctor prints the machine, the Python, whether the folder is a git clone, whether Docker's engine answers, the version of each model, whether the part's microcode runs, the SHA-256 of each dump it finds, how many of the three recorded traces sit in `build/`, and each model's own report under that model's name. A check that throws is reported as what it threw. It exits 1 when any check fails. On a fresh clone with Docker running it ends with these lines:
 
 ```
-  4 of 75 checks did not pass
+  4 of 77 checks did not pass
+  next: fix the first line marked ! above, then run python3 doctor.py again
 ```
 
 The four are the missing dump, the missing microcode as this project and as `snes-dsp-python` each report it, and the empty `snes-mapper-python/cartridges` directory. Paste the whole output into any bug report.

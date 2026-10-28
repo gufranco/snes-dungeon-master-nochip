@@ -61,6 +61,65 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
 
 ## インストール
 
+### 手順
+
+何もない状態から動くチェックアウトまで5つの手順です。手順4のドクターが最初の3つを確認します。
+
+1. **Python、git、Dockerをインストールします。**
+
+   | | Windows | macOS | Linux |
+   |:--|:--|:--|:--|
+   | Python 3.12以降 | `winget install Python.Python.3.12` | `brew install python@3.12` | ディストリビューションの`python3`パッケージ |
+   | git | `winget install Git.Git` | `xcode-select --install` | ディストリビューションの`git`パッケージ |
+   | Docker | `winget install Docker.DockerDesktop`を実行し、Docker Desktopを起動 | Docker Desktop、または`brew install colima docker`の後に`colima start` | Docker Engineを入れ、`sudo systemctl start docker` |
+
+   Windowsでは、このページの`python3`を`py -3.12`に置き換えてください。
+
+2. **リポジトリをクローンします。ダウンロードはしないでください。**
+
+   ```bash
+   git clone --recurse-submodules https://github.com/gufranco/snes-dungeon-master-nochip.git
+   cd snes-dungeon-master-nochip
+   ```
+
+   > [!CAUTION]
+   > 動くコピーを得る方法はクローンだけです。GitHubの緑の**Code**ボタンには**Download ZIP**もありますが、ZIPはここでは決して動きません。このプロジェクトが使う6個のモデルはgitのサブモジュールとして固定された別のリポジトリで、ZIPにはどれも含まれず、後から追加することもできません。ドクターはそのようなコピーをダウンロードしたアーカイブとして報告します。削除してクローンしてください。`--recurse-submodules`なしでクローンした場合は、`git submodule update --init --recursive`でその場で直せます。
+
+3. **ダンプを`external/roms/`に置きます。** 名前は[ダンプの一覧](#the-dump)のとおり`dungeon-master-usa.sfc`です。マイクロコードは`external/firmware/`に置きます。その後で確認します。用意した各ダンプが`ok`と表示されるはずです。
+
+   ```bash
+   python3 tools/identify.py
+   ```
+
+4. **ドクターを実行します。** チェックアウト、各モデル、各ダンプ、Dockerのエンジンが動いているかを確認し、最後に次に実行するものを示します。
+
+   ```bash
+   python3 doctor.py
+   ```
+
+   ```
+     N checks, nothing to report
+     next: python3 cartridge.py external/roms/dungeon-master-usa.sfc
+   ```
+
+   `!`の付いた行は、その下の行にすべきことを書いています。ドクターが見つける設定の誤りは次のとおりです。
+
+   | ドクターの表示 | すること |
+   |:--|:--|
+   | `checkout: no git metadata` | フォルダーを削除してクローンする（手順2） |
+   | `... is not checked out` | `git submodule update --init --recursive` |
+   | `cartridge ...: missing` | 手順3 |
+   | `docker engine: docker is not installed` | 手順1 |
+   | `docker engine: installed but not answering` | Docker Desktopを起動するか、`sudo systemctl start docker` |
+
+5. **ビルドします。** すべてのイメージを機器ごとのフォルダーに分けて`dist/v<version>/`へ書き出します。使うカートリッジやエミュレーターの名前のフォルダーからファイルをコピーしてください。
+
+   ```bash
+   python3 cartridge.py external/roms/dungeon-master-usa.sfc
+   ```
+
+### 必要なものとドクター
+
 | 要件 | バージョン | 用途 |
 |:--|:--|:--|
 | Python | 3.12以降 | すべてのモジュールとコマンド |
@@ -69,20 +128,15 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
 | 自分で所有するDungeon Masterのダンプ | 1,048,576バイト、ダイジェストは[ダンプ](#the-dump)を参照 | カートリッジのビルド |
 | 自分で所有するDSP-2マイクロコード | `snes-dsp-python`が受け付けるイメージ | チップに答えを求めるコマンド |
 
-```bash
-git clone --recurse-submodules https://github.com/gufranco/snes-dungeon-master-nochip.git
-cd snes-dungeon-master-nochip
-python3 doctor.py
-```
-
-パッケージインデックスからは何もインストールしません。ZIPダウンロードのリンクから得たソースアーカイブにはサブモジュールが含まれず、実行できません。`--recurse-submodules`なしで作ったクローンでは、`git submodule update --init --recursive`を実行してください。
+パッケージインデックスからは何もインストールしません。
 
 ダンプは`external/roms/dungeon-master-usa.sfc`に置きます。マイクロコードは`external/firmware/`、または`UPD7725_FIRMWARE_DIR`で指定したディレクトリに置きます。Gitは両方のディレクトリを無視し、ここにあるものはどちらのファイルもダウンロードしません。
 
-ドクターは、マシン、Python、各モデルのバージョン、チップのマイクロコードが動くかどうか、見つけた各ダンプのSHA-256、記録した3つのトレースのうち`build/`にあるものの数、そして各モデル自身のレポートをそのモデル名の下に表示します。例外を投げたチェックは、投げた内容として報告します。いずれかのチェックが失敗すると終了コード1で終わります。新しいチェックアウトでは、次の行で終わります。
+ドクターは、マシン、Python、フォルダーがgitのクローンかどうか、Dockerのエンジンが応答するか、各モデルのバージョン、チップのマイクロコードが動くかどうか、見つけた各ダンプのSHA-256、記録した3つのトレースのうち`build/`にあるものの数、そして各モデル自身のレポートをそのモデル名の下に表示します。例外を投げたチェックは、投げた内容として報告します。いずれかのチェックが失敗すると終了コード1で終わります。Dockerが動いている新しいクローンでは、次の行で終わります。
 
 ```
-  4 of 75 checks did not pass
+  4 of 77 checks did not pass
+  next: fix the first line marked ! above, then run python3 doctor.py again
 ```
 
 4つとは、ダンプがないこと、マイクロコードがないことをこのプロジェクトと`snes-dsp-python`がそれぞれ報告するもの、そして空の`snes-mapper-python/cartridges`ディレクトリです。バグ報告には出力全体を貼り付けてください。

@@ -61,6 +61,65 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
 
 ## 安装
 
+### 分步操作
+
+从零到可用的检出共五步。第 4 步的 doctor 会确认前三步。
+
+1. **安装 Python、git 和 Docker。**
+
+   | | Windows | macOS | Linux |
+   |:--|:--|:--|:--|
+   | Python 3.12 或更新版本 | `winget install Python.Python.3.12` | `brew install python@3.12` | 发行版的 `python3` 软件包 |
+   | git | `winget install Git.Git` | `xcode-select --install` | 发行版的 `git` 软件包 |
+   | Docker | `winget install Docker.DockerDesktop`，然后启动 Docker Desktop | Docker Desktop，或 `brew install colima docker` 后运行 `colima start` | Docker Engine，然后 `sudo systemctl start docker` |
+
+   在 Windows 上，本页写 `python3` 的地方请输入 `py -3.12`。
+
+2. **克隆仓库，不要下载。**
+
+   ```bash
+   git clone --recurse-submodules https://github.com/gufranco/snes-dungeon-master-nochip.git
+   cd snes-dungeon-master-nochip
+   ```
+
+   > [!CAUTION]
+   > 只有克隆才能得到可用的副本。GitHub 上绿色的 **Code** 按钮还提供 **Download ZIP**，但 ZIP 在这里永远无法使用：本项目依赖的 6 个模型是以 git 子模块固定的独立仓库，ZIP 一个都不包含，之后也无法补上。doctor 会把这样的副本报告为下载的归档；请删除它并克隆。没有加 `--recurse-submodules` 的克隆，可以用 `git submodule update --init --recursive` 就地修复。
+
+3. **把转储放进 `external/roms/`**，文件名按[转储列表](#the-dump)：`dungeon-master-usa.sfc`。微码放在 `external/firmware/`。然后检查，你提供的每个转储都应显示 `ok`：
+
+   ```bash
+   python3 tools/identify.py
+   ```
+
+4. **运行 doctor。** 它检查检出、每个模型、每个转储，以及 Docker 引擎是否在运行，最后说明下一步运行什么：
+
+   ```bash
+   python3 doctor.py
+   ```
+
+   ```
+     N checks, nothing to report
+     next: python3 cartridge.py external/roms/dungeon-master-usa.sfc
+   ```
+
+   标有 `!` 的行，下一行写着该怎么做。它能发现的设置错误：
+
+   | doctor 显示 | 怎么做 |
+   |:--|:--|
+   | `checkout: no git metadata` | 删除文件夹并克隆，第 2 步 |
+   | `... is not checked out` | `git submodule update --init --recursive` |
+   | `cartridge ...: missing` | 第 3 步 |
+   | `docker engine: docker is not installed` | 第 1 步 |
+   | `docker engine: installed but not answering` | 启动 Docker Desktop，或 `sudo systemctl start docker` |
+
+5. **构建。** 它把每个镜像写入 `dist/v<version>/`，每种设备一个文件夹；从以你的卡带或模拟器命名的文件夹中复制文件。
+
+   ```bash
+   python3 cartridge.py external/roms/dungeon-master-usa.sfc
+   ```
+
+### 依赖与 doctor
+
 | 要求 | 版本 | 用途 |
 |:--|:--|:--|
 | Python | 3.12 或更新 | 所有模块和命令 |
@@ -69,20 +128,15 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
 | 你拥有的 Dungeon Master 转储 | 1,048,576 字节，摘要见[转储](#the-dump) | 构建卡带 |
 | 你拥有的 DSP-2 微码 | `snes-dsp-python` 接受的镜像 | 向芯片询问答案的命令 |
 
-```bash
-git clone --recurse-submodules https://github.com/gufranco/snes-dungeon-master-nochip.git
-cd snes-dungeon-master-nochip
-python3 doctor.py
-```
-
-不从任何软件包索引安装任何东西。通过下载 zip 链接得到的源码归档不含子模块，无法运行。若克隆时未使用 `--recurse-submodules`，请运行 `git submodule update --init --recursive`。
+不从任何软件包索引安装任何东西。
 
 转储放在 `external/roms/dungeon-master-usa.sfc`。微码放在 `external/firmware/`，或放在 `UPD7725_FIRMWARE_DIR` 指定的目录。Git 忽略这两个目录，本项目不会下载其中任何一个文件。
 
-诊断脚本会打印机器、Python、每个模型的版本、芯片的微码能否运行、它找到的每个转储的 SHA-256、三份录制跟踪中有多少位于 `build/`，以及每个模型自身的报告，列在该模型名下。抛出异常的检查会报告它抛出的内容。任一检查失败时以 1 退出。在全新的检出上，它以这一行结束：
+诊断脚本会打印机器、Python、该文件夹是否为 git 克隆、Docker 引擎是否应答、每个模型的版本、芯片的微码能否运行、它找到的每个转储的 SHA-256、三份录制跟踪中有多少位于 `build/`，以及每个模型自身的报告，列在该模型名下。抛出异常的检查会报告它抛出的内容。任一检查失败时以 1 退出。在 Docker 运行着的全新克隆上，它以这几行结束：
 
 ```
-  4 of 75 checks did not pass
+  4 of 77 checks did not pass
+  next: fix the first line marked ! above, then run python3 doctor.py again
 ```
 
 这四项是：缺失的转储，本项目和 `snes-dsp-python` 各自报告的缺失微码，以及空的 `snes-mapper-python/cartridges` 目录。提交缺陷报告时请粘贴完整输出。

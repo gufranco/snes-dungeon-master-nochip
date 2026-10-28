@@ -1,3 +1,4 @@
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -313,6 +314,171 @@ class EntryTest(unittest.TestCase):
         doctor.main([], say=said.append)
 
         self.assertIn("snes-dungeon-master-nochip", " ".join(said))
+
+
+class Answered:
+    def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def answering(returncode: int, stdout: str = "", stderr: str = "") -> Any:
+    def run(*_args: Any, **_kwargs: Any) -> Answered:
+        return Answered(returncode, stdout, stderr)
+
+    return run
+
+
+def failing(trouble: Exception) -> Any:
+    def run(*_args: Any, **_kwargs: Any) -> Answered:
+        raise trouble
+
+    return run
+
+
+class CheckoutTest(unittest.TestCase):
+    def test_a_clone_passes(self) -> None:
+        # Arrange
+        cloned = lambda: True  # noqa: E731
+
+        # Act
+        found = doctor._checkout(cloned)
+
+        # Assert
+        self.assertEqual((found.name, found.ok), ("checkout", True))
+
+    def test_a_downloaded_archive_fails_and_says_to_clone(self) -> None:
+        # Arrange
+        cloned = lambda: False  # noqa: E731
+
+        # Act
+        found = doctor._checkout(cloned)
+
+        # Assert
+        self.assertFalse(found.ok)
+        self.assertIn("downloaded archive", found.detail)
+        self.assertIn(f"git clone --recurse-submodules {doctor.ORIGIN}", found.advice or "")
+
+
+class DockerAnswersTest(unittest.TestCase):
+    def test_an_engine_that_answers_gives_its_version(self) -> None:
+        # Arrange
+        run = answering(0, "27.3.1\n")
+
+        # Act
+        found = doctor._docker_answers(run)
+
+        # Assert
+        self.assertEqual(found, (True, "27.3.1"))
+
+    def test_an_engine_that_is_not_running_gives_what_docker_said(self) -> None:
+        # Arrange
+        run = answering(1, "", "Cannot connect to the Docker daemon\nmore\n")
+
+        # Act
+        found = doctor._docker_answers(run)
+
+        # Assert
+        self.assertEqual(found, (False, "Cannot connect to the Docker daemon"))
+
+    def test_an_engine_that_says_nothing_is_reported_as_silent(self) -> None:
+        # Arrange
+        run = answering(1, "  \n")
+
+        # Act
+        found = doctor._docker_answers(run)
+
+        # Assert
+        self.assertEqual(found, (False, "no answer"))
+
+    def test_a_command_that_cannot_start_is_reported_rather_than_raised(self) -> None:
+        # Arrange
+        run = failing(FileNotFoundError("docker"))
+
+        # Act
+        found = doctor._docker_answers(run)
+
+        # Assert
+        self.assertEqual(found, (False, "FileNotFoundError: docker"))
+
+    def test_an_engine_that_hangs_is_reported_after_the_timeout(self) -> None:
+        # Arrange
+        run = failing(subprocess.TimeoutExpired(["docker", "info"], 30))
+
+        # Act
+        found = doctor._docker_answers(run)
+
+        # Assert
+        self.assertFalse(found[0])
+        self.assertIn("TimeoutExpired", found[1])
+
+
+class DockerEngineTest(unittest.TestCase):
+    def test_no_docker_at_all_says_to_install_it(self) -> None:
+        # Arrange
+        look = lambda _name: None  # noqa: E731
+
+        # Act
+        found = doctor._docker_engine(look, lambda: (True, "unused"))
+
+        # Assert
+        self.assertFalse(found.ok)
+        self.assertIn("Docker Desktop", found.advice or "")
+
+    def test_a_running_engine_passes_with_its_version(self) -> None:
+        # Arrange
+        look = lambda _name: "/usr/bin/docker"  # noqa: E731
+
+        # Act
+        found = doctor._docker_engine(look, lambda: (True, "27.3.1"))
+
+        # Assert
+        self.assertEqual((found.ok, found.detail), (True, "running, server 27.3.1"))
+
+    def test_an_installed_engine_that_is_not_running_says_to_start_it(self) -> None:
+        # Arrange
+        look = lambda _name: "/usr/bin/docker"  # noqa: E731
+
+        # Act
+        found = doctor._docker_engine(look, lambda: (False, "Cannot connect"))
+
+        # Assert
+        self.assertFalse(found.ok)
+        self.assertIn("Cannot connect", found.detail)
+        self.assertIn("start Docker Desktop", found.advice or "")
+
+
+class NextStepTest(unittest.TestCase):
+    def test_a_clean_report_ends_with_the_command_to_run_next(self) -> None:
+        # Arrange
+        found = [a_finding(ok=True)]
+
+        # Act
+        said = doctor.report(found)
+
+        # Assert
+        self.assertEqual(said[-1], f"  next: {doctor.NEXT_WHEN_CLEAN}")
+
+    def test_an_unwell_report_ends_by_pointing_at_the_first_failure(self) -> None:
+        # Arrange
+        found = [a_finding(ok=True), a_finding(ok=False, advice="do this")]
+
+        # Act
+        said = doctor.report(found)
+
+        # Assert
+        self.assertEqual(said[-1], f"  next: {doctor.NEXT_WHEN_NOT}")
+
+    def test_the_examination_reports_the_checkout_and_the_engine(self) -> None:
+        # Arrange
+        wanted = {"checkout", "docker engine"}
+
+        # Act
+        names = {one.name for one in doctor.examine()}
+
+        # Assert
+        self.assertLessEqual(wanted, names)
 
 
 if __name__ == "__main__":
