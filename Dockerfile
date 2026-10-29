@@ -119,7 +119,9 @@ RUN arch="$(dpkg --print-architecture)" \
     && tar -xzf /tmp/actionlint.tar.gz -C /usr/local/bin actionlint \
     && rm /tmp/actionlint.tar.gz
 
-RUN pip install --no-cache-dir --root-user-action=ignore \
+COPY --from=ghcr.io/astral-sh/uv:0.13.1@sha256:4a1f3666816dafadd20ceb71eac9a7d56d7ef30279f7d64048519ab901ada336 /uv /usr/local/bin/uv
+
+RUN uv pip install --system --no-cache \
         ruff==0.16.3 mypy==1.14.1 coverage==7.6.10 yamllint==1.38.0
 
 ENV COREPACK_HOME=/opt/corepack \
