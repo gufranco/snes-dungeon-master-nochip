@@ -2,6 +2,7 @@ import unittest
 from typing import Any, override
 
 import lorom
+import script
 
 ROM_BYTES = 0x80000
 
@@ -67,5 +68,4 @@ class MemoryMapTest(unittest.TestCase):
         self.assertIsNone(self._memory()._rom_offset(0x7E0000))
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

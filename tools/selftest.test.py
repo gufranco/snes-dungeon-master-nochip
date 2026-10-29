@@ -1,7 +1,12 @@
 import importlib.util
+import sys
 import unittest
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import script
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -225,5 +230,4 @@ class ComparisonTailTest(unittest.TestCase):
         self.assertEqual(found[-1][3], 0x22)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+script.entry(__name__, unittest.main, verbosity=2)

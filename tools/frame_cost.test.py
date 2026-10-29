@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import dsptrace  # noqa: E402
+import script  # noqa: E402
 
 
 def load_module(name: str, where: Path) -> Any:
@@ -377,5 +378,4 @@ class MainTest(unittest.TestCase):
         self.assertEqual((code, "trace-s1.bin" in said[0]), (2, True))
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

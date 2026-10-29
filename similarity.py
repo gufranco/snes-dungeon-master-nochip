@@ -5,6 +5,8 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
@@ -164,5 +166,4 @@ def main(argv: list[str], say: Callable[[str], None] = print) -> int:
     return 0 if report.ok else 1
 
 
-if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main(sys.argv))
+script.entry(__name__, main, sys.argv)

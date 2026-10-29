@@ -1,7 +1,12 @@
 import importlib.util
+import sys
 import unittest
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import script
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -163,5 +168,4 @@ class PrintingTest(unittest.TestCase):
         self.assertIn("4 owed", repr(feed(protocol.Shape(), protocol.MULTIPLY, 1, 0, 2, 0)))
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

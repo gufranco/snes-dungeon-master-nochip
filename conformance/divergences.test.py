@@ -7,6 +7,8 @@ from typing import Any, override
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+import script  # noqa: E402
+
 DOCUMENT = ROOT / "OPEN-QUESTIONS.md"
 
 RECORD = ROOT / "conformance" / "divergences.json"
@@ -148,5 +150,4 @@ class RecordTest(unittest.TestCase):
         self.assertNotIn("base64", text.lower())
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

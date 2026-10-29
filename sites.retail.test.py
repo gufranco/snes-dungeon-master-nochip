@@ -3,6 +3,8 @@ import unittest
 from pathlib import Path
 from typing import Any, override
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 
 
@@ -17,14 +19,6 @@ def load_module(name: str, path: Path) -> Any:
 sites = load_module("sites", ROOT / "sites.py")
 
 RETAIL = ROOT / "external" / "roms" / "dungeon-master-usa.sfc"
-
-
-def image_with(pieces: Any) -> Any:
-    end = max((offset + len(payload) for offset, payload in pieces.items()), default=0)
-    image = bytearray(max(0x10000, end))
-    for offset, payload in pieces.items():
-        image[offset : offset + len(payload)] = payload
-    return bytes(image)
 
 
 """The checks that need the cartridge itself.
@@ -84,5 +78,4 @@ class RetailTest(unittest.TestCase):
         self.assertEqual({site.bank for site in found}, {0x04})
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

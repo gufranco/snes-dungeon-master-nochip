@@ -6,6 +6,10 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import script
+
 ROOT = Path(__file__).resolve().parent.parent
 ROMS = ROOT / "external" / "roms"
 MANIFEST_PATH = ROOT / "artifacts.manifest.json"
@@ -172,5 +176,4 @@ def main(
     return 1 if failed or usable == 0 else 0
 
 
-if __name__ == "__main__":
-    raise SystemExit(main(sys.argv))
+script.entry(__name__, main, sys.argv)

@@ -3,6 +3,8 @@ import unittest
 from pathlib import Path
 from typing import Any, override
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 
 
@@ -215,5 +217,4 @@ class SyntheticImageTest(unittest.TestCase):
         self.assertNotEqual(patched[0x2000:0x2004], sites.LDA_PORT)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+script.entry(__name__, unittest.main, verbosity=2)

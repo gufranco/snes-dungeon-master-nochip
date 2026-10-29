@@ -29,6 +29,8 @@ jobs:
           submodules: recursive
 
       - name: Build the image and run every gate in it
+        env:
+          RETAIL_INPUTS: absent
         run: ./run.sh --gates
 
       - name: The doctor reports on a runner with no dump and no microcode

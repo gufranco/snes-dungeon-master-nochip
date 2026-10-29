@@ -3,6 +3,8 @@ import unittest
 from pathlib import Path
 from typing import Any, override
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 
 
@@ -116,5 +118,4 @@ class SymbolReadingTest(unittest.TestCase):
         self.assertEqual(patch.read_symbols("00:8000 :local"), {})
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

@@ -8,7 +8,7 @@ DSP-2コプロセッサを65816ルーチンで置き換えたDungeon Masterの�
 [![Release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip)](https://github.com/gufranco/snes-dungeon-master-nochip/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-スケールを含まない記録の返却バイト**17,241,846**をチップのマイクロコードで再現して誤り**0**、選んだ入力でチップと一致を確認したコマンド6個中**6**個、テスト**924**件、ステートメントとブランチのカバレッジ**100%**、標準ライブラリのみ
+スケールを含まない記録の返却バイト**17,241,846**をチップのマイクロコードで再現して誤り**0**、選んだ入力でチップと一致を確認したコマンド6個中**6**個、テスト**1,005**件、ステートメントとブランチのカバレッジ**100%**、標準ライブラリのみ
 
 ```python
 import patch
@@ -467,7 +467,7 @@ Dungeon Masterは、DSP-2を搭載した唯一のSNESカートリッジです。
 | [`run.sh`](run.sh)、[`run.ps1`](run.ps1)、[`run.cmd`](run.cmd) | イメージをビルドし、その中でコマンドを実行するランチャーです |
 | [`tools/`](tools/) | [チップに問い合わせる](#asking-the-part)と[コスト、プレイ、配置の計測](#measuring-cost-play-and-placement)にあるコマンド |
 | [`conformance/divergences.json`](conformance/divergences.json) | すべての未解決の問題をプログラムが読める形にしたもの。テストで[OPEN-QUESTIONS.md](OPEN-QUESTIONS.md)と一致させている |
-| `*.retail.test.py` | ダンプを必要とするチェック。カバレッジのゲートからは除外し、ダンプがなければスキップとして報告する |
+| `*.retail.test.py` | ダンプを必要とするチェック。ダンプがなければスキップとして報告し、ダンプのあるマシンではカバレッジ100%で計測する。CIは`RETAIL_INPUTS=absent`で実行し、カバレッジのレポートから除外する |
 
 ## 正しいか
 
@@ -496,7 +496,7 @@ Dungeon Masterは、DSP-2を搭載した唯一のSNESカートリッジです。
 ./run.sh --gates check.py
 ```
 
-各モジュールの隣には`<module>.test.py`があり、それぞれ単独で実行できます。カバレッジはステートメントとブランチの100%を必須とするゲートで、ダンプもマイクロコードも持たないマシンで満たしています。`./run.sh --gates`は標準のゲートを実行し、`./run.sh --gates check.py`はアセンブル済みイメージが必要なゲートを加えます。
+各モジュールの隣には`<module>.test.py`があり、それぞれ単独で実行できます。カバレッジはステートメントとブランチの100%を必須とするゲートで、除外はありません。ダンプがない場合はCIと同じく`RETAIL_INPUTS=absent ./run.sh --gates`で実行し、レポートは`*.retail.*`ファイルを除外します。`./run.sh --gates`は標準のゲートを実行し、`./run.sh --gates check.py`はアセンブル済みイメージが必要なゲートを加えます。
 
 イシューにカートリッジやマイクロコードのイメージを添付しないでください。また、どちらかをダウンロードできる場所へのリンクも貼らないでください。ダイジェストは、ファイルそのものを含めずにファイルを識別します。
 

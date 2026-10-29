@@ -21,7 +21,9 @@ def _load(name: str) -> Any:
 dsptrace = _load("dsptrace")
 
 sys.path.insert(0, str(ROOT))
+
 import hardware  # noqa: E402
+import script  # noqa: E402
 
 hardware.install()
 
@@ -159,6 +161,4 @@ def main(
     return 1 if wrong else 0
 
 
-if __name__ == "__main__":
-    sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
-    raise SystemExit(main(sys.argv))
+script.entry(__name__, main, sys.argv)

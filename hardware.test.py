@@ -4,6 +4,7 @@ import unittest
 from typing import Any, override
 
 import hardware
+import script
 
 
 class PathTest(unittest.TestCase):
@@ -185,5 +186,4 @@ class AnswerTest(unittest.TestCase):
         self.assertRaisesRegex(hardware.PartNeverAsked, "in 4 steps", attempt)
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

@@ -3,6 +3,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
@@ -61,5 +63,4 @@ def ready(
     return assemble(dump, say, run)
 
 
-if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(ready())
+script.entry(__name__, ready)

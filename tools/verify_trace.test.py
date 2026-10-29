@@ -1,9 +1,14 @@
 import importlib.util
 import struct
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from typing import Any, override
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import script
 
 ROOT = Path(__file__).resolve().parent.parent
 MODULE_PATH = ROOT / "tools" / "verify_trace.py"
@@ -384,5 +389,4 @@ class ProgressTest(unittest.TestCase):
         self.assertEqual(found.writes + found.reads, 108)
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 from typing import Any, override
 
+import script
+
 MODULE_PATH = Path(__file__).resolve().parent / "dsptrace.py"
 
 
@@ -426,5 +428,4 @@ class StreamEdgeTest(unittest.TestCase):
         self.assertEqual(found[0].output, b"")
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+script.entry(__name__, unittest.main, verbosity=2)

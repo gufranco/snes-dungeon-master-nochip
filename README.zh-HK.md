@@ -8,7 +8,7 @@
 [![Release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip)](https://github.com/gufranco/snes-dungeon-master-nochip/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-一份不含 scale 的錄音中 **17,241,846** 個返回位元組由晶片微碼重現，錯誤 **0** 個；**6** 個指令中 6 個在選定輸入上與晶片一致；**924** 個測試；**100%** 語句及分支覆蓋率；只用標準函式庫
+一份不含 scale 的錄音中 **17,241,846** 個返回位元組由晶片微碼重現，錯誤 **0** 個；**6** 個指令中 6 個在選定輸入上與晶片一致；**1,005** 個測試；**100%** 語句及分支覆蓋率；只用標準函式庫
 
 ```python
 import patch
@@ -467,7 +467,7 @@ Dungeon Master 是唯一載有 DSP-2 的 SNES 卡帶。該晶片有六個指令�
 | [`run.sh`](run.sh)、[`run.ps1`](run.ps1)、[`run.cmd`](run.cmd) | 建構映像並在其中執行指令的啟動腳本 |
 | [`tools/`](tools/) | [詢問晶片](#asking-the-part)及[量度成本、遊玩及放置](#measuring-cost-play-and-placement)下的指令 |
 | [`conformance/divergences.json`](conformance/divergences.json) | 以程式可讀取的形式列出每個未解決問題，並由測試與 [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) 保持一致 |
-| `*.retail.test.py` | 需要傾印檔的檢查，不計入覆蓋率關卡檢查，沒有傾印檔時報告為已跳過 |
+| `*.retail.test.py` | 需要傾印檔的檢查，沒有傾印檔時報告為已跳過，有傾印檔的機器上按 100% 覆蓋率量度；CI 以 `RETAIL_INPUTS=absent` 執行，覆蓋率報告不包括它們 |
 
 ## 是否正確
 
@@ -496,7 +496,7 @@ Dungeon Master 是唯一載有 DSP-2 的 SNES 卡帶。該晶片有六個指令�
 ./run.sh --gates check.py
 ```
 
-每個模組旁邊都有一個 `<module>.test.py`，每個都可以獨立運行。覆蓋率是硬性關卡檢查，要求語句及分支達 100%，並在既沒有傾印檔也沒有微碼的機器上達成。`./run.sh --gates` 運行標準關卡檢查，`./run.sh --gates check.py` 再加上需要已組譯映像檔的檢查。
+每個模組旁邊都有一個 `<module>.test.py`，每個都可以獨立運行。覆蓋率是硬性關卡檢查，要求語句及分支達 100%，不排除任何內容。沒有傾印檔時，像 CI 一樣運行 `RETAIL_INPUTS=absent ./run.sh --gates`，報告會排除 `*.retail.*` 檔案。`./run.sh --gates` 運行標準關卡檢查，`./run.sh --gates check.py` 再加上需要已組譯映像檔的檢查。
 
 切勿把卡帶或微碼映像附加到 issue，也切勿連結到可下載其中任何一個的地方。摘要可以識別檔案而不攜帶檔案。
 

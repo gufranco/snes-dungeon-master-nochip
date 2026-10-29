@@ -4,6 +4,8 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 ASM_DIR = ROOT / "asm"
 sys.path.insert(0, str(ROOT))
@@ -98,5 +100,4 @@ def cli() -> int:
         return 1
 
 
-if __name__ == "__main__":
-    raise SystemExit(cli())
+script.entry(__name__, cli)

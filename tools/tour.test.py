@@ -1,8 +1,13 @@
 import importlib.util
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from typing import Any, override
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import script
 
 MODULE_PATH = Path(__file__).resolve().parent / "tour.py"
 
@@ -213,5 +218,4 @@ class SteadyCommandTest(unittest.TestCase):
         self.assertEqual("".join(said), tour.steady(frames=4000))
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+script.entry(__name__, unittest.main, verbosity=2)

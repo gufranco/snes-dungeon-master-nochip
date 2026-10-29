@@ -38,5 +38,13 @@ for module in *.test.py tools/*.test.py conformance/*.test.py; do
   coverage run -a "${module}"
 done
 
-step "coverage"
-coverage report
+if [ "${RETAIL_INPUTS:-present}" = "absent" ]; then
+  step "coverage, without the *.retail.* files, because RETAIL_INPUTS=absent"
+  coverage report --omit='*.retail.*'
+else
+  step "coverage, every file, the *.retail.* ones included"
+  if ! coverage report; then
+    printf '%s\n' "A file is under 100%. If this machine has no dumps, run with RETAIL_INPUTS=absent, as CI does." >&2
+    exit 1
+  fi
+fi

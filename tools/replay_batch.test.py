@@ -1,7 +1,12 @@
 import importlib.util
+import sys
 import unittest
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import script
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -189,5 +194,4 @@ class StatefulBatchTest(unittest.TestCase):
             self.assertEqual(body[0][1][0], 0x05)
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

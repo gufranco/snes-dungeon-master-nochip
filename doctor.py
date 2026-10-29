@@ -6,6 +6,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, override
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 
 sys.path.insert(0, str(ROOT))
@@ -309,5 +311,4 @@ def main(
     return 1 if any(not one.ok for one in found) else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+script.entry(__name__, main, sys.argv[1:])

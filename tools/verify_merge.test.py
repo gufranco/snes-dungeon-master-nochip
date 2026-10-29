@@ -5,6 +5,9 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+
+import script  # noqa: E402
+
 sys.path.insert(0, str(ROOT / "tools"))
 
 import verify_merge  # noqa: E402
@@ -234,5 +237,4 @@ def faithful(case: Any) -> bytes:
     return verify_merge.expected(case.colour, case.first, case.second)
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

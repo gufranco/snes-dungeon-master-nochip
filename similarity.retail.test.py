@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 from typing import Any, override
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
@@ -26,10 +28,8 @@ class SimilarityTest(unittest.TestCase):
     @override
     def setUp(self) -> None:
         reason = assembled.stale()
-        if reason is not None:
-            self.skipTest(reason)
-        if not assembled.DUMP.exists():
-            self.skipTest("the dump this is measured against is not here")
+        script.skip_unless(reason is None, str(reason))
+        script.skip_unless(assembled.DUMP.exists(), "the dump this is measured against is not here")
 
         self.retail = assembled.DUMP.read_bytes()
         self.final = cartridge.finish(assembled.IMAGE.read_bytes(), assembled.SYMBOLS.read_text())
@@ -81,5 +81,4 @@ class SimilarityTest(unittest.TestCase):
         self.assertTrue(kept)
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

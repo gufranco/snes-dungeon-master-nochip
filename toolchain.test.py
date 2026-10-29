@@ -3,6 +3,8 @@ import unittest
 from pathlib import Path
 from typing import Any
 
+import script
+
 MODULE_PATH = Path(__file__).resolve().parent / "toolchain.py"
 
 
@@ -116,5 +118,4 @@ class LauncherTest(unittest.TestCase):
         self.assertIn("./run.sh <script>", found)
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

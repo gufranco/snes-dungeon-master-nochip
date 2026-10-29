@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 LAUNCHER = ROOT / "run.sh"
 SYSTEM_PATH = "/usr/bin:/bin"
@@ -130,6 +132,17 @@ class LauncherRunsTest(unittest.TestCase):
         self.assertIn("--network none", run)
         self.assertIn(f"--user {os.getuid()}:{os.getgid()}", run)
 
+    def test_the_setting_for_absent_dumps_reaches_the_container(self) -> None:
+        # Arrange
+        box = Sandbox()
+        self.addCleanup(box.close)
+
+        # Act
+        box.run("--gates")
+
+        # Assert
+        self.assertIn("--env RETAIL_INPUTS", box.calls()[-1])
+
     def test_the_gates_run_in_their_own_image(self) -> None:
         # Arrange
         box = Sandbox()
@@ -168,5 +181,4 @@ class LauncherRunsTest(unittest.TestCase):
         self.assertTrue(run.endswith("snes-dungeon-master-nochip:gates python3 check.py --quick"))
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

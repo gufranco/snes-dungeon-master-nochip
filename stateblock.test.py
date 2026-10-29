@@ -3,6 +3,8 @@ import unittest
 from pathlib import Path
 from typing import Any
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 
 
@@ -125,5 +127,4 @@ class BlockTest(unittest.TestCase):
             self.assertEqual(declared[name][1], 3, name)
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

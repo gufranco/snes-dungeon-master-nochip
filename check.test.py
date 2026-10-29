@@ -4,6 +4,8 @@ from collections import namedtuple
 from pathlib import Path
 from typing import Any
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 
 
@@ -163,5 +165,4 @@ class RealShellTest(unittest.TestCase):
         self.assertEqual(check._shell_out(["true"]).returncode, 0)
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

@@ -9,6 +9,7 @@ sys.path.insert(0, str(ROOT))
 
 import dsptrace  # noqa: E402
 import hardware  # noqa: E402
+import script  # noqa: E402
 
 mos65xx = hardware.load("mos65xx")
 snesdsp = hardware.load("snesdsp")
@@ -386,6 +387,4 @@ def main(
     )
 
 
-if __name__ == "__main__":  # pragma: no cover
-    sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
-    raise SystemExit(main(sys.argv))
+script.entry(__name__, main, sys.argv)

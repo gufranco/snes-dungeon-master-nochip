@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 
+import script
 import version
 
 ROOT = Path(__file__).resolve().parent
@@ -45,5 +46,4 @@ class ReleaseWiringTest(unittest.TestCase):
         self.assertTrue((ROOT / "version.py").read_text().startswith('VERSION = "'))
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

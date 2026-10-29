@@ -7,6 +7,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import script
+
 MODULE_PATH = Path(__file__).resolve().parent / "build.py"
 
 
@@ -308,5 +310,4 @@ class EntryTest(unittest.TestCase):
             self.assertEqual(code, 4)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+script.entry(__name__, unittest.main, verbosity=2)

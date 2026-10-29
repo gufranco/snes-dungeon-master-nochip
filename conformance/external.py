@@ -9,6 +9,10 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import script
+
 ROOT = Path(__file__).resolve().parent.parent
 
 MANIFEST = ROOT / "artifacts.manifest.json"
@@ -177,5 +181,4 @@ def main(
     return report(kept(manifest), folder)
 
 
-if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+script.entry(__name__, main, sys.argv[1:])

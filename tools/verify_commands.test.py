@@ -5,6 +5,9 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+
+import script  # noqa: E402
+
 sys.path.insert(0, str(ROOT / "tools"))
 
 import verify_commands  # noqa: E402
@@ -212,5 +215,4 @@ class MainTest(unittest.TestCase):
         self.assertEqual(code, 1)
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

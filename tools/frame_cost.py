@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import dsptrace  # noqa: E402
+import script  # noqa: E402
 
 TRAMPOLINE_FIRST = 0x0080
 TRAMPOLINE_LAST = 0x008F
@@ -155,6 +156,4 @@ def main(
     return 0 if found.frames else 1
 
 
-if __name__ == "__main__":  # pragma: no cover
-    sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
-    raise SystemExit(main(sys.argv))
+script.entry(__name__, main, sys.argv)

@@ -180,10 +180,13 @@ of them. Not as a fixture, not as a test resource, not in a commit that is later
 reverted. Digests identify a file without carrying it, and
 [`artifacts.manifest.json`](artifacts.manifest.json) is where they live.
 
-This is why parts of the suite skip rather than fail without a dump, and why the
-checks that need one live in `*.retail.test.py` files kept out of the coverage
-measurement: a machine with the dump runs one set of paths and a machine without
-it runs the other, so no single run can exercise both.
+This is why parts of the suite skip rather than fail without a dump. The checks
+that need one live in `*.retail.test.py` files. Nothing is excluded from the
+measurement, and the gate holds every file to 100% unless the run declares
+`RETAIL_INPUTS=absent`. Only then does the report leave `*.retail.*` out, and
+its heading says so. CI declares it because it can never hold a dump, so the
+retail checks are measured only on a machine that has one; a run without the
+dump that forgets the setting fails rather than passing quietly.
 
 ## Files kept in `external/`
 
@@ -312,9 +315,6 @@ exclusions live here:
   is measured and checked in its own repository against its own gate, so a
   figure taken from here would mean nothing. `build/` holds recordings and
   generated sources this project does not own.
-- The `if __name__ == "__main__":` coverage exclusion: the guard hands argv to a
-  function that is tested directly, and importing the module to cover it would
-  run the tool rather than test it.
 - The optional mypy error classes: this project rewrites cartridge code, so the
   errors worth catching are a length, an offset or a None crossing a boundary.
 - The mypy override for `snesdsp`, `mos65xx`, `mapper` and `romimage`: they are

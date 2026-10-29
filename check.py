@@ -4,6 +4,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NamedTuple
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
@@ -87,5 +89,4 @@ def main(
     return 0
 
 
-if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main(sys.argv))
+script.entry(__name__, main, sys.argv)

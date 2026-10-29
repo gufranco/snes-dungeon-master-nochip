@@ -7,7 +7,9 @@ from typing import Any, NamedTuple
 ROOT = Path(__file__).resolve().parent.parent
 
 sys.path.insert(0, str(ROOT))
+
 import hardware  # noqa: E402
+import script  # noqa: E402
 
 COLOUR_COMMAND = 0x03
 MERGE_COMMAND = 0x05
@@ -140,5 +142,4 @@ def main(
     return 1 if wrong else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+script.entry(__name__, main, sys.argv[1:])

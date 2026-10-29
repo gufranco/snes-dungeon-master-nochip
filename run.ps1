@@ -59,5 +59,6 @@ docker run --rm --interactive @terminal `
     --network none `
     --volume "${root}:/work" `
     --workdir /work `
+    --env RETAIL_INPUTS `
     $image @command
 exit $LASTEXITCODE

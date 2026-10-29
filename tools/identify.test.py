@@ -1,11 +1,16 @@
 import hashlib
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 import zlib
 from pathlib import Path
 from typing import Any, override
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import script
 
 MODULE_PATH = Path(__file__).resolve().parent / "identify.py"
 
@@ -337,5 +342,4 @@ class HintTest(unittest.TestCase):
         self.assertEqual(ident.repair_hint(self._finding(ident.STATE_OK)), "")
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+script.entry(__name__, unittest.main, verbosity=2)

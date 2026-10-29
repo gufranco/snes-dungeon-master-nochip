@@ -1,9 +1,14 @@
 import importlib.util
+import sys
 import tempfile
 import unittest
 from collections import namedtuple
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import script
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -209,5 +214,4 @@ class RouteTest(unittest.TestCase):
         self.assertNotEqual(placement.route_for(4000, 1), placement.route_for(4000, None))
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

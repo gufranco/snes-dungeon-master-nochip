@@ -8,7 +8,7 @@ English | [日本語](README.ja.md) | [简体中文](README.zh-Hans.md) | [繁�
 [![Release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip)](https://github.com/gufranco/snes-dungeon-master-nochip/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**17,241,846** returned bytes of a recording with no scale reproduced by the part's microcode, **0** wrong, **6** of 6 commands held to the part on chosen inputs, **924** tests, **100%** statement and branch coverage, standard library only
+**17,241,846** returned bytes of a recording with no scale reproduced by the part's microcode, **0** wrong, **6** of 6 commands held to the part on chosen inputs, **1,005** tests, **100%** statement and branch coverage, standard library only
 
 ```python
 import patch
@@ -461,7 +461,7 @@ The models start dirty: memory and registers hold reproducible scrambled values 
 | [`run.sh`](run.sh), [`run.ps1`](run.ps1), [`run.cmd`](run.cmd) | The launchers that build the image and run a command in it |
 | [`tools/`](tools/) | The commands under [Asking the part](#asking-the-part) and [Measuring cost, play and placement](#measuring-cost-play-and-placement) |
 | [`conformance/divergences.json`](conformance/divergences.json) | Every open question in a form a program reads, held to [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) by a test |
-| `*.retail.test.py` | Checks that need the dump, kept out of the coverage gate, reported as skipped without it |
+| `*.retail.test.py` | Checks that need the dump, reported as skipped without it, measured at 100% wherever the dump is present; CI runs with `RETAIL_INPUTS=absent`, which leaves them out of the coverage report |
 
 ## Is it right
 
@@ -490,7 +490,7 @@ What stays open, with the measurement that would settle each, is in [OPEN-QUESTI
 ./run.sh --gates check.py
 ```
 
-Each module has a `<module>.test.py` beside it, and each runs on its own. Coverage is a hard gate at 100% of statements and branches, met on a machine holding neither the dump nor the microcode. `./run.sh --gates` runs the standard gates, and `./run.sh --gates check.py` adds the ones that need the assembled image.
+Each module has a `<module>.test.py` beside it, and each runs on its own. Coverage is a hard gate at 100% of statements and branches, with nothing excluded. Without the dump, run `RETAIL_INPUTS=absent ./run.sh --gates`, as CI does, and the report leaves the `*.retail.*` files out. `./run.sh --gates` runs the standard gates, and `./run.sh --gates check.py` adds the ones that need the assembled image.
 
 Never attach a cartridge or a microcode image to an issue, and never link to somewhere either can be downloaded. A digest identifies a file without carrying it.
 

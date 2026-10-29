@@ -7,6 +7,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import NamedTuple
 
+import script
+
 
 class Observation(NamedTuple):
     name: str
@@ -305,5 +307,4 @@ def main() -> int:
     return 0 if all(one.ok for one in found) else 1
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+script.entry(__name__, main)

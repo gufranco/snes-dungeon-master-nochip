@@ -59,4 +59,5 @@ exec docker run --rm --interactive ${terminal} \
   --user "$(id -u):$(id -g)" \
   --volume "${root}:/work" \
   --workdir /work \
+  --env RETAIL_INPUTS \
   "${image}" "$@"

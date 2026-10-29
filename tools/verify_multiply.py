@@ -7,7 +7,9 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 
 sys.path.insert(0, str(ROOT))
+
 import hardware  # noqa: E402
+import script  # noqa: E402
 
 COMMAND = 0x09
 
@@ -150,5 +152,4 @@ def main(
     return 1 if wrong else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+script.entry(__name__, main, sys.argv[1:])

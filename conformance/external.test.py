@@ -12,6 +12,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+import script  # noqa: E402
+
 external: Any = importlib.import_module("conformance.external")
 
 ABC = {
@@ -395,5 +397,4 @@ class UsageTest(unittest.TestCase):
         self.assertEqual(str(raised.exception), external.USAGE)
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

@@ -8,7 +8,7 @@
 [![Release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip)](https://github.com/gufranco/snes-dungeon-master-nochip/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-一份不含 scale 的录制中的 **17,241,846** 个返回字节由芯片的微码重现，**0** 个错误；**6** 条命令中的 6 条在选定输入上与芯片一致；**924** 个测试；**100%** 语句与分支覆盖率；仅使用标准库
+一份不含 scale 的录制中的 **17,241,846** 个返回字节由芯片的微码重现，**0** 个错误；**6** 条命令中的 6 条在选定输入上与芯片一致；**1,005** 个测试；**100%** 语句与分支覆盖率；仅使用标准库
 
 ```python
 import patch
@@ -467,7 +467,7 @@ Dungeon Master 是唯一带有 DSP-2 的 SNES 卡带。该芯片有六条命令�
 | [`run.sh`](run.sh)、[`run.ps1`](run.ps1)、[`run.cmd`](run.cmd) | 构建镜像并在其中运行命令的启动脚本 |
 | [`tools/`](tools/) | [询问芯片](#asking-the-part)和[测量开销、游玩和放置](#measuring-cost-play-and-placement)下的命令 |
 | [`conformance/divergences.json`](conformance/divergences.json) | 以程序可读形式记录的每个未决问题，由一个测试与 [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) 保持一致 |
-| `*.retail.test.py` | 需要转储的检查，不纳入覆盖率门禁检查，没有转储时报告为已跳过 |
+| `*.retail.test.py` | 需要转储的检查，没有转储时报告为已跳过，有转储的机器上按 100% 覆盖率测量；CI 以 `RETAIL_INPUTS=absent` 运行，覆盖率报告不包含它们 |
 
 ## 它正确吗
 
@@ -496,7 +496,7 @@ Dungeon Master 是唯一带有 DSP-2 的 SNES 卡带。该芯片有六条命令�
 ./run.sh --gates check.py
 ```
 
-每个模块旁边都有一个 `<module>.test.py`，且每个都能单独运行。覆盖率是一道硬性门禁检查，要求 100% 的语句和分支，并且在既没有转储也没有微码的机器上达成。`./run.sh --gates` 运行标准门禁检查，`./run.sh --gates check.py` 再加上需要已汇编镜像的检查。
+每个模块旁边都有一个 `<module>.test.py`，且每个都能单独运行。覆盖率是一道硬性门禁检查，要求 100% 的语句和分支，不排除任何内容。没有转储时，像 CI 一样运行 `RETAIL_INPUTS=absent ./run.sh --gates`，报告会排除 `*.retail.*` 文件。`./run.sh --gates` 运行标准门禁检查，`./run.sh --gates check.py` 再加上需要已汇编镜像的检查。
 
 切勿在 issue 中附加卡带或微码镜像，也切勿链接到可以下载它们的地方。摘要能识别文件而不携带文件。
 

@@ -49,7 +49,6 @@ ignore = [
 branch = true
 source = ["."]
 omit = [
-  "*.retail.test.py",
   "mos65xx-python/*",
   "snes-dsp-python/*",
   "snes-mapper-python/*",
@@ -68,9 +67,6 @@ omit = [
 fail_under = 100
 show_missing = true
 skip_covered = true
-exclude_also = [
-  'if __name__ == "__main__":',
-]
 
 [tool.mypy]
 strict = true

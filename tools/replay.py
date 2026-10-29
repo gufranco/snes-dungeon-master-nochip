@@ -5,6 +5,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import script
 import toolchain
 
 
@@ -369,8 +370,4 @@ def load_dsptrace(root: Path) -> Any:
     return module
 
 
-if __name__ == "__main__":
-    import sys
-
-    sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
-    raise SystemExit(main(sys.argv[1:]))
+script.entry(__name__, main, sys.argv[1:])

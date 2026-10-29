@@ -3,6 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import script
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from typing import Any
@@ -414,5 +416,4 @@ class NextStepTest(unittest.TestCase):
         self.assertLessEqual(wanted, names)
 
 
-if __name__ == "__main__":
-    unittest.main()
+script.entry(__name__, unittest.main)

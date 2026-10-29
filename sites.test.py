@@ -3,6 +3,8 @@ import unittest
 from pathlib import Path
 from typing import Any
 
+import script
+
 ROOT = Path(__file__).resolve().parent
 
 
@@ -189,5 +191,4 @@ class CensusTest(unittest.TestCase):
         self.assertEqual(sites.banks_touched(sites.find(image)), [0, 4])
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+script.entry(__name__, unittest.main, verbosity=2)
