@@ -90,9 +90,11 @@ def line_endings(root: Path, sample: int = SAMPLE) -> Observation:
     for path in sorted(root.rglob("*")):
         if looked >= sample:
             break
-        if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
+        if any(
+            part.startswith(".") or part == "node_modules" for part in path.relative_to(root).parts
+        ):
             continue
-        if any(part.startswith(".") or part == "node_modules" for part in path.parts):
+        if path.suffix.lower() not in TEXT_SUFFIXES or not path.is_file():
             continue
         try:
             head = path.read_bytes()[:4096]

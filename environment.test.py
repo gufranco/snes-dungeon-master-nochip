@@ -1,9 +1,11 @@
 import importlib.util
+import shutil
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -83,6 +85,28 @@ class EncodingTest(unittest.TestCase):
 
 
 class LineEndingTest(unittest.TestCase):
+    def test_a_hidden_entry_that_cannot_be_examined_is_never_examined(self) -> None:
+        # Arrange
+        where = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, where)
+        (where / ".git").mkdir()
+        (where / ".git" / "fsmonitor--daemon.ipc").write_bytes(b"")
+        (where / "a.md").write_bytes(b"one\ntwo\n")
+        original = Path.is_file
+        examined: list[str] = []
+
+        def recording(path: Path) -> bool:
+            examined.append(path.relative_to(where).as_posix())
+            return original(path)
+
+        # Act
+        with mock.patch.object(Path, "is_file", recording):
+            found = environment.line_endings(where)
+
+        # Assert
+        self.assertEqual(examined, ["a.md"])
+        self.assertEqual((found.ok, found.detail), (True, "line feeds in 1 sampled files"))
+
     def test_a_tree_whose_text_files_use_line_feeds_is_fine(self) -> None:
         with tempfile.TemporaryDirectory() as where:
             (Path(where) / "a.md").write_bytes(b"one\ntwo\n")
