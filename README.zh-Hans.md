@@ -4,9 +4,10 @@
 
 [English](README.md) | [日本語](README.ja.md) | 简体中文 | [繁體中文（香港）](README.zh-HK.md)
 
-[![CI](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml/badge.svg)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip)](https://github.com/gufranco/snes-dungeon-master-nochip/releases)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![ci](https://img.shields.io/github/actions/workflow/status/gufranco/snes-dungeon-master-nochip/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip?style=flat-square&label=release)](https://github.com/gufranco/snes-dungeon-master-nochip/releases/latest)
+[![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen?style=flat-square)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/gufranco/snes-dungeon-master-nochip?style=flat-square&label=license)](LICENSE)
 
 一份不含 scale 的录制中的 **17,241,846** 个返回字节由芯片的微码重现，**0** 个错误；**6** 条命令中的 6 条在选定输入上与芯片一致；**1,005** 个测试；**100%** 语句与分支覆盖率；仅使用标准库
 

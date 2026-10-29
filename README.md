@@ -4,9 +4,10 @@ Builds a Dungeon Master cartridge image whose DSP-2 coprocessor is replaced by 6
 
 English | [日本語](README.ja.md) | [简体中文](README.zh-Hans.md) | [繁體中文（香港）](README.zh-HK.md)
 
-[![CI](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml/badge.svg)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip)](https://github.com/gufranco/snes-dungeon-master-nochip/releases)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![ci](https://img.shields.io/github/actions/workflow/status/gufranco/snes-dungeon-master-nochip/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip?style=flat-square&label=release)](https://github.com/gufranco/snes-dungeon-master-nochip/releases/latest)
+[![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen?style=flat-square)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/gufranco/snes-dungeon-master-nochip?style=flat-square&label=license)](LICENSE)
 
 **17,241,846** returned bytes of a recording with no scale reproduced by the part's microcode, **0** wrong, **6** of 6 commands held to the part on chosen inputs, **1,005** tests, **100%** statement and branch coverage, standard library only
 

@@ -4,9 +4,10 @@ DSP-2コプロセッサを65816ルーチンで置き換えたDungeon Masterの�
 
 [English](README.md) | 日本語 | [简体中文](README.zh-Hans.md) | [繁體中文（香港）](README.zh-HK.md)
 
-[![CI](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml/badge.svg)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip)](https://github.com/gufranco/snes-dungeon-master-nochip/releases)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![ci](https://img.shields.io/github/actions/workflow/status/gufranco/snes-dungeon-master-nochip/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/gufranco/snes-dungeon-master-nochip?style=flat-square&label=release)](https://github.com/gufranco/snes-dungeon-master-nochip/releases/latest)
+[![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen?style=flat-square)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/gufranco/snes-dungeon-master-nochip?style=flat-square&label=license)](LICENSE)
 
 スケールを含まない記録の返却バイト**17,241,846**をチップのマイクロコードで再現して誤り**0**、選んだ入力でチップと一致を確認したコマンド6個中**6**個、テスト**1,005**件、ステートメントとブランチのカバレッジ**100%**、標準ライブラリのみ
 
