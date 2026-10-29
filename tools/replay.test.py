@@ -276,16 +276,26 @@ class EntryTest(unittest.TestCase):
 
 
 class ShellingOutTest(unittest.TestCase):
-    def test_assembling_names_the_pinned_assembler_and_the_source(self) -> None:
-        found = replay.assemble_command(Path("/root"), Path("/build"))
+    def test_assembling_names_the_images_assembler_and_the_source(self) -> None:
+        # Arrange
+        root = Path("/root")
 
-        self.assertIn(replay.ASSEMBLER, found)
-        self.assertIn("dsp2-replay.asm /out/replay.sfc", " ".join(found))
+        # Act
+        found = replay.assemble_command(root, Path("/build"))
 
-    def test_running_names_the_pinned_emulator_and_where_to_stop(self) -> None:
-        found = replay.run_command(Path("/build"))
+        # Assert
+        self.assertEqual(found[:3], ["env", "--chdir=/root/asm", "asar"])
+        self.assertIn("dsp2-replay.asm /build/replay.sfc", " ".join(found))
 
-        self.assertIn(replay.EMULATOR, found)
+    def test_running_names_the_images_emulator_and_where_to_stop(self) -> None:
+        # Arrange
+        build = Path("/build")
+
+        # Act
+        found = replay.run_command(build)
+
+        # Assert
+        self.assertEqual(found[:2], ["env", "--chdir=/build"])
         self.assertIn(f"DMSTOP={replay.STATE + replay.DONE:X}:{replay.FINISHED:X}", found)
 
     def test_an_assembler_that_fails_stops_the_run_with_what_it_said(self) -> None:

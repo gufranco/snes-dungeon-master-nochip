@@ -65,15 +65,14 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
 
 由零開始到可用的副本共五步。第 4 步的 doctor 會確認前三步。
 
-1. **安裝 Python、git 和 Docker。**
+1. **只安裝 git 和 Docker。** Python 以及建構用到的每個工具都在本專案的 Docker 映像裏，第一個指令會建構它。
 
    | | Windows | macOS | Linux |
    |:--|:--|:--|:--|
-   | Python 3.12 或更新版本 | `winget install Python.Python.3.12` | `brew install python@3.12` | 發行版的 `python3` 套件 |
    | git | `winget install Git.Git` | `xcode-select --install` | 發行版的 `git` 套件 |
    | Docker | `winget install Docker.DockerDesktop`，然後啟動 Docker Desktop | Docker Desktop，或 `brew install colima docker` 後執行 `colima start` | Docker Engine，然後 `sudo systemctl start docker` |
 
-   在 Windows 上，本頁寫 `python3` 的地方請輸入 `py -3.12`。
+   在 Windows 上，本頁寫 `./run.sh` 的地方請輸入 `.\run.cmd`。
 
 2. **複製儲存庫，不要下載。**
 
@@ -83,60 +82,59 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
    ```
 
    > [!CAUTION]
-   > 只有複製才能得到可用的副本。GitHub 上綠色的 **Code** 按鈕亦提供 **Download ZIP**，但 ZIP 在這裏永遠無法使用：本專案依賴的 6 個模型是以 git 子模組固定的獨立倉庫，ZIP 一個都不包含，之後亦無法補上。doctor 會把這樣的副本報告為下載的封存檔；請刪除它並複製。沒有加 `--recurse-submodules` 的複製，可以用 `git submodule update --init --recursive` 就地修復。
+   > 只有複製才能得到可用的副本。GitHub 上綠色的 **Code** 按鈕亦提供 **Download ZIP**，但 ZIP 在這裏永遠無法使用：本專案依賴的 6 個模型是以 git 子模組固定的獨立倉庫，ZIP 一個都不包含，之後亦無法補上。啟動腳本會拒絕這樣的副本並說明原因；請刪除它並複製。沒有加 `--recurse-submodules` 的複製，可以用 `git submodule update --init --recursive` 就地修復。
 
-3. **把傾印檔放進 `external/roms/`**，檔名按[傾印檔清單](#the-dump)：`dungeon-master-usa.sfc`。微碼放在 `external/firmware/`。然後檢查，你提供的每個傾印檔都應顯示 `ok`：
+3. **把傾印檔放進 `external/roms/`**，檔名按[傾印檔清單](#the-dump)：`dungeon-master-usa.sfc`。微碼放在 `external/firmware/`。然後檢查，你提供的每個傾印檔都應顯示 `ok`。這第一個指令會建構映像，需時數分鐘；之後的指令會即時開始：
 
    ```bash
-   python3 tools/identify.py
+   ./run.sh tools/identify.py
    ```
 
-4. **執行 doctor。** 它檢查副本、每個模型、每個傾印檔，以及 Docker 引擎是否在運行，最後說明下一步執行甚麼：
+4. **執行 doctor。** 它檢查副本、每個模型、每個傾印檔和映像中的工具，最後說明下一步執行甚麼：
 
    ```bash
-   python3 doctor.py
+   ./run.sh doctor.py
    ```
 
    ```
      N checks, nothing to report
-     next: python3 cartridge.py external/roms/dungeon-master-usa.sfc
+     next: ./run.sh cartridge.py external/roms/dungeon-master-usa.sfc, or on Windows .\run.cmd cartridge.py external/roms/dungeon-master-usa.sfc
    ```
 
-   標有 `!` 的行，下一行寫着該怎麼做。它能發現的設定錯誤：
+   標有 `!` 的行，下一行寫着該怎麼做。doctor 和啟動腳本能發現的設定錯誤：
 
-   | doctor 顯示 | 怎樣做 |
+   | 提示 | 怎樣做 |
    |:--|:--|
-   | `checkout: no git metadata` | 刪除資料夾並複製，第 2 步 |
+   | `This folder has no git metadata` | 刪除資料夾並複製，第 2 步 |
+   | `Docker is not installed` | 第 1 步 |
+   | `Docker is installed but its engine is not answering` | 啟動 Docker Desktop，或 `sudo systemctl start docker` |
    | `... is not checked out` | `git submodule update --init --recursive` |
    | `cartridge ...: missing` | 第 3 步 |
-   | `docker engine: docker is not installed` | 第 1 步 |
-   | `docker engine: installed but not answering` | 啟動 Docker Desktop，或 `sudo systemctl start docker` |
 
 5. **建構。** 它把每個映像檔寫入 `dist/v<version>/`，每種裝置一個資料夾；從以你的卡帶或模擬器命名的資料夾中複製檔案。
 
    ```bash
-   python3 cartridge.py external/roms/dungeon-master-usa.sfc
+   ./run.sh cartridge.py external/roms/dungeon-master-usa.sfc
    ```
 
 ### 所需項目與 doctor
 
 | 需求 | 版本 | 用途 |
 |:--|:--|:--|
-| Python | 3.12 或更新 | 所有模組及指令 |
 | git | 任何版本 | 以子模組形式取得六個固定版本的模型 |
-| Docker | 任何現行版本 | 組譯，以及所有驅動模擬器的指令 |
+| Docker | 任何現行版本，並須正在運行 | 每個指令：Python 3.12、asar 1.81、模擬器和 snes9x 核心都在 [`Dockerfile`](Dockerfile) 描述的映像中，[`run.sh`](run.sh) 在其中執行每個指令 |
 | 你擁有的 Dungeon Master 傾印檔 | 1,048,576 位元組，摘要見[傾印檔](#the-dump) | 建立卡帶 |
 | 你擁有的 DSP-2 微碼 | `snes-dsp-python` 接受的映像檔 | 向晶片要求答案的指令 |
 
-不會從任何套件索引安裝東西。
+除 Docker 和 git 外，不會在你的機器上安裝任何東西。
 
 傾印檔放在 `external/roms/dungeon-master-usa.sfc`。微碼放在 `external/firmware/`，或放在 `UPD7725_FIRMWARE_DIR` 指定的目錄。Git 會忽略這兩個目錄，本專案也不會下載其中任何一個檔案。
 
-診斷腳本會列印機器、Python、該資料夾是否為 git 複製、Docker 引擎是否回應、每個模型的版本、晶片微碼能否運行、找到的每個傾印檔的 SHA-256、三個錄得追蹤檔中有多少個位於 `build/`，以及每個模型在其名稱下的自身報告。拋出例外的檢查會報告為它拋出的內容。任何檢查失敗時，它以 1 退出。在 Docker 運行中的全新複製上，最後幾行是：
+診斷腳本在映像中執行，列印機器、Python、該資料夾是否為 git 複製、映像中的 asar 和 dmemu 是否存在、每個模型的版本、晶片微碼能否運行、找到的每個傾印檔的 SHA-256、三個錄得追蹤檔中有多少個位於 `build/`，以及每個模型在其名稱下的自身報告。拋出例外的檢查會報告為它拋出的內容。任何檢查失敗時，它以 1 退出。在全新的複製上，最後幾行是：
 
 ```
-  4 of 77 checks did not pass
-  next: fix the first line marked ! above, then run python3 doctor.py again
+  4 of 78 checks did not pass
+  next: fix the first line marked ! above, then run ./run.sh doctor.py, or on Windows .\run.cmd doctor.py
 ```
 
 這四項是：缺少傾印檔、缺少微碼（本專案與 `snes-dsp-python` 各自報告一次），以及空的 `snes-mapper-python/cartridges` 目錄。提交錯誤報告時，請貼上完整輸出。
@@ -145,23 +143,22 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
 
 ## 介面
 
-每個指令都是一個檔案，從儲存庫根目錄以 `python3` 執行。退出碼 0 代表成功。退出碼 2 代表指令呼叫方式錯誤或沒有可處理的內容，列印出的那一行會說明是哪一種。
+每個指令都是一個檔案，從儲存庫根目錄透過啟動腳本 `./run.sh <file>` 執行。退出碼 0 代表成功。退出碼 2 代表指令呼叫方式錯誤或沒有可處理的內容，列印出的那一行會說明是哪一種。
 
 ### 建立卡帶
 
 | 指令 | 參數 | 退出碼 |
 |:--|:--|:--|
 | `cartridge.py <dump> [<destination>]` | 零售版傾印檔，以及寫入的資料夾，預設為 `dist` | 0 已寫入。1 仍有存取到達晶片，或某個標頭鏡像仍宣告協處理器，此時不寫入任何檔案。2 用法錯誤，或 `<dump>` 處沒有檔案。其他代碼來自組譯器 |
-| `build.py <patch.asm> <dump> <output-name>` | 一個組合語言檔案、傾印檔，以及結果的檔案名稱 | 0 已組譯。1 工具鏈映像未能建立。2 用法錯誤。其他退出碼來自 asar |
-| `build.py --image` | 無 | `docker build` 的退出碼 |
+| `build.py <patch.asm> <dump> <output-name>` | 一個組合語言檔案、傾印檔，以及結果的檔案名稱 | 0 已組譯。1 目前環境中沒有 asar。2 用法錯誤。其他退出碼來自 asar |
 | [`assembled.py`](assembled.py) | 無 | 0 `asm/dm-sym.sfc` 及其符號比所有 `asm/*.asm` 都新，或已重新建立。2 `external/roms/dungeon-master-usa.sfc` 沒有傾印檔 |
 | `similarity.py <dump> <cartridge>` | 零售版傾印檔及一個完成的卡帶 | 0 每個改動的位元組都位於已宣告的區域。1 至少一個不是。2 用法錯誤，或 `asm/dm-sym.sfc` 缺失或比其原始檔舊 |
 
 ```bash
-python3 cartridge.py external/roms/dungeon-master-usa.sfc
+./run.sh cartridge.py external/roms/dungeon-master-usa.sfc
 ```
 
-[`cartridge.py`](cartridge.py) 把傾印檔複製到 `asm/<output-name>`，在固定版本、無網絡的 asar 1.81 容器中把 [`asm/nochip.asm`](asm/nochip.asm) 組譯到它上面，讀取 asar 在旁邊寫出的符號表，原地重新導向每個埠存取，並改寫標頭，使其不宣告任何協處理器。然後它計算剩下的東西：仍然前往晶片的存取，或仍然宣告協處理器的標頭鏡像。任何一項都會令它在寫入檔案前停止。一個已放入例程但未重新導向存取的映像檔同樣能開機和遊玩，因為模擬器讀取標頭並提供 DSP-2，所以只有這個計數能分辨兩者。
+[`cartridge.py`](cartridge.py) 把傾印檔複製到 `asm/<output-name>`，以映像中的 asar 1.81把 [`asm/nochip.asm`](asm/nochip.asm) 組譯到它上面，讀取 asar 在旁邊寫出的符號表，原地重新導向每個埠存取，並改寫標頭，使其不宣告任何協處理器。然後它計算剩下的東西：仍然前往晶片的存取，或仍然宣告協處理器的標頭鏡像。任何一項都會令它在寫入檔案前停止。一個已放入例程但未重新導向存取的映像檔同樣能開機和遊玩，因為模擬器讀取標頭並提供 DSP-2，所以只有這個計數能分辨兩者。
 
 它把完成的卡帶按裝置各寫一次，寫入 `<destination>/v<version>/`：`emulator`、`supereverdrive`、`sd2snes` 和 `fxpak` 中是原樣建構的映像檔，以傾印檔名稱及版本號命名；`gamedoctor` 中是前面帶 512 位元組 Game Doctor 標頭的 `.smc`，該標頭按 ucon64 的表映射 8 Mbit 映像檔及其 32 KB 存檔記憶體。該標頭來自 [snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python) 的 `copier` 模組。卡帶宣告的標頭保留帶電池的存檔記憶體，晶片組為 `0x02`，所以只為宣告了電池的卡帶保存存檔 RAM 的模擬器亦會保存存檔。
 
@@ -176,7 +173,7 @@ python3 cartridge.py external/roms/dungeon-master-usa.sfc
 | `tools/identify.py [file name...]` | 可選的檔案名稱，取自 [`artifacts.manifest.json`](artifacts.manifest.json)，預設為全部 | 0 至少一個傾印檔存在且正確，並且沒有錯誤的。1 某個傾印檔大小錯誤、內容錯誤或帶有另一項目的摘要，或沒有可用的傾印檔。2 清單中沒有該名稱的項目 |
 
 ```bash
-python3 tools/identify.py
+./run.sh tools/identify.py
 ```
 
 在全新的 checkout 上，它會列印：
@@ -201,7 +198,7 @@ python3 tools/identify.py
 
 ### 詢問晶片
 
-這些指令以 DSP-2 本身微碼的返回結果檢驗例程，微碼由 `snes-dsp-python` 執行。例程在 snes9x 內的主機處理器上運行，由一個以 [`asm/dsp2-replay.asm`](asm/dsp2-replay.asm) 建立的腳本卡帶驅動，所以除了 `verify_trace.py` 之外，這裏的每個指令都需要 Docker 和模擬器映像。
+這些指令以 DSP-2 本身微碼的返回結果檢驗例程，微碼由 `snes-dsp-python` 執行。例程在 snes9x 內的主機處理器上運行，由一個以 [`asm/dsp2-replay.asm`](asm/dsp2-replay.asm) 建立的腳本卡帶驅動，所以除了 `verify_trace.py` 之外，這裏的每個指令都需要映像中的模擬器。
 
 | 指令 | 參數 | 退出碼 |
 |:--|:--|:--|
@@ -232,20 +229,13 @@ python3 tools/identify.py
 
 `pace.py` 在固定路線上驅動兩個卡帶，為每個完成的幀計算摘要，並報告轉換版畫得相同的幀數、畫得較遲的幀數、最大延遲及中位數，然後以 8 個點列出延遲曲線。`boot.py` 在四種情況之一出現時失敗：標頭仍宣告協處理器、有東西向晶片提出請求、運行提早停止，或畫面從未亮起。`placement.py` 從 [`asm/dsp2-state.asm`](asm/dsp2-state.asm) 讀出狀態區塊的位址範圍，並報告遊戲從未觸及的最長一段工作 RAM。`tour.py` 寫出這些指令所用的輸入腳本：帶種子的隨機漫步，或由上、上、上、左、上、上、上、右組成的固定路線。
 
-模擬器映像只需從儲存庫根目錄建立一次：
-
-```bash
-docker build --tag snes-dungeon-master-nochip/emu:dev emu
-```
-
-`build/` 中的三個追蹤檔用這個映像檔錄製，需在 `build/dungeon-master-usa.sfc` 放一份傾印檔的副本。每個都是帶種子的 30,000 幀巡遊，約 1.7 GB：
+`build/` 中的三個追蹤檔用映像中的模擬器錄製，需在 `build/dungeon-master-usa.sfc` 放一份傾印檔的副本。每個都是帶種子的 30,000 幀巡遊，約 1.7 GB：
 
 ```bash
 for seed in 1 2 3; do
-  python3 tools/tour.py --frames 30000 --seed "$seed" --out "build/tour-s$seed.script"
-  docker run --rm --network=none --env "DMTRACE=trace-s$seed.bin" \
-    --env "DMSCRIPT=tour-s$seed.script" --volume "$PWD/build:/work" \
-    snes-dungeon-master-nochip/emu:dev dungeon-master-usa.sfc 30000
+  ./run.sh tools/tour.py --frames 30000 --seed "$seed" --out "build/tour-s$seed.script"
+  ./run.sh --exec env --chdir=/work/build "DMTRACE=trace-s$seed.bin" \
+    "DMSCRIPT=tour-s$seed.script" dmemu dungeon-master-usa.sfc 30000
 done
 ```
 
@@ -256,7 +246,7 @@ done
 | `check.py [--quick]` | `--quick` 跳過所有需要已組譯映像檔的關卡檢查 | 0 所有關卡檢查通過。1 至少一項失敗，並列出其名稱及最後 6 行。2 用法錯誤 |
 | [`doctor.py`](doctor.py) | 無 | 0 所有檢查通過。1 至少一項未通過 |
 
-[`check.py`](check.py) 在量度映像檔缺失或過時時先組譯它，然後運行 lint、格式、型別、在覆蓋率下的測試、JSON 和 YAML 格式、工作流程及 shell 腳本，每項都使用管線固定的版本。有映像檔時，它還會運行 [`tools/cost.py`](tools/cost.py)、三個 `*.retail.test.py` 檢查，以及三個 `verify_*.py` 指令。它會運行每一項關卡檢查，而不是在第一個失敗時停止。
+[`check.py`](check.py) 在量度映像檔缺失或過時時先組譯它，然後運行 lint、格式、型別、在覆蓋率下的測試、JSON 和 YAML 格式、工作流程及 shell 腳本，每項都使用映像固定的版本。它在 gates 映像中執行，即 `./run.sh --gates check.py`。有映像檔時，它還會運行 [`tools/cost.py`](tools/cost.py)、三個 `*.retail.test.py` 檢查，以及三個 `verify_*.py` 指令。它會運行每一項關卡檢查，而不是在第一個失敗時停止。
 
 ### 模組
 
@@ -470,9 +460,11 @@ Dungeon Master 是唯一載有 DSP-2 的 SNES 卡帶。該晶片有六個指令�
 
 | 路徑 | 內容 |
 |:--|:--|
-| [`asm/`](asm/) | 65816 例程、狀態區塊、樁程式、重播及自我測試卡帶，以及 asar 1.81 容器 |
-| [`emu/`](emu/) | 每次模擬器運行都經過的 snes9x 測試工具，以固定在一個 snes9x commit 的容器形式提供 |
-| [`snes9x/`](snes9x/) | 完成的映像檔所需的映射改動，以針對該 commit 的修補檔形式提供 |
+| [`asm/`](asm/) | 65816 例程、狀態區塊、樁程式、重播及自我測試卡帶 |
+| [`emu/`](emu/) | 每次模擬器運行都經過的 snes9x 測試工具，從一個已固定的 snes9x commit 建構進映像 |
+| [`snes9x/`](snes9x/) | 完成的映像檔所需的映射改動，以針對該 commit 的修補檔形式提供，並作為 `/opt/snes9x/snes9x_libretro.so` 建構進映像 |
+| [`Dockerfile`](Dockerfile) | 每個指令執行所在的唯一映像：asar、模擬器、snes9x 核心、Python 3.12，以及包含所有檢查和測試工具的 gates 階段 |
+| [`run.sh`](run.sh)、[`run.ps1`](run.ps1)、[`run.cmd`](run.cmd) | 建構映像並在其中執行指令的啟動腳本 |
 | [`tools/`](tools/) | [詢問晶片](#asking-the-part)及[量度成本、遊玩及放置](#measuring-cost-play-and-placement)下的指令 |
 | [`conformance/divergences.json`](conformance/divergences.json) | 以程式可讀取的形式列出每個未解決問題，並由測試與 [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) 保持一致 |
 | `*.retail.test.py` | 需要傾印檔的檢查，不計入覆蓋率關卡檢查，沒有傾印檔時報告為已跳過 |
@@ -500,22 +492,18 @@ Dungeon Master 是唯一載有 DSP-2 的 SNES 卡帶。該晶片有六個指令�
 | 安全報告 | [SECURITY.md](SECURITY.md) |
 
 ```bash
-uvx ruff@0.16.3 format --check .
-uvx ruff@0.16.3 check .
-uvx --python 3.12 mypy==1.14.1 .
-python3 -m coverage erase
-for module in *.test.py tools/*.test.py conformance/*.test.py; do python3 -m coverage run -a "$module"; done
-python3 -m coverage report
+./run.sh --gates
+./run.sh --gates check.py
 ```
 
-每個模組旁邊都有一個 `<module>.test.py`，每個都可以獨立運行。覆蓋率是硬性關卡檢查，要求語句及分支達 100%，並在既沒有傾印檔也沒有微碼的機器上達成。`python3 check.py` 一次過運行所有關卡檢查。
+每個模組旁邊都有一個 `<module>.test.py`，每個都可以獨立運行。覆蓋率是硬性關卡檢查，要求語句及分支達 100%，並在既沒有傾印檔也沒有微碼的機器上達成。`./run.sh --gates` 運行標準關卡檢查，`./run.sh --gates check.py` 再加上需要已組譯映像檔的檢查。
 
 切勿把卡帶或微碼映像附加到 issue，也切勿連結到可下載其中任何一個的地方。摘要可以識別檔案而不攜帶檔案。
 
 ## 參考資料
 
 - snes9x，commit `2971061cf07fdc6fc7d18883edf4e648eb16a6d2` 的 `dsp2.cpp`，https://github.com/snes9xgit/snes9x ，每次運行和錄音所經過的模擬器。
-- asar 1.81，https://github.com/RPGHacker/asar ，組譯器，固定於 [`asm/Dockerfile`](asm/Dockerfile)。
+- asar 1.81，https://github.com/RPGHacker/asar ，組譯器，固定於 [`Dockerfile`](Dockerfile)。
 - neviksti 的 Star Ocean 免晶片轉換，是對超出位址空間的映像檔所用定址規則的來源。
 - Zeldix 社群，本專案所依賴的大量 SNES romhacking 知識記載於此。
 - FTL Games 和 Software Heaven 製作了遊戲及其移植版。

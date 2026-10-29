@@ -65,15 +65,14 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
 
 何もない状態から動くチェックアウトまで5つの手順です。手順4のドクターが最初の3つを確認します。
 
-1. **Python、git、Dockerをインストールします。**
+1. **gitとDockerだけをインストールします。** Pythonとビルドが使うすべてのツールはこのプロジェクトのDockerイメージに入っており、最初のコマンドがそれをビルドします。
 
    | | Windows | macOS | Linux |
    |:--|:--|:--|:--|
-   | Python 3.12以降 | `winget install Python.Python.3.12` | `brew install python@3.12` | ディストリビューションの`python3`パッケージ |
    | git | `winget install Git.Git` | `xcode-select --install` | ディストリビューションの`git`パッケージ |
    | Docker | `winget install Docker.DockerDesktop`を実行し、Docker Desktopを起動 | Docker Desktop、または`brew install colima docker`の後に`colima start` | Docker Engineを入れ、`sudo systemctl start docker` |
 
-   Windowsでは、このページの`python3`を`py -3.12`に置き換えてください。
+   Windowsでは、このページの`./run.sh`を`.\run.cmd`に置き換えてください。
 
 2. **リポジトリをクローンします。ダウンロードはしないでください。**
 
@@ -83,60 +82,59 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
    ```
 
    > [!CAUTION]
-   > 動くコピーを得る方法はクローンだけです。GitHubの緑の**Code**ボタンには**Download ZIP**もありますが、ZIPはここでは決して動きません。このプロジェクトが使う6個のモデルはgitのサブモジュールとして固定された別のリポジトリで、ZIPにはどれも含まれず、後から追加することもできません。ドクターはそのようなコピーをダウンロードしたアーカイブとして報告します。削除してクローンしてください。`--recurse-submodules`なしでクローンした場合は、`git submodule update --init --recursive`でその場で直せます。
+   > 動くコピーを得る方法はクローンだけです。GitHubの緑の**Code**ボタンには**Download ZIP**もありますが、ZIPはここでは決して動きません。このプロジェクトが使う6個のモデルはgitのサブモジュールとして固定された別のリポジトリで、ZIPにはどれも含まれず、後から追加することもできません。ランチャーはそのようなコピーを拒否し、その旨を表示します。削除してクローンしてください。`--recurse-submodules`なしでクローンした場合は、`git submodule update --init --recursive`でその場で直せます。
 
-3. **ダンプを`external/roms/`に置きます。** 名前は[ダンプの一覧](#the-dump)のとおり`dungeon-master-usa.sfc`です。マイクロコードは`external/firmware/`に置きます。その後で確認します。用意した各ダンプが`ok`と表示されるはずです。
+3. **ダンプを`external/roms/`に置きます。** 名前は[ダンプの一覧](#the-dump)のとおり`dungeon-master-usa.sfc`です。マイクロコードは`external/firmware/`に置きます。その後で確認します。用意した各ダンプが`ok`と表示されるはずです。この最初のコマンドはイメージをビルドするため数分かかり、2回目以降はすぐに始まります。
 
    ```bash
-   python3 tools/identify.py
+   ./run.sh tools/identify.py
    ```
 
-4. **ドクターを実行します。** チェックアウト、各モデル、各ダンプ、Dockerのエンジンが動いているかを確認し、最後に次に実行するものを示します。
+4. **ドクターを実行します。** チェックアウト、各モデル、各ダンプ、イメージ内のツールを確認し、最後に次に実行するものを示します。
 
    ```bash
-   python3 doctor.py
+   ./run.sh doctor.py
    ```
 
    ```
      N checks, nothing to report
-     next: python3 cartridge.py external/roms/dungeon-master-usa.sfc
+     next: ./run.sh cartridge.py external/roms/dungeon-master-usa.sfc, or on Windows .\run.cmd cartridge.py external/roms/dungeon-master-usa.sfc
    ```
 
-   `!`の付いた行は、その下の行にすべきことを書いています。ドクターが見つける設定の誤りは次のとおりです。
+   `!`の付いた行は、その下の行にすべきことを書いています。ドクターとランチャーが見つける設定の誤りは次のとおりです。
 
-   | ドクターの表示 | すること |
+   | 表示 | すること |
    |:--|:--|
-   | `checkout: no git metadata` | フォルダーを削除してクローンする（手順2） |
+   | `This folder has no git metadata` | フォルダーを削除してクローンする（手順2） |
+   | `Docker is not installed` | 手順1 |
+   | `Docker is installed but its engine is not answering` | Docker Desktopを起動するか、`sudo systemctl start docker` |
    | `... is not checked out` | `git submodule update --init --recursive` |
    | `cartridge ...: missing` | 手順3 |
-   | `docker engine: docker is not installed` | 手順1 |
-   | `docker engine: installed but not answering` | Docker Desktopを起動するか、`sudo systemctl start docker` |
 
 5. **ビルドします。** すべてのイメージを機器ごとのフォルダーに分けて`dist/v<version>/`へ書き出します。使うカートリッジやエミュレーターの名前のフォルダーからファイルをコピーしてください。
 
    ```bash
-   python3 cartridge.py external/roms/dungeon-master-usa.sfc
+   ./run.sh cartridge.py external/roms/dungeon-master-usa.sfc
    ```
 
 ### 必要なものとドクター
 
 | 要件 | バージョン | 用途 |
 |:--|:--|:--|
-| Python | 3.12以降 | すべてのモジュールとコマンド |
 | git | 任意 | 固定した6つのモデルをサブモジュールとして取得する |
-| Docker | 現行の任意のバージョン | アセンブルと、エミュレータを動かすすべてのコマンド |
+| Docker | 現行の任意のバージョンで、起動していること | すべてのコマンド。Python 3.12、asar 1.81、エミュレータ、snes9xコアは[`Dockerfile`](Dockerfile)が定めるイメージに入っており、[`run.sh`](run.sh)が各コマンドをその中で実行します |
 | 自分で所有するDungeon Masterのダンプ | 1,048,576バイト、ダイジェストは[ダンプ](#the-dump)を参照 | カートリッジのビルド |
 | 自分で所有するDSP-2マイクロコード | `snes-dsp-python`が受け付けるイメージ | チップに答えを求めるコマンド |
 
-パッケージインデックスからは何もインストールしません。
+DockerとGit以外、あなたのマシンには何もインストールしません。
 
 ダンプは`external/roms/dungeon-master-usa.sfc`に置きます。マイクロコードは`external/firmware/`、または`UPD7725_FIRMWARE_DIR`で指定したディレクトリに置きます。Gitは両方のディレクトリを無視し、ここにあるものはどちらのファイルもダウンロードしません。
 
-ドクターは、マシン、Python、フォルダーがgitのクローンかどうか、Dockerのエンジンが応答するか、各モデルのバージョン、チップのマイクロコードが動くかどうか、見つけた各ダンプのSHA-256、記録した3つのトレースのうち`build/`にあるものの数、そして各モデル自身のレポートをそのモデル名の下に表示します。例外を投げたチェックは、投げた内容として報告します。いずれかのチェックが失敗すると終了コード1で終わります。Dockerが動いている新しいクローンでは、次の行で終わります。
+ドクターはイメージの中で動き、マシン、Python、フォルダーがgitのクローンかどうか、イメージ内のasarとdmemuがあるか、各モデルのバージョン、チップのマイクロコードが動くかどうか、見つけた各ダンプのSHA-256、記録した3つのトレースのうち`build/`にあるものの数、そして各モデル自身のレポートをそのモデル名の下に表示します。例外を投げたチェックは、投げた内容として報告します。いずれかのチェックが失敗すると終了コード1で終わります。新しいクローンでは、次の行で終わります。
 
 ```
-  4 of 77 checks did not pass
-  next: fix the first line marked ! above, then run python3 doctor.py again
+  4 of 78 checks did not pass
+  next: fix the first line marked ! above, then run ./run.sh doctor.py, or on Windows .\run.cmd doctor.py
 ```
 
 4つとは、ダンプがないこと、マイクロコードがないことをこのプロジェクトと`snes-dsp-python`がそれぞれ報告するもの、そして空の`snes-mapper-python/cartridges`ディレクトリです。バグ報告には出力全体を貼り付けてください。
@@ -145,23 +143,22 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
 
 ## インターフェース
 
-各コマンドは、リポジトリのルートから`python3`で実行するファイルです。終了コード0は成功です。終了コード2は、コマンドの呼び出し方が誤っていたか、処理する対象がなかったことを意味し、表示される行がどちらかを示します。
+各コマンドは、リポジトリのルートからランチャー`./run.sh <file>`で実行するファイルです。終了コード0は成功です。終了コード2は、コマンドの呼び出し方が誤っていたか、処理する対象がなかったことを意味し、表示される行がどちらかを示します。
 
 ### カートリッジのビルド
 
 | コマンド | 引数 | 終了コード |
 |:--|:--|:--|
 | `cartridge.py <dump> [<destination>]` | 市販版のダンプと書き出し先のフォルダー。デフォルトは`dist` | 0は書き出し完了。1はアクセスがまだチップに届くか、ヘッダのミラーがまだコプロセッサを宣言しており、何も書き出しません。2は使い方の誤り、または`<dump>`にファイルがない。それ以外のコードはアセンブラのものです |
-| `build.py <patch.asm> <dump> <output-name>` | アセンブリファイル、ダンプ、結果のファイル名 | 0はアセンブル完了。1はツールチェーンのイメージがビルドできなかった。2は使い方の誤り。それ以外のコードはasarのもの |
-| `build.py --image` | なし | `docker build`の終了コード |
+| `build.py <patch.asm> <dump> <output-name>` | アセンブリファイル、ダンプ、結果のファイル名 | 0はアセンブル完了。1はasarがこの環境にない。2は使い方の誤り。それ以外のコードはasarのもの |
 | [`assembled.py`](assembled.py) | なし | 0は`asm/dm-sym.sfc`とそのシンボルがすべての`asm/*.asm`より新しいか、再ビルドが済んだ。2は`external/roms/dungeon-master-usa.sfc`にダンプがない |
 | `similarity.py <dump> <cartridge>` | 市販版のダンプと完成したカートリッジ | 0は変更されたすべてのバイトが宣言された領域内にある。1は少なくとも1つがそうでない。2は使い方の誤り、または`asm/dm-sym.sfc`がないかソースより古い |
 
 ```bash
-python3 cartridge.py external/roms/dungeon-master-usa.sfc
+./run.sh cartridge.py external/roms/dungeon-master-usa.sfc
 ```
 
-[`cartridge.py`](cartridge.py)は、ダンプを`asm/<output-name>`にコピーし、ネットワークなしの固定版asar 1.81コンテナで[`asm/nochip.asm`](asm/nochip.asm)をその上にアセンブルし、asarが隣に書き出すシンボルテーブルを読み、すべてのポートアクセスをその場でリダイレクトし、コプロセッサを宣言しないようにヘッダを書き換えます。その後、残っているものを数えます。まだチップに向かうアクセスか、まだコプロセッサを宣言しているヘッダのミラーです。どちらか一方でもあれば、ファイルを書き出す前に止まります。ルーチンを配置してアクセスをリダイレクトしていないイメージも起動してプレイできます。エミュレータがヘッダを読んでDSP-2を用意するためです。そのため、この2つを区別できるのはこのカウントだけです。
+[`cartridge.py`](cartridge.py)は、ダンプを`asm/<output-name>`にコピーし、イメージ内のasar 1.81で[`asm/nochip.asm`](asm/nochip.asm)をその上にアセンブルし、asarが隣に書き出すシンボルテーブルを読み、すべてのポートアクセスをその場でリダイレクトし、コプロセッサを宣言しないようにヘッダを書き換えます。その後、残っているものを数えます。まだチップに向かうアクセスか、まだコプロセッサを宣言しているヘッダのミラーです。どちらか一方でもあれば、ファイルを書き出す前に止まります。ルーチンを配置してアクセスをリダイレクトしていないイメージも起動してプレイできます。エミュレータがヘッダを読んでDSP-2を用意するためです。そのため、この2つを区別できるのはこのカウントだけです。
 
 完成したカートリッジは、機器ごとに1回ずつ`<destination>/v<version>/`へ書き出します。`emulator`、`supereverdrive`、`sd2snes`、`fxpak`には、ダンプ名とバージョンを付けたイメージをそのまま置き、`gamedoctor`には、512バイトのGame Doctorヘッダーを前に付けた`.smc`を置きます。このヘッダーは、ucon64の表と同じように8 Mbitのイメージと32 KBのセーブメモリーをマップします。ヘッダーは[snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python)の`copier`モジュールが書き出します。カートリッジが宣言するヘッダーはバッテリーバックアップのセーブメモリーを残し、チップセットは`0x02`です。そのため、宣言されたバッテリーがあるときだけセーブRAMを保存するエミュレーターもセーブを保存します。
 
@@ -176,7 +173,7 @@ python3 cartridge.py external/roms/dungeon-master-usa.sfc
 | `tools/identify.py [file name...]` | [`artifacts.manifest.json`](artifacts.manifest.json)にある任意のファイル名。デフォルトはすべて | 0は少なくとも1つのダンプが存在して正しく、誤ったものがない。1はダンプのサイズや内容が誤っているか、別のエントリのダイジェストを持つか、使えるダンプがない。2はその名前のマニフェストエントリがない |
 
 ```bash
-python3 tools/identify.py
+./run.sh tools/identify.py
 ```
 
 新しいチェックアウトでは、次のように表示します。
@@ -201,7 +198,7 @@ python3 tools/identify.py
 
 ### チップに問い合わせる
 
-これらのコマンドは、`snes-dsp-python`で実行したDSP-2自身のマイクロコードが返す値とルーチンが一致することを確認します。ルーチンはsnes9x内のコンソールのプロセッサで動き、[`asm/dsp2-replay.asm`](asm/dsp2-replay.asm)からビルドしたスクリプトカートリッジで駆動します。そのため、`verify_trace.py`を除くここのすべてのコマンドには、Dockerとエミュレータのイメージが必要です。
+これらのコマンドは、`snes-dsp-python`で実行したDSP-2自身のマイクロコードが返す値とルーチンが一致することを確認します。ルーチンはsnes9x内のコンソールのプロセッサで動き、[`asm/dsp2-replay.asm`](asm/dsp2-replay.asm)からビルドしたスクリプトカートリッジで駆動します。そのため、`verify_trace.py`を除くここのすべてのコマンドには、イメージ内のエミュレータが必要です。
 
 | コマンド | 引数 | 終了コード |
 |:--|:--|:--|
@@ -232,20 +229,13 @@ python3 tools/identify.py
 
 `pace.py`は、両方のカートリッジを定常ルートで動かし、完成した各フレームのダイジェストを取り、変換版が同じに描画したフレーム数、遅れて描画したフレーム数、最大の遅れと中央値、そして8点の遅れ曲線を報告します。`boot.py`は、4つのうちいずれかで失敗します。ヘッダがまだコプロセッサを宣言している、チップに何かが要求された、実行が早く止まった、画面が一度も点灯しなかった、の4つです。`placement.py`は、ステートブロックのアドレス範囲を[`asm/dsp2-state.asm`](asm/dsp2-state.asm)から読み、ゲームが一度も触れなかったワークRAMの最長の連続範囲を報告します。`tour.py`は、これらが駆動に使う入力スクリプトを書き出します。シード付きのランダムウォークか、上、上、上、左、上、上、上、右の定常ルートです。
 
-エミュレータのイメージは、リポジトリのルートから一度だけビルドします。
-
-```bash
-docker build --tag snes-dungeon-master-nochip/emu:dev emu
-```
-
-`build/`の3つのトレースはこのイメージで記録します。ダンプのコピーを`build/dungeon-master-usa.sfc`に置きます。それぞれシード付きの30,000フレームの巡回で、約1.7 GBになります。
+`build/`の3つのトレースはイメージ内のエミュレータで記録します。ダンプのコピーを`build/dungeon-master-usa.sfc`に置きます。それぞれシード付きの30,000フレームの巡回で、約1.7 GBになります。
 
 ```bash
 for seed in 1 2 3; do
-  python3 tools/tour.py --frames 30000 --seed "$seed" --out "build/tour-s$seed.script"
-  docker run --rm --network=none --env "DMTRACE=trace-s$seed.bin" \
-    --env "DMSCRIPT=tour-s$seed.script" --volume "$PWD/build:/work" \
-    snes-dungeon-master-nochip/emu:dev dungeon-master-usa.sfc 30000
+  ./run.sh tools/tour.py --frames 30000 --seed "$seed" --out "build/tour-s$seed.script"
+  ./run.sh --exec env --chdir=/work/build "DMTRACE=trace-s$seed.bin" \
+    "DMSCRIPT=tour-s$seed.script" dmemu dungeon-master-usa.sfc 30000
 done
 ```
 
@@ -256,7 +246,7 @@ done
 | `check.py [--quick]` | `--quick`はアセンブル済みイメージが必要なゲートをすべて飛ばす | 0はすべてのゲートが通った。1は少なくとも1つが失敗し、最後の6行とともに名前を表示する。2は使い方の誤り |
 | [`doctor.py`](doctor.py) | なし | 0はすべてのチェックが通った。1は少なくとも1つが通らなかった |
 
-[`check.py`](check.py)は、計測用イメージがないか古い場合はまずアセンブルし、その後、lint、フォーマット、型、カバレッジ計測下のテスト、JSONとYAMLのフォーマット、ワークフロー、シェルスクリプトを、それぞれパイプラインが固定したバージョンで実行します。イメージがあれば、[`tools/cost.py`](tools/cost.py)、3つの`*.retail.test.py`チェック、3つの`verify_*.py`コマンドも実行します。最初の失敗で止まらず、すべてのゲートを実行します。
+[`check.py`](check.py)は、計測用イメージがないか古い場合はまずアセンブルし、その後、lint、フォーマット、型、カバレッジ計測下のテスト、JSONとYAMLのフォーマット、ワークフロー、シェルスクリプトを、それぞれイメージが固定したバージョンで実行します。gatesイメージの中で`./run.sh --gates check.py`として実行します。イメージがあれば、[`tools/cost.py`](tools/cost.py)、3つの`*.retail.test.py`チェック、3つの`verify_*.py`コマンドも実行します。最初の失敗で止まらず、すべてのゲートを実行します。
 
 ### モジュール
 
@@ -470,9 +460,11 @@ Dungeon Masterは、DSP-2を搭載した唯一のSNESカートリッジです。
 
 | パス | 内容 |
 |:--|:--|
-| [`asm/`](asm/) | 65816ルーチン、ステートブロック、スタブ、再生用とセルフテスト用のカートリッジ、asar 1.81のコンテナ |
-| [`emu/`](emu/) | すべてのエミュレータ実行が通るsnes9xのハーネス。1つのsnes9xコミットに固定したコンテナ |
-| [`snes9x/`](snes9x/) | 完成したイメージに必要なマッピングの変更。そのコミットに対するパッチ |
+| [`asm/`](asm/) | 65816ルーチン、ステートブロック、スタブ、再生用とセルフテスト用のカートリッジ |
+| [`emu/`](emu/) | すべてのエミュレータ実行が通るsnes9xのハーネス。1つの固定したsnes9xコミットからイメージに組み込みます |
+| [`snes9x/`](snes9x/) | 完成したイメージに必要なマッピングの変更。そのコミットに対するパッチで、イメージに`/opt/snes9x/snes9x_libretro.so`として組み込みます |
+| [`Dockerfile`](Dockerfile) | すべてのコマンドが動く唯一のイメージです。asar、エミュレータ、snes9xコア、Python 3.12、すべてのリントとテストのツールを持つgatesステージを含みます |
+| [`run.sh`](run.sh)、[`run.ps1`](run.ps1)、[`run.cmd`](run.cmd) | イメージをビルドし、その中でコマンドを実行するランチャーです |
 | [`tools/`](tools/) | [チップに問い合わせる](#asking-the-part)と[コスト、プレイ、配置の計測](#measuring-cost-play-and-placement)にあるコマンド |
 | [`conformance/divergences.json`](conformance/divergences.json) | すべての未解決の問題をプログラムが読める形にしたもの。テストで[OPEN-QUESTIONS.md](OPEN-QUESTIONS.md)と一致させている |
 | `*.retail.test.py` | ダンプを必要とするチェック。カバレッジのゲートからは除外し、ダンプがなければスキップとして報告する |
@@ -500,22 +492,18 @@ Dungeon Masterは、DSP-2を搭載した唯一のSNESカートリッジです。
 | セキュリティ報告 | [SECURITY.md](SECURITY.md) |
 
 ```bash
-uvx ruff@0.16.3 format --check .
-uvx ruff@0.16.3 check .
-uvx --python 3.12 mypy==1.14.1 .
-python3 -m coverage erase
-for module in *.test.py tools/*.test.py conformance/*.test.py; do python3 -m coverage run -a "$module"; done
-python3 -m coverage report
+./run.sh --gates
+./run.sh --gates check.py
 ```
 
-各モジュールの隣には`<module>.test.py`があり、それぞれ単独で実行できます。カバレッジはステートメントとブランチの100%を必須とするゲートで、ダンプもマイクロコードも持たないマシンで満たしています。`python3 check.py`は、すべてのゲートを1回で実行します。
+各モジュールの隣には`<module>.test.py`があり、それぞれ単独で実行できます。カバレッジはステートメントとブランチの100%を必須とするゲートで、ダンプもマイクロコードも持たないマシンで満たしています。`./run.sh --gates`は標準のゲートを実行し、`./run.sh --gates check.py`はアセンブル済みイメージが必要なゲートを加えます。
 
 イシューにカートリッジやマイクロコードのイメージを添付しないでください。また、どちらかをダウンロードできる場所へのリンクも貼らないでください。ダイジェストは、ファイルそのものを含めずにファイルを識別します。
 
 ## 参考資料
 
 - snes9x、コミット`2971061cf07fdc6fc7d18883edf4e648eb16a6d2`の`dsp2.cpp`、https://github.com/snes9xgit/snes9x 。すべての実行と記録が通るエミュレータです。
-- asar 1.81、https://github.com/RPGHacker/asar 。アセンブラで、[`asm/Dockerfile`](asm/Dockerfile)で固定しています。
+- asar 1.81、https://github.com/RPGHacker/asar 。アセンブラで、[`Dockerfile`](Dockerfile)で固定しています。
 - nevikstiによるStar Oceanのチップなし変換。アドレス空間に収まらない大きさのイメージに対するアドレッシング規則の出典です。
 - Zeldixコミュニティ。このプロジェクトが依拠するSNESのROMハックの知識の多くが書き残されている場所です。
 - ゲームと移植版は、FTL GamesとSoftware Heavenが制作しました。

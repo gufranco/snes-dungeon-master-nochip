@@ -15,100 +15,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    name: lint and format
+  gates:
+    name: every gate in the project image
     runs-on: ubuntu-26.04
-    timeout-minutes: 10
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
 
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
+      - name: Build the image and run every gate in it
+        run: ./run.sh --gates
 
-      - name: Install ruff
-        run: pipx install ruff==0.16.3
-
-      - name: Install the type checker
-        run: pipx install mypy==1.14.1
-
-      - name: Lint
-        run: ruff check .
-
-      - name: Types, with the submodules present only so the imports resolve
-        run: mypy .
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: lts/*
-          cache: pnpm
-
-      - name: Install the formatter
-        run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - name: Check that every JSON and YAML file is formatted
-        run: pnpm run format:check
-
-      - name: Check formatting
-        run: ruff format --check .
-
-      - name: Lint the workflows
-        uses: raven-actions/actionlint@v2
-
-      - name: Lint every YAML file
+      - name: The doctor reports on a runner with no dump and no microcode
         run: |
-          pipx install yamllint==1.38.0
-          yamllint --strict .
-
-      - name: Lint the shell scripts
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck
-          shellcheck --severity=style --shell=bash scripts/*.sh
-
-  test:
-    name: test on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-26.04, macos-26]
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          submodules: recursive
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      - name: Install coverage
-        run: python -m pip install --disable-pip-version-check coverage==7.6.10
-
-      - name: Run every test module, under coverage
-        run: |
-          python3 -m coverage erase
-          failed=0
-          for module in *.test.py tools/*.test.py conformance/*.test.py; do
-            echo "::group::${module}"
-            python3 -m coverage run -a "${module}" || failed=1
-            echo "::endgroup::"
-          done
-          exit "${failed}"
-
-      - name: Coverage must be total, on a runner with no cartridge and no microcode
-        run: python3 -m coverage report
+          ./run.sh doctor.py || true
+          ./run.sh -c "import doctor; found = doctor.examine(); assert found; print(len(found))"
 
   release:
     name: release
     runs-on: ubuntu-26.04
     timeout-minutes: 10
-    needs: [lint, test]
+    needs: [gates]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write

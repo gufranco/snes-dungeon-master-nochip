@@ -9,10 +9,6 @@ sys.path.insert(0, str(ROOT))
 
 import assembled  # noqa: E402
 
-RUFF = "ruff@0.16.3"
-MYPY = "mypy@1.14.1"
-COVERAGE = "coverage==7.6.10"
-
 MODULES = "*.test.py tools/*.test.py conformance/*.test.py"
 
 
@@ -23,19 +19,19 @@ class Gate(NamedTuple):
 
 
 COVERED = (
-    f"python3 -m coverage erase && status=0 && for one in {MODULES}; do "
-    f'python3 -m coverage run -a "$one" || status=1; done && '
-    f"python3 -m coverage report && exit $status"
+    f"coverage erase && status=0 && for one in {MODULES}; do "
+    f'coverage run -a "$one" || status=1; done && '
+    f"coverage report && exit $status"
 )
 
 GATES = (
-    Gate("lint", ["uvx", RUFF, "check", "."]),
-    Gate("format", ["uvx", RUFF, "format", "--check", "."]),
-    Gate("types", ["uvx", MYPY, "."]),
-    Gate("tests", ["uvx", "--from", COVERAGE, "bash", "-c", COVERED]),
-    Gate("json and yaml", ["pnpm", "run", "format:check"]),
+    Gate("lint", ["ruff", "check", "."]),
+    Gate("format", ["ruff", "format", "--check", "."]),
+    Gate("types", ["mypy", "."]),
+    Gate("tests", ["sh", "-c", COVERED]),
+    Gate("json and yaml", ["prettier", "--check", "**/*.{json,yml,yaml}"]),
     Gate("workflows", ["actionlint"]),
-    Gate("shell", ["shellcheck", "--severity=style", "--shell=bash", "scripts/set-version.sh"]),
+    Gate("shell", ["shellcheck", "--severity=style", "scripts/set-version.sh", "run.sh"]),
     Gate("cost", ["python3", "tools/cost.py"], needs_image=True),
     Gate("split feed", ["python3", "splitfeed.retail.test.py"], needs_image=True),
     Gate("scale step", ["python3", "scalestep.retail.test.py"], needs_image=True),

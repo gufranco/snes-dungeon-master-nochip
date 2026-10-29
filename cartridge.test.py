@@ -73,6 +73,20 @@ class AssembleTest(unittest.TestCase):
 
         self.assertEqual((code, "usage" in said[0]), (2, True))
 
+    def test_a_missing_assembler_is_reported_rather_than_traced(self) -> None:
+        # Arrange
+        said: list[str] = []
+
+        def absent(_argv: Any, **_kwargs: Any) -> int:
+            raise cartridge.build.ToolchainMissing("asar is not in this environment")
+
+        # Act
+        code = cartridge.assemble(["build.py", "a.asm", "in.sfc", "out.sfc"], said.append, absent)
+
+        # Assert
+        self.assertEqual(code, 1)
+        self.assertEqual(said, ["  asar is not in this environment"])
+
 
 class ReportTest(unittest.TestCase):
     def test_a_finished_image_has_nothing_left(self) -> None:

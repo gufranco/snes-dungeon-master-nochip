@@ -176,16 +176,26 @@ class InputTest(unittest.TestCase):
 
 
 class ShellingOutTest(unittest.TestCase):
-    def test_it_runs_without_network(self) -> None:
-        args = boot.run_command(Path("/w"), "dm.sfc", 8000)
+    def test_it_starts_no_container_from_inside_one(self) -> None:
+        # Arrange
+        work = Path("/w")
 
-        self.assertIn("--network=none", args)
+        # Act
+        args = boot.run_command(work, "dm.sfc", 8000)
 
-    def test_it_names_the_pinned_image(self) -> None:
-        args = boot.run_command(Path("/w"), "dm.sfc", 8000)
+        # Assert
+        self.assertNotIn("docker", args)
 
-        self.assertIn(boot.EMULATOR, args)
-        self.assertNotIn(":latest", boot.EMULATOR)
+    def test_it_names_the_emulator_the_image_carries(self) -> None:
+        # Arrange
+        work = Path("/w")
+
+        # Act
+        args = boot.run_command(work, "dm.sfc", 8000)
+
+        # Assert
+        self.assertIn("dmemu", args)
+        self.assertEqual(args[args.index("dmemu") - 1], f"DMSCRIPT={boot.SCRIPT}")
 
     def test_it_passes_the_cartridge_by_name_rather_than_by_host_path(self) -> None:
         args = boot.run_command(Path("/some/host"), "dm.sfc", 8000)
@@ -193,12 +203,15 @@ class ShellingOutTest(unittest.TestCase):
         self.assertIn("dm.sfc", args)
         self.assertNotIn("/some/host/dm.sfc", args)
 
-    def test_a_relative_directory_is_resolved_before_it_is_mounted(self) -> None:
-        args = boot.run_command(Path("build"), "dm.sfc", 8000)
+    def test_a_relative_directory_is_resolved_before_it_is_entered(self) -> None:
+        # Arrange
+        work = Path("build")
 
-        mounted = args[args.index("-v") + 1]
+        # Act
+        args = boot.run_command(work, "dm.sfc", 8000)
 
-        self.assertTrue(mounted.startswith("/"))
+        # Assert
+        self.assertTrue(args[1].startswith("--chdir=/"))
 
 
 if __name__ == "__main__":

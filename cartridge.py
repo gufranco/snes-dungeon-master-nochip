@@ -45,8 +45,16 @@ def unfinished(image: bytes | bytearray) -> list[str]:
 ASSEMBLY = build.ASM_DIR / "nochip.asm"
 
 
-def assemble(argv: list[str], say: Callable[[str], None] = print) -> int:
-    return build.main(argv, say=say)
+def assemble(
+    argv: list[str],
+    say: Callable[[str], None] = print,
+    builder: Callable[..., int] = build.main,
+) -> int:
+    try:
+        return builder(argv, say=say)
+    except build.ToolchainMissing as absent:
+        say(f"  {absent}")
+        return 1
 
 
 def output_name(source: Path | str, release: str | None = None) -> str:

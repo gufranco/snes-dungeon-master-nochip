@@ -36,16 +36,17 @@ class GateTest(unittest.TestCase):
     def test_every_gate_names_itself(self) -> None:
         self.assertTrue(all(one.name for one in check.GATES))
 
-    def test_every_gate_pins_the_version_it_runs(self) -> None:
-        loose = [
-            one.name
-            for one in check.GATES
-            if any(tool in " ".join(one.command) for tool in ("ruff", "mypy", "coverage"))
-            and "==" not in " ".join(one.command)
-            and "@" not in " ".join(one.command)
-        ]
+    def test_every_gate_runs_a_tool_the_image_pins(self) -> None:
+        # Arrange
+        gates = (ROOT / "Dockerfile").read_text().split(" AS gates\n", 1)[1]
+        pinned = ("ruff==0.16.3", "mypy==1.14.1", "coverage==7.6.10", "yamllint==1.38.0")
 
+        # Act
+        loose = [one.name for one in check.GATES if one.command[0] in ("uvx", "pnpm", "bash")]
+
+        # Assert
         self.assertEqual(loose, [])
+        self.assertEqual([pin for pin in pinned if pin not in gates], [])
 
     def test_the_formatter_runs_over_the_whole_project(self) -> None:
         formatting = [one for one in check.GATES if one.name == "format"]

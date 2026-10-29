@@ -12,8 +12,8 @@ did.
 
 - [ ] `ruff format --check .` and `ruff check .` are clean
 - [ ] Every test module runs
-- [ ] `python3 doctor.py` reports nothing on this machine
-- [ ] Where microcode is present, `python3 tools/verify_trace.py` still reproduces every recorded byte
+- [ ] `./run.sh doctor.py` reports nothing
+- [ ] Where microcode is present, `./run.sh tools/verify_trace.py` still reproduces every recorded byte
 
 ## If this changes what a routine answers
 

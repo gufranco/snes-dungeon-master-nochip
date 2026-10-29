@@ -12,8 +12,6 @@ CASES_ASM = BUILD / "cpu-cases.asm"
 CASES_ROM = BUILD / "cpu-cases.sfc"
 CASES_DUMP = BUILD / "cpu-cases-wram.bin"
 
-ASAR_IMAGE = "snes-dungeon-master-nochip/asar:1.81"
-EMU_IMAGE = "snes-dungeon-master-nochip/emu:dev"
 
 RESULT_BASE = 0x7F0000
 RESULT_STRIDE = 16
@@ -40,6 +38,7 @@ EXAMPLE_LIMIT = 12
 
 sys.path.insert(0, str(ROOT))
 import hardware  # noqa: E402
+import toolchain  # noqa: E402
 
 hardware.install()
 
@@ -280,18 +279,9 @@ def emit_asm(cases: Any) -> str:
 
 
 def assemble_command() -> list[str]:
-    return [
-        "docker",
-        "run",
-        "--rm",
-        "--network=none",
-        "--volume",
-        f"{BUILD}:/work",
-        ASAR_IMAGE,
-        "--no-title-check",
-        CASES_ASM.name,
-        CASES_ROM.name,
-    ]
+    return toolchain.command(
+        toolchain.ASSEMBLER, (), ["--no-title-check", CASES_ASM.name, CASES_ROM.name], BUILD
+    )
 
 
 def _shell_out(args: list[str]) -> Any:
@@ -321,19 +311,9 @@ def frames_for(count: int) -> int:
 
 
 def emulator_command(frames: int) -> list[str]:
-    return [
-        "docker",
-        "run",
-        "--rm",
-        "--network=none",
-        "--env",
-        f"DMDUMP={CASES_DUMP.name}",
-        "--volume",
-        f"{BUILD}:/work",
-        EMU_IMAGE,
-        CASES_ROM.name,
-        str(frames),
-    ]
+    return toolchain.command(
+        toolchain.EMULATOR, [f"DMDUMP={CASES_DUMP.name}"], [CASES_ROM.name, str(frames)], BUILD
+    )
 
 
 def run_in_snes9x(

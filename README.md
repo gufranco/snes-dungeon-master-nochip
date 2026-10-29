@@ -65,15 +65,14 @@ The example plants five of the cartridge's port accesses in a 64 KB image and re
 
 Five steps from nothing to a working checkout. The doctor in step 4 confirms the first three.
 
-1. **Install Python, git and Docker.**
+1. **Install git and Docker, and nothing else.** Python and every tool the build runs live in this project's Docker image, which the first command builds.
 
    | | Windows | macOS | Linux |
    |:--|:--|:--|:--|
-   | Python 3.12 or newer | `winget install Python.Python.3.12` | `brew install python@3.12` | your distribution's `python3` package |
    | git | `winget install Git.Git` | `xcode-select --install` | your distribution's `git` package |
    | Docker | `winget install Docker.DockerDesktop`, then start Docker Desktop | Docker Desktop, or `brew install colima docker` then `colima start` | Docker Engine, then `sudo systemctl start docker` |
 
-   On Windows, type `py -3.12` wherever this page says `python3`.
+   On Windows, type `.\run.cmd` wherever this page says `./run.sh`.
 
 2. **Clone the repository. Do not download it.**
 
@@ -83,60 +82,59 @@ Five steps from nothing to a working checkout. The doctor in step 4 confirms the
    ```
 
    > [!CAUTION]
-   > Cloning is the only way to get a copy that works. The green **Code** button on GitHub also offers **Download ZIP**, and a ZIP never works here: the 6 models this project runs on are separate repositories pinned as git submodules, a ZIP carries none of them, and nothing can add them afterwards. The doctor names such a copy a downloaded archive; delete it and clone. A clone made without `--recurse-submodules` is repaired in place with `git submodule update --init --recursive`.
+   > Cloning is the only way to get a copy that works. The green **Code** button on GitHub also offers **Download ZIP**, and a ZIP never works here: the 6 models this project runs on are separate repositories pinned as git submodules, a ZIP carries none of them, and nothing can add them afterwards. The launcher refuses such a copy and says so; delete it and clone. A clone made without `--recurse-submodules` is repaired in place with `git submodule update --init --recursive`.
 
-3. **Put your dump in `external/roms/`** under its name in [the dump list](#the-dump): `dungeon-master-usa.sfc`. The microcode goes in `external/firmware/`. Then check it; each dump you supplied should read `ok`:
+3. **Put your dump in `external/roms/`** under its name in [the dump list](#the-dump): `dungeon-master-usa.sfc`. The microcode goes in `external/firmware/`. Then check it; each dump you supplied should read `ok`. This first command builds the image and takes several minutes; later ones start at once:
 
    ```bash
-   python3 tools/identify.py
+   ./run.sh tools/identify.py
    ```
 
-4. **Run the doctor.** It checks the checkout, every model, each dump, and whether Docker's engine is running, and ends by naming the next thing to run:
+4. **Run the doctor.** It checks the checkout, every model, each dump and the image's tools, and ends by naming the next thing to run:
 
    ```bash
-   python3 doctor.py
+   ./run.sh doctor.py
    ```
 
    ```
      N checks, nothing to report
-     next: python3 cartridge.py external/roms/dungeon-master-usa.sfc
+     next: ./run.sh cartridge.py external/roms/dungeon-master-usa.sfc, or on Windows .\run.cmd cartridge.py external/roms/dungeon-master-usa.sfc
    ```
 
-   A line marked `!` carries what to do on the line below it. The setup mistakes it catches:
+   A line marked `!` carries what to do on the line below it. The setup mistakes it and the launcher catch:
 
-   | The doctor says | Do this |
+   | The message | Do this |
    |:--|:--|
-   | `checkout: no git metadata` | Delete the folder and clone, step 2 |
+   | `This folder has no git metadata` | Delete the folder and clone, step 2 |
+   | `Docker is not installed` | Step 1 |
+   | `Docker is installed but its engine is not answering` | Start Docker Desktop, or `sudo systemctl start docker` |
    | `... is not checked out` | `git submodule update --init --recursive` |
    | `cartridge ...: missing` | Step 3 |
-   | `docker engine: docker is not installed` | Step 1 |
-   | `docker engine: installed but not answering` | Start Docker Desktop, or `sudo systemctl start docker` |
 
 5. **Build.** This writes every image into `dist/v<version>/`, one folder per device; copy the file from the folder named after your cartridge or emulator.
 
    ```bash
-   python3 cartridge.py external/roms/dungeon-master-usa.sfc
+   ./run.sh cartridge.py external/roms/dungeon-master-usa.sfc
    ```
 
 ### Requirements and the doctor
 
 | Requirement | Version | Needed for |
 |:--|:--|:--|
-| Python | 3.12 or newer | Every module and command |
 | git | Any | Fetching the six pinned models as submodules |
-| Docker | Any current | Assembling, and every command that drives the emulator |
+| Docker | Any current, running | Every command: Python 3.12, asar 1.81, the emulator and the snes9x core live in the image the [`Dockerfile`](Dockerfile) describes, and [`run.sh`](run.sh) runs each command in it |
 | A Dungeon Master dump you own | 1,048,576 bytes, digest under [The dump](#the-dump) | Building the cartridge |
 | DSP-2 microcode you own | The image `snes-dsp-python` accepts | The commands that ask the part for an answer |
 
-Nothing is installed from a package index.
+Nothing is installed on your machine beyond Docker and git.
 
 The dump goes in `external/roms/dungeon-master-usa.sfc`. The microcode goes in `external/firmware/`, or in a directory named by `UPD7725_FIRMWARE_DIR`. Git ignores both directories, and nothing here downloads either file.
 
-The doctor prints the machine, the Python, whether the folder is a git clone, whether Docker's engine answers, the version of each model, whether the part's microcode runs, the SHA-256 of each dump it finds, how many of the three recorded traces sit in `build/`, and each model's own report under that model's name. A check that throws is reported as what it threw. It exits 1 when any check fails. On a fresh clone with Docker running it ends with these lines:
+The doctor runs inside the image and prints the machine, the Python, whether the folder is a git clone, whether the image's asar and dmemu are there, the version of each model, whether the part's microcode runs, the SHA-256 of each dump it finds, how many of the three recorded traces sit in `build/`, and each model's own report under that model's name. A check that throws is reported as what it threw. It exits 1 when any check fails. On a fresh clone it ends with these lines:
 
 ```
-  4 of 77 checks did not pass
-  next: fix the first line marked ! above, then run python3 doctor.py again
+  4 of 78 checks did not pass
+  next: fix the first line marked ! above, then run ./run.sh doctor.py, or on Windows .\run.cmd doctor.py
 ```
 
 The four are the missing dump, the missing microcode as this project and as `snes-dsp-python` each report it, and the empty `snes-mapper-python/cartridges` directory. Paste the whole output into any bug report.
@@ -145,23 +143,22 @@ Releases follow [Semantic Versioning](https://semver.org/) and are cut by semant
 
 ## The interface
 
-Every command is a file run from the repository root with `python3`. Exit 0 is success. Exit 2 means the command was called wrongly or had nothing to work from, and the line it prints says which.
+Every command is a file run from the repository root through the launcher, `./run.sh <file>`. Exit 0 is success. Exit 2 means the command was called wrongly or had nothing to work from, and the line it prints says which.
 
 ### Building the cartridge
 
 | Command | Arguments | Exit codes |
 |:--|:--|:--|
 | `cartridge.py <dump> [<destination>]` | The retail dump, and the folder to write into, `dist` by default | 0 written. 1 an access still reaches the chip or a header mirror still declares a coprocessor, and nothing is written. 2 usage, or no file at `<dump>`. Any other code is the assembler's |
-| `build.py <patch.asm> <dump> <output-name>` | An assembly file, the dump, and a file name for the result | 0 assembled. 1 the toolchain image did not build. 2 usage. Any other code is asar's |
-| `build.py --image` | None | The exit code of `docker build` |
+| `build.py <patch.asm> <dump> <output-name>` | An assembly file, the dump, and a file name for the result | 0 assembled. 1 asar is not in this environment. 2 usage. Any other code is asar's |
 | [`assembled.py`](assembled.py) | None | 0 when `asm/dm-sym.sfc` and its symbols are newer than every `asm/*.asm`, or once they have been rebuilt. 2 no dump at `external/roms/dungeon-master-usa.sfc` |
 | `similarity.py <dump> <cartridge>` | The retail dump and a finished cartridge | 0 every changed byte sits in a declared region. 1 at least one does not. 2 usage, or `asm/dm-sym.sfc` is missing or older than its sources |
 
 ```bash
-python3 cartridge.py external/roms/dungeon-master-usa.sfc
+./run.sh cartridge.py external/roms/dungeon-master-usa.sfc
 ```
 
-[`cartridge.py`](cartridge.py) copies the dump to `asm/<output-name>`, assembles [`asm/nochip.asm`](asm/nochip.asm) over it in the pinned asar 1.81 container with no network, reads the symbol table asar writes beside it, redirects every port access in place, and rewrites the header so it declares no coprocessor. It then counts what is left: an access still going to the chip, or a header mirror still declaring one. Either one stops it before the file is written. An image with the routines placed and the accesses not redirected boots and plays, because the emulator reads the header and supplies a DSP-2, so the count is the only thing that tells the two apart.
+[`cartridge.py`](cartridge.py) copies the dump to `asm/<output-name>`, assembles [`asm/nochip.asm`](asm/nochip.asm) over it with the image's asar 1.81, reads the symbol table asar writes beside it, redirects every port access in place, and rewrites the header so it declares no coprocessor. It then counts what is left: an access still going to the chip, or a header mirror still declaring one. Either one stops it before the file is written. An image with the routines placed and the accesses not redirected boots and plays, because the emulator reads the header and supplies a DSP-2, so the count is the only thing that tells the two apart.
 
 It writes the finished cartridge once per device, into `<destination>/v<version>/`: `emulator`, `supereverdrive`, `sd2snes` and `fxpak` get the image as built, named after the dump and the version, and `gamedoctor` gets a `.smc` with the 512 byte Game Doctor header in front, which maps the 8 Mbit image and its 32 KB of save memory as ucon64's tables do. That header comes from the `copier` module of [snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python). The header the cartridge declares keeps the battery-backed save memory, chipset `0x02`, so an emulator that keeps save RAM only for a declared battery keeps the saves.
 
@@ -176,7 +173,7 @@ It writes the finished cartridge once per device, into `<destination>/v<version>
 | `tools/identify.py [file name...]` | Optional file names from [`artifacts.manifest.json`](artifacts.manifest.json), all of them by default | 0 at least one dump present and correct and none wrong. 1 a dump has the wrong size, the wrong content or another entry's digest, or no dump is usable. 2 no manifest entry has that name |
 
 ```bash
-python3 tools/identify.py
+./run.sh tools/identify.py
 ```
 
 On a fresh checkout it prints:
@@ -199,7 +196,7 @@ The second line carries the absolute path on your machine. A 512 byte copier hea
 
 ### Asking the part
 
-These hold the routines to what the DSP-2's own microcode returns, run by `snes-dsp-python`. The routines run on the console's processor inside snes9x, driven by a script cartridge built from [`asm/dsp2-replay.asm`](asm/dsp2-replay.asm), so every command here except `verify_trace.py` needs Docker and the emulator image.
+These hold the routines to what the DSP-2's own microcode returns, run by `snes-dsp-python`. The routines run on the console's processor inside snes9x, driven by a script cartridge built from [`asm/dsp2-replay.asm`](asm/dsp2-replay.asm), so every command here except `verify_trace.py` needs the image's emulator.
 
 | Command | Arguments | Exit codes |
 |:--|:--|:--|
@@ -228,20 +225,13 @@ These hold the routines to what the DSP-2's own microcode returns, run by `snes-
 
 `pace.py` drives both cartridges on the steady route, digests every finished frame, and reports how many frames the conversion drew the same, how many it drew late, the worst lag and the median, then the lag curve in 8 points. `boot.py` fails on any of four things: the header still declares a coprocessor, a chip was asked for something, the run stopped early, or the screen never lit. `placement.py` reads the state block's address range out of [`asm/dsp2-state.asm`](asm/dsp2-state.asm) and reports the longest run of work RAM the game never touched. `tour.py` writes the input scripts these drive: a seeded random walk, or the steady route of up, up, up, left, up, up, up, right.
 
-The emulator image is built once, from the repository root:
-
-```bash
-docker build --tag snes-dungeon-master-nochip/emu:dev emu
-```
-
-The three traces in `build/` are recorded from it, with a copy of the dump at `build/dungeon-master-usa.sfc`. Each is a seeded 30,000 frame tour and runs to about 1.7 GB:
+The three traces in `build/` are recorded with the image's emulator, with a copy of the dump at `build/dungeon-master-usa.sfc`. Each is a seeded 30,000 frame tour and runs to about 1.7 GB:
 
 ```bash
 for seed in 1 2 3; do
-  python3 tools/tour.py --frames 30000 --seed "$seed" --out "build/tour-s$seed.script"
-  docker run --rm --network=none --env "DMTRACE=trace-s$seed.bin" \
-    --env "DMSCRIPT=tour-s$seed.script" --volume "$PWD/build:/work" \
-    snes-dungeon-master-nochip/emu:dev dungeon-master-usa.sfc 30000
+  ./run.sh tools/tour.py --frames 30000 --seed "$seed" --out "build/tour-s$seed.script"
+  ./run.sh --exec env --chdir=/work/build "DMTRACE=trace-s$seed.bin" \
+    "DMSCRIPT=tour-s$seed.script" dmemu dungeon-master-usa.sfc 30000
 done
 ```
 
@@ -252,7 +242,7 @@ done
 | `check.py [--quick]` | `--quick` skips every gate that needs the assembled image | 0 every gate passed. 1 at least one failed, named with its last 6 lines. 2 usage |
 | [`doctor.py`](doctor.py) | None | 0 every check passed. 1 at least one did not |
 
-[`check.py`](check.py) assembles the measurement image first when it is missing or stale, then runs lint, format, types, the tests under coverage, the JSON and YAML format, the workflows and the shell script, each at the version the pipeline pins. With the image it also runs [`tools/cost.py`](tools/cost.py), the three `*.retail.test.py` checks, and the three `verify_*.py` commands. It runs every gate rather than stopping at the first failure.
+[`check.py`](check.py) assembles the measurement image first when it is missing or stale, then runs lint, format, types, the tests under coverage, the JSON and YAML format, the workflows and the shell script, each at the version the image pins. It runs in the gates image, as `./run.sh --gates check.py`. With the image it also runs [`tools/cost.py`](tools/cost.py), the three `*.retail.test.py` checks, and the three `verify_*.py` commands. It runs every gate rather than stopping at the first failure.
 
 ### Modules
 
@@ -464,9 +454,11 @@ The models start dirty: memory and registers hold reproducible scrambled values 
 
 | Path | Holds |
 |:--|:--|
-| [`asm/`](asm/) | The 65816 routines, the state block, the stubs, the replay and self-test cartridges, and the asar 1.81 container |
-| [`emu/`](emu/) | The snes9x harness every emulator run goes through, as a container pinned to one snes9x commit |
-| [`snes9x/`](snes9x/) | The mapping change the finished image needs, as a patch against that commit |
+| [`asm/`](asm/) | The 65816 routines, the state block, the stubs, the replay and self-test cartridges |
+| [`emu/`](emu/) | The snes9x harness every emulator run goes through, built into the image from one pinned snes9x commit |
+| [`snes9x/`](snes9x/) | The mapping change the finished image needs, as a patch against that commit, built into the image as `/opt/snes9x/snes9x_libretro.so` |
+| [`Dockerfile`](Dockerfile) | The one image every command runs in: asar, the emulator, the snes9x core, Python 3.12, and a gates stage with every lint and test tool |
+| [`run.sh`](run.sh), [`run.ps1`](run.ps1), [`run.cmd`](run.cmd) | The launchers that build the image and run a command in it |
 | [`tools/`](tools/) | The commands under [Asking the part](#asking-the-part) and [Measuring cost, play and placement](#measuring-cost-play-and-placement) |
 | [`conformance/divergences.json`](conformance/divergences.json) | Every open question in a form a program reads, held to [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) by a test |
 | `*.retail.test.py` | Checks that need the dump, kept out of the coverage gate, reported as skipped without it |
@@ -494,22 +486,18 @@ What stays open, with the measurement that would settle each, is in [OPEN-QUESTI
 | Security reports | [SECURITY.md](SECURITY.md) |
 
 ```bash
-uvx ruff@0.16.3 format --check .
-uvx ruff@0.16.3 check .
-uvx --python 3.12 mypy==1.14.1 .
-python3 -m coverage erase
-for module in *.test.py tools/*.test.py conformance/*.test.py; do python3 -m coverage run -a "$module"; done
-python3 -m coverage report
+./run.sh --gates
+./run.sh --gates check.py
 ```
 
-Each module has a `<module>.test.py` beside it, and each runs on its own. Coverage is a hard gate at 100% of statements and branches, met on a machine holding neither the dump nor the microcode. `python3 check.py` runs every gate in one pass.
+Each module has a `<module>.test.py` beside it, and each runs on its own. Coverage is a hard gate at 100% of statements and branches, met on a machine holding neither the dump nor the microcode. `./run.sh --gates` runs the standard gates, and `./run.sh --gates check.py` adds the ones that need the assembled image.
 
 Never attach a cartridge or a microcode image to an issue, and never link to somewhere either can be downloaded. A digest identifies a file without carrying it.
 
 ## References
 
 - snes9x, `dsp2.cpp` at commit `2971061cf07fdc6fc7d18883edf4e648eb16a6d2`, https://github.com/snes9xgit/snes9x, the emulator every run and recording goes through.
-- asar 1.81, https://github.com/RPGHacker/asar, the assembler, pinned in [`asm/Dockerfile`](asm/Dockerfile).
+- asar 1.81, https://github.com/RPGHacker/asar, the assembler, pinned in the [`Dockerfile`](Dockerfile).
 - neviksti's Star Ocean chip-free conversion, the source of the addressing rule for images too large for the address space.
 - The Zeldix community, where much of the SNES romhacking knowledge this relies on is written down.
 - FTL Games and Software Heaven made the game and the port.

@@ -237,15 +237,25 @@ class ShellingOutTest(unittest.TestCase):
 
         self.assertIn("DMHASH=h.txt", args)
 
-    def test_it_runs_without_network(self) -> None:
-        args = pace.run_command(Path("/w"), "dm.sfc", "h.txt", 100)
+    def test_it_starts_no_container_from_inside_one(self) -> None:
+        # Arrange
+        work = Path("/w")
 
-        self.assertIn("--network=none", args)
+        # Act
+        args = pace.run_command(work, "dm.sfc", "h.txt", 100)
 
-    def test_a_relative_directory_is_resolved_before_it_is_mounted(self) -> None:
-        args = pace.run_command(Path("build"), "dm.sfc", "h.txt", 100)
+        # Assert
+        self.assertNotIn("docker", args)
 
-        self.assertTrue(args[args.index("-v") + 1].startswith("/"))
+    def test_a_relative_directory_is_resolved_before_it_is_entered(self) -> None:
+        # Arrange
+        work = Path("build")
+
+        # Act
+        args = pace.run_command(work, "dm.sfc", "h.txt", 100)
+
+        # Assert
+        self.assertTrue(args[1].startswith("--chdir=/"))
 
 
 if __name__ == "__main__":

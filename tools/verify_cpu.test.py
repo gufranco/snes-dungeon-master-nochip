@@ -180,12 +180,26 @@ class BankCrossingTest(unittest.TestCase):
 
 
 class ShellingOutTest(unittest.TestCase):
-    def test_assembling_names_the_pinned_assembler(self) -> None:
-        self.assertIn(verify.ASAR_IMAGE, verify.assemble_command())
+    def test_assembling_names_the_images_assembler(self) -> None:
+        # Arrange
+        expected = ["asar", "--no-title-check", verify.CASES_ASM.name, verify.CASES_ROM.name]
 
-    def test_running_names_the_pinned_emulator_and_how_many_frames(self) -> None:
-        self.assertIn(verify.EMU_IMAGE, verify.emulator_command(600))
-        self.assertIn("600", verify.emulator_command(600))
+        # Act
+        found = verify.assemble_command()
+
+        # Assert
+        self.assertEqual(found[2:], expected)
+
+    def test_running_names_the_images_emulator_and_how_many_frames(self) -> None:
+        # Arrange
+        frames = 600
+
+        # Act
+        found = verify.emulator_command(frames)
+
+        # Assert
+        self.assertIn("dmemu", found)
+        self.assertEqual(found[-1], "600")
 
     def test_an_assembler_that_fails_says_what_it_said_and_stops(self) -> None:
         said: list[Any] = []

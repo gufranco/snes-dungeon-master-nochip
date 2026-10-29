@@ -1,7 +1,6 @@
 import importlib
 import platform
 import shutil
-import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -13,6 +12,7 @@ sys.path.insert(0, str(ROOT))
 
 import environment  # noqa: E402
 import hardware  # noqa: E402
+import toolchain  # noqa: E402
 from version import VERSION  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "tools"))
@@ -25,11 +25,11 @@ PROJECT = "snes-dungeon-master-nochip"
 
 ORIGIN = "https://github.com/gufranco/snes-dungeon-master-nochip.git"
 
-NEXT_WHEN_CLEAN = "python3 cartridge.py external/roms/dungeon-master-usa.sfc"
+TOOLS = toolchain.PROGRAMS
 
-NEXT_WHEN_NOT = "fix the first line marked ! above, then run python3 doctor.py again"
+NEXT_WHEN_CLEAN = toolchain.launched("cartridge.py external/roms/dungeon-master-usa.sfc")
 
-DOCKER_ANSWER_SECONDS = 30
+NEXT_WHEN_NOT = f"fix the first line marked ! above, then run {toolchain.launched('doctor.py')}"
 
 PART = "dsp2"
 
@@ -85,45 +85,6 @@ def _checkout(cloned: Callable[[], bool] = is_git_checkout) -> Any:
         "a downloaded ZIP never carries the submodules and nothing can add them"
         " afterwards; delete this folder and clone instead:"
         f" git clone --recurse-submodules {ORIGIN}",
-    )
-
-
-def _docker_answers(run: Callable[..., Any] = subprocess.run) -> tuple[bool, str]:
-    try:
-        done = run(
-            ["docker", "info", "--format", "{{.ServerVersion}}"],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=DOCKER_ANSWER_SECONDS,
-        )
-    except (OSError, subprocess.TimeoutExpired) as trouble:
-        return False, f"{type(trouble).__name__}: {trouble}"
-    said = (done.stdout or done.stderr or "no answer").strip().splitlines()
-    return done.returncode == 0, said[0] if said else "no answer"
-
-
-def _docker_engine(
-    look: Callable[[str], str | None] = shutil.which,
-    ask: Callable[[], tuple[bool, str]] = _docker_answers,
-) -> Any:
-    if not look("docker"):
-        return Finding(
-            "docker engine",
-            False,
-            "docker is not installed",
-            "install Docker Desktop on Windows or macOS, or Docker Engine on Linux,"
-            " then open a new terminal so the docker command is found",
-        )
-    running, said = ask()
-    if running:
-        return Finding("docker engine", True, f"running, server {said}")
-    return Finding(
-        "docker engine",
-        False,
-        f"installed but not answering: {said}",
-        "start Docker Desktop and wait until it says the engine is running, or on"
-        " Linux run sudo systemctl start docker; the build assembles in a container",
     )
 
 
@@ -231,6 +192,22 @@ def _traces(root: Path | str = ROOT) -> Any:
     )
 
 
+def _tools(named: Any = TOOLS, look: Any = shutil.which) -> list[Finding]:
+    lines = []
+    for one in named:
+        where = look(one)
+        lines.append(
+            Finding(
+                one,
+                bool(where),
+                where or "not on the path",
+                f"{one} ships in this project's image; start every command through"
+                f" {toolchain.launched('<script>')}, which runs it there",
+            )
+        )
+    return lines
+
+
 def _default_beneath() -> Any:
     return _ask_each(sorted(hardware.PACKAGES), hardware.root_of, importlib.import_module)
 
@@ -298,7 +275,7 @@ def examine(
     found.append(_microcode())
     found.extend(_cartridges())
     found.append(_traces())
-    found.append(_docker_engine())
+    found.extend(_tools())
     found.extend(_beneath(beneath))
     return found
 

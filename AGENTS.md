@@ -4,6 +4,22 @@ Read [`FAMILY.md`](FAMILY.md) first. It is the standard every member is built to
 and it is identical in all twenty of them. This file is the part that is only
 true here.
 
+## Two hard rules about tooling
+
+**Docker carries every dependency, never the host.** Python, asar, the emulator
+and every lint and test tool live in the image the [`Dockerfile`](Dockerfile)
+describes. The host needs Docker and git, nothing else. Every documented command
+runs through [`run.sh`](run.sh), or [`run.cmd`](run.cmd) on Windows, and nothing
+here tells a reader to install a tool or uses one the host happens to have. Set
+by the owner on 2026-10-28.
+
+**The three chip-free projects share one tooling layout.** This repository and
+the other two of snes-street-fighter-alpha-2-nochip, snes-dungeon-master-nochip
+and snes-pilotwings-nochip keep the same Dockerfile stage names, launchers, gate
+script, [`toolchain.py`](toolchain.py), CI jobs and doctor shape. A tooling
+change lands in all three in the same task, and a difference between them comes
+from the game. Set by the owner on 2026-10-28.
+
 ## What this project is, in one paragraph
 
 Dungeon Master is the one SNES cartridge carrying a DSP-2, and without that part
@@ -182,8 +198,8 @@ names all 2 by size, CRC32, MD5, SHA-1 and SHA-256:
 - `external/firmware/dsp2.bin`, the DSP-2 microcode the models run.
 
 ```bash
-python3 -m conformance.external
-python3 -m conformance.external --describe external/<file>
+./run.sh -m conformance.external
+./run.sh -m conformance.external --describe external/<file>
 ```
 
 The first says which are here, verified, missing or wrong. The second prints
@@ -192,36 +208,47 @@ change.
 
 ## Gates
 
-Everything below must pass before a change is done. There is no partial credit,
-and one command runs all of it:
+Everything below must pass before a change is done. There is no partial credit.
+The standard gates are the same in all three chip-free projects:
 
 ```bash
-python3 check.py            # every gate, including the ones that need the dump
-python3 check.py --quick    # only the ones that do not shell into a container
+./run.sh --gates
+```
+
+[`scripts/gates.sh`](scripts/gates.sh) runs in the `gates` stage of the
+[`Dockerfile`](Dockerfile) and stops at the first failure: ruff check, ruff
+format, mypy, prettier, yamllint, shellcheck, actionlint, then every test module
+under coverage and the coverage report. CI runs the same script in the same
+image.
+
+[`check.py`](check.py) runs them and adds the ones that need the dump:
+
+```bash
+./run.sh --gates check.py            # every gate, including the ones that need the dump
+./run.sh --gates check.py --quick    # only the ones that do not need the assembled image
 ```
 
 It assembles the measurement image first when it is missing or older than any
 assembly source, names each gate as it passes or fails, and runs the rest rather
 than stopping at the first. Every tool it runs is pinned to the version the
-runner installs, because reporting coverage with a newer build than the one that
+image pins, because reporting coverage with a newer build than the one that
 recorded it named four lines uncovered that were not.
 
 The gates it runs, for reference:
 
 | gate | command |
 |---|---|
-| tests | `for t in *.test.py tools/*.test.py conformance/*.test.py; do python3 "$t" \|\| break; done` |
-| coverage, which fails below 100% | `python3 -m coverage erase && for t in *.test.py tools/*.test.py conformance/*.test.py; do python3 -m coverage run -a "$t"; done && python3 -m coverage report` |
+| coverage, which fails below 100% | `coverage erase && for t in *.test.py tools/*.test.py conformance/*.test.py; do coverage run -a "$t"; done && coverage report` |
 | types | `mypy .` |
 | lint | `ruff check .` |
 | format | `ruff format --check .` |
-| yaml | `uvx yamllint==1.38.0 --strict .` |
+| yaml | `yamllint --strict .` |
 | workflows | `actionlint` |
-| this machine | `python3 doctor.py` |
-| the cartridge | `python3 cartridge.py external/roms/<dump>.sfc`, one folder per device under `dist/v<version>/` |
-| how far behind it runs | `python3 tools/pace.py external/roms/<dump>.sfc build/<name>.sfc` |
-| that the block's work RAM is still free | `python3 tools/placement.py` |
-| that nothing outside a declared region moved | `python3 similarity.py external/roms/<dump>.sfc build/<name>.sfc` |
+| this machine | `./run.sh doctor.py` |
+| the cartridge | `./run.sh cartridge.py external/roms/<dump>.sfc`, one folder per device under `dist/v<version>/` |
+| how far behind it runs | `./run.sh tools/pace.py external/roms/<dump>.sfc build/<name>.sfc` |
+| that the block's work RAM is still free | `./run.sh tools/placement.py` |
+| that nothing outside a declared region moved | `./run.sh similarity.py external/roms/<dump>.sfc build/<name>.sfc` |
 
 A change to the assembly adds two more: rebuild, then run
 [`tools/cost.py`](tools/cost.py) and read both columns, and run

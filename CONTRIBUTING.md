@@ -10,18 +10,15 @@ and a claim that cannot be checked is not ready.
 Run every gate, and read the output rather than the exit code:
 
 ```bash
-uvx ruff@0.16.3 format --check .
-uvx ruff@0.16.3 check .
-pnpm install --frozen-lockfile && pnpm run format:check
-uvx yamllint==1.38.0 --strict .
-python3 -m coverage erase
-for module in *.test.py tools/*.test.py; do python3 -m coverage run -a "$module"; done
-python3 -m coverage report
-python3 doctor.py
+./run.sh --gates
+./run.sh doctor.py
 ```
 
+Both run in the project's Docker image, so the versions are the ones CI uses and nothing is
+installed on your machine; on Windows the launcher is `.\run.cmd`.
+
 Every model this project measures itself against lives in its own repository and is pinned here as
-a submodule at the root. `python3 doctor.py` reports the whole chain, including each model's own
+a submodule at the root. `./run.sh doctor.py` reports the whole chain, including each model's own
 report and the digest of every file it loaded, and it is the first thing to paste into an issue.
 
 Coverage is a hard gate at 100% of statements and branches, and it is met on a machine holding

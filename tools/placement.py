@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+import toolchain  # noqa: E402
 
 
 def _load_beside(name: str) -> Any:
@@ -19,7 +22,6 @@ def _load_beside(name: str) -> Any:
 
 tour = _load_beside("tour")
 
-EMULATOR = "snes-dungeon-master-nochip/emu:dev"
 
 MAP = "wram-map.bin"
 
@@ -80,21 +82,12 @@ def route_for(frames: int, seed: int | None) -> str:
 
 
 def run_command(work: Path, cartridge: str, frames: int) -> list[str]:
-    return [
-        "docker",
-        "run",
-        "--rm",
-        "--network=none",
-        "-e",
-        f"DMSCRIPT={SCRIPT}",
-        "-e",
-        f"DMWRAM={MAP}",
-        "-v",
-        f"{work.resolve()}:/work",
-        EMULATOR,
-        cartridge,
-        str(frames),
-    ]
+    return toolchain.command(
+        toolchain.EMULATOR,
+        [f"DMSCRIPT={SCRIPT}", f"DMWRAM={MAP}"],
+        [cartridge, str(frames)],
+        work.resolve(),
+    )
 
 
 def _shell_out(args: list[str]) -> Any:

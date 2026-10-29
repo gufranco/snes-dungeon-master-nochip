@@ -1,0 +1,7 @@
+*
+!emu/main.cpp
+!emu/windowed_lorom.cpp
+!emu/windowed_lorom.h
+!snes9x/windowed-lorom-map.patch
+!package.json
+!pnpm-lock.yaml

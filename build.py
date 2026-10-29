@@ -6,33 +6,26 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 ASM_DIR = ROOT / "asm"
-IMAGE = "snes-dungeon-master-nochip/asar:1.81"
+sys.path.insert(0, str(ROOT))
+
+import toolchain  # noqa: E402
 
 
-def build_image_command() -> list[str]:
-    return [
-        "docker",
-        "build",
-        "--tag",
-        IMAGE,
-        str(ASM_DIR),
-    ]
+class ToolchainMissing(Exception): ...
 
 
 def patch_command(work_dir: Path | str, patch_name: str, rom_name: str) -> list[str]:
-    return [
-        "docker",
-        "run",
-        "--rm",
-        "--network=none",
-        "--volume",
-        f"{work_dir}:/work",
-        IMAGE,
-        "--symbols=wla",
-        f"--symbols-path={Path(rom_name).with_suffix('.sym').name}",
-        patch_name,
-        rom_name,
-    ]
+    return toolchain.command(
+        toolchain.ASSEMBLER,
+        (),
+        [
+            "--symbols=wla",
+            f"--symbols-path={Path(rom_name).with_suffix('.sym').name}",
+            patch_name,
+            rom_name,
+        ],
+        Path(work_dir),
+    )
 
 
 def staged_path(patch: Path | str, output_name: str) -> Path:
@@ -47,6 +40,11 @@ def stage_rom(source: Path | str, work_dir: Path | str, output_name: str) -> Pat
     return target
 
 
+def require(program: str, look: Callable[[str], str | None] = shutil.which) -> None:
+    if not look(program):
+        raise ToolchainMissing(toolchain.missing_message(program))
+
+
 def run(
     args: list[str],
     execute: Callable[[list[str]], int] | None = None,
@@ -54,12 +52,15 @@ def run(
 ) -> int:
     say("  $ " + " ".join(args))
     if execute is None:
-        return subprocess.run(args, text=True, check=False).returncode
-    return execute(args)
+        execute = _shell_out
+    try:
+        return execute(args)
+    except FileNotFoundError as absent:
+        raise ToolchainMissing(toolchain.missing_message(args[0])) from absent
 
 
-def wants_image_only(argv: list[str]) -> bool:
-    return len(argv) == 2 and argv[1] == "--image"
+def _shell_out(args: list[str]) -> int:
+    return subprocess.run(args, text=True, check=False).returncode
 
 
 def main(
@@ -67,24 +68,18 @@ def main(
     execute: Callable[[list[str]], int] | None = None,
     say: Callable[[str], None] = print,
     complain: Callable[[str], None] | None = None,
+    look: Callable[[str], str | None] = shutil.which,
 ) -> int:
     argv = sys.argv if argv is None else argv
     complain = say if complain is None else complain
 
-    if wants_image_only(argv):
-        return run(build_image_command(), execute, say)
-
     if len(argv) < 4:
         complain("usage: build.py <patch.asm> <source-rom> <output-rom>")
-        complain("       build.py --image        (build the toolchain image only)")
         return 2
 
+    require(toolchain.ASSEMBLER, look)
     patch, source, output = argv[1], Path(argv[2]), argv[3]
     work = Path(patch).resolve().parent
-
-    if run(build_image_command(), execute, say) != 0:
-        complain("toolchain image failed to build")
-        return 1
 
     staged = stage_rom(source, work, output)
     say(f"  staged {source} -> {staged}")
@@ -95,5 +90,13 @@ def main(
     return code
 
 
+def cli() -> int:
+    try:
+        return main()
+    except ToolchainMissing as absent:
+        print(absent, file=sys.stderr)
+        return 1
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(cli())

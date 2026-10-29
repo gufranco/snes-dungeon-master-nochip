@@ -1,6 +1,11 @@
+import sys
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import toolchain
 
 
 def _load_beside(name: str) -> Any:
@@ -147,8 +152,6 @@ def batches_of(runs: Any, room: int) -> list[Any]:
 
 IMAGE_BYTES = 0x400000
 FRAMES = 4000000
-ASSEMBLER = "snes-dungeon-master-nochip/asar:1.81"
-EMULATOR = "snes-dungeon-master-nochip/emu:dev"
 
 
 def _number(dump: bytes, offset: int, width: int) -> int:
@@ -169,21 +172,12 @@ def read_counters(dump: bytes) -> Any:
 
 
 def assemble_command(root: Path, build: Path) -> list[str]:
-    return [
-        "docker",
-        "run",
-        "--rm",
-        "--network=none",
-        "--entrypoint",
-        "sh",
-        "-v",
-        f"{root / 'asm'}:/src:ro",
-        "-v",
-        f"{build}:/out",
-        ASSEMBLER,
-        "-c",
-        "cd /src && asar --no-title-check --fix-checksum=on dsp2-replay.asm /out/replay.sfc",
-    ]
+    return toolchain.command(
+        toolchain.ASSEMBLER,
+        (),
+        ["--no-title-check", "--fix-checksum=on", "dsp2-replay.asm", str(build / "replay.sfc")],
+        root / "asm",
+    )
 
 
 def _shell_out(args: list[str]) -> Any:
@@ -201,21 +195,12 @@ def assemble(root: Path, build: Path, execute: Any = _shell_out) -> Any:
 
 
 def run_command(build: Path) -> list[str]:
-    return [
-        "docker",
-        "run",
-        "--rm",
-        "--network=none",
-        "-e",
-        "DMDUMP=replay-wram.bin",
-        "-e",
-        f"DMSTOP={STATE + DONE:X}:{FINISHED:X}",
-        "-v",
-        f"{build}:/work",
-        EMULATOR,
-        "replay.sfc",
-        str(FRAMES),
-    ]
+    return toolchain.command(
+        toolchain.EMULATOR,
+        ["DMDUMP=replay-wram.bin", f"DMSTOP={STATE + DONE:X}:{FINISHED:X}"],
+        ["replay.sfc", str(FRAMES)],
+        build,
+    )
 
 
 class EmulatorFailed(Exception): ...

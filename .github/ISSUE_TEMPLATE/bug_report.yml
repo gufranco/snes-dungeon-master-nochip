@@ -16,7 +16,7 @@ body:
     attributes:
       label: What the doctor says
       description: |
-        Run `python3 doctor.py` from the repository and paste all of it, including
+        Run `./run.sh doctor.py` from the repository and paste all of it, including
         every line that did not pass. Do not trim it: the lines that failed are
         the ones worth reading, and the digests are what settle which files you
         have.
@@ -63,7 +63,7 @@ body:
       description: Commands we can run as they stand, with no editing.
       render: shell
       placeholder: |
-        python3 tools/verify_trace.py
+        ./run.sh tools/verify_trace.py
     validations:
       required: true
 

@@ -14,7 +14,7 @@ body:
     id: doctor
     attributes:
       label: What the doctor says
-      description: Run `python3 doctor.py` and paste all of it.
+      description: Run `./run.sh doctor.py` and paste all of it.
       render: text
     validations:
       required: true
@@ -40,7 +40,7 @@ body:
     attributes:
       label: What the part answers
       description: |
-        Say how you know. `python3 tools/verify_trace.py` replays recorded
+        Say how you know. `./run.sh tools/verify_trace.py` replays recorded
         traffic against the part's own microcode and is the shortest way to get
         an authoritative answer.
       placeholder: "00 aa aa 0a, from verify_trace against the dsp2 image"
