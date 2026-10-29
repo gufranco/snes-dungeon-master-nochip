@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3 AS asar
+FROM mirror.gcr.io/library/debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3 AS asar
 
 ARG ASAR_REF=v1.81
 
@@ -13,7 +13,7 @@ RUN git clone --depth=1 --branch "${ASAR_REF}" https://github.com/RPGHacker/asar
 RUN cp /build/asar/asar-standalone /usr/local/bin/asar \
     && /usr/local/bin/asar --version | grep -q "^Asar 1.81,"
 
-FROM public.ecr.aws/docker/library/debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3 AS emulator
+FROM mirror.gcr.io/library/debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3 AS emulator
 
 ARG SNES9X_REF=2971061cf07fdc6fc7d18883edf4e648eb16a6d2
 
@@ -56,7 +56,7 @@ RUN g++ -O2 -std=c++11 -o /src/dmemu \
         -I/src/snes9x/apu -I/src/snes9x/apu/bapu \
         /src/snes9x/libretro/snes9x_libretro.a
 
-FROM public.ecr.aws/docker/library/debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3 AS core
+FROM mirror.gcr.io/library/debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3 AS core
 
 ARG SNES9X_REF=2971061cf07fdc6fc7d18883edf4e648eb16a6d2
 
@@ -82,7 +82,7 @@ RUN grep -q "Map_WindowedLoROMMap" /src/snes9x/memmap.h \
 WORKDIR /src/snes9x/libretro
 RUN make STATIC_LINKING=1 -j"$(nproc)"
 
-FROM public.ecr.aws/docker/library/python:3.12.14-slim-bookworm@sha256:392307d22300de8b5986851a12d9176dfc0fc073e65bf6523ebd7dcbeb23564e AS runtime
+FROM mirror.gcr.io/library/python:3.12.14-slim-bookworm@sha256:392307d22300de8b5986851a12d9176dfc0fc073e65bf6523ebd7dcbeb23564e AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/* \
@@ -100,7 +100,7 @@ WORKDIR /work
 
 FROM runtime AS gates
 
-COPY --from=public.ecr.aws/docker/library/node:24.16.0-bookworm-slim@sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c574f736c476489d09f560a203 /usr/local /usr/local
+COPY --from=mirror.gcr.io/library/node:24.16.0-bookworm-slim@sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c574f736c476489d09f560a203 /usr/local /usr/local
 
 RUN apt-get update && apt-get install -y --no-install-recommends shellcheck curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
