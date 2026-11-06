@@ -9,7 +9,7 @@ English | [日本語](README.ja.md) | [简体中文](README.zh-Hans.md) | [繁�
 [![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen?style=flat-square)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/gufranco/snes-dungeon-master-nochip?style=flat-square&label=license)](LICENSE)
 
-**17,241,846** returned bytes of a recording with no scale reproduced by the part's microcode, **0** wrong, **6** of 6 commands held to the part on chosen inputs, **1,005** tests, **100%** statement and branch coverage, standard library only
+**17,241,846** returned bytes of a recording with no scale reproduced by the part's microcode, **0** wrong, **6** of 6 commands held to the part on chosen inputs, **1,013** tests, **100%** statement and branch coverage, standard library only
 
 ```python
 import patch
@@ -150,7 +150,7 @@ Every command is a file run from the repository root through the launcher, `./ru
 
 | Command | Arguments | Exit codes |
 |:--|:--|:--|
-| `cartridge.py <dump> [<destination>]` | The retail dump, and the folder to write into, `dist` by default | 0 written. 1 an access still reaches the chip or a header mirror still declares a coprocessor, and nothing is written. 2 usage, or no file at `<dump>`. Any other code is the assembler's |
+| `cartridge.py <dump> [<destination>]` | The retail dump, and the folder to write into, `dist` by default | 0 written. 1 an access still reaches the chip or a header mirror still declares a coprocessor, and nothing is written. 2 usage, no file at `<dump>`, or a dump [`artifacts.manifest.json`](artifacts.manifest.json) does not declare. Any other code is the assembler's |
 | `build.py <patch.asm> <dump> <output-name>` | An assembly file, the dump, and a file name for the result | 0 assembled. 1 asar is not in this environment. 2 usage. Any other code is asar's |
 | [`assembled.py`](assembled.py) | None | 0 when `asm/dm-sym.sfc` and its symbols are newer than every `asm/*.asm`, or once they have been rebuilt. 2 no dump at `external/roms/dungeon-master-usa.sfc` |
 | `similarity.py <dump> <cartridge>` | The retail dump and a finished cartridge | 0 every changed byte sits in a declared region. 1 at least one does not. 2 usage, or `asm/dm-sym.sfc` is missing or older than its sources |
@@ -159,11 +159,11 @@ Every command is a file run from the repository root through the launcher, `./ru
 ./run.sh cartridge.py external/roms/dungeon-master-usa.sfc
 ```
 
-[`cartridge.py`](cartridge.py) copies the dump to `asm/<output-name>`, assembles [`asm/nochip.asm`](asm/nochip.asm) over it with the image's asar 1.81, reads the symbol table asar writes beside it, redirects every port access in place, and rewrites the header so it declares no coprocessor. It then counts what is left: an access still going to the chip, or a header mirror still declaring one. Either one stops it before the file is written. An image with the routines placed and the accesses not redirected boots and plays, because the emulator reads the header and supplies a DSP-2, so the count is the only thing that tells the two apart.
+[`cartridge.py`](cartridge.py) reads the dump bare, stripping a 512 byte copier header or joining a folder of numbered parts, and refuses it unless its SHA-256 is one the manifest lists. It then copies the dump to `asm/<output-name>`, assembles [`asm/nochip.asm`](asm/nochip.asm) over it with the image's asar 1.81, reads the symbol table asar writes beside it, redirects every port access in place, and rewrites the header so it declares no coprocessor. It then counts what is left: an access still going to the chip, or a header mirror still declaring one. Either one stops it before the file is written. An image with the routines placed and the accesses not redirected boots and plays, because the emulator reads the header and supplies a DSP-2, so the count is the only thing that tells the two apart.
 
-It writes the finished cartridge once per device, into `<destination>/v<version>/`: `emulator`, `supereverdrive`, `sd2snes` and `fxpak` get the image as built, named after the dump and the version, and `gamedoctor` gets a `.smc` with the 512 byte Game Doctor header in front, which maps the 8 Mbit image and its 32 KB of save memory as ucon64's tables do. That header comes from the `copier` module of [snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python). The header the cartridge declares keeps the battery-backed save memory, chipset `0x02`, so an emulator that keeps save RAM only for a declared battery keeps the saves.
+It writes the finished cartridge once per device, into `<destination>/v<version>/`: `emulator`, `supereverdrive`, `sd2snes` and `fxpak` get the image as built, named after the manifest entry the dump matches and the version, `dungeon-master-usa-nochip-v<version>.sfc`, whatever the dump file was called. `gamedoctor` gets a `.smc` with the 512 byte Game Doctor header in front, which maps the 8 Mbit image and its 32 KB of save memory as ucon64's tables do. That header comes from the `copier` module of [snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python). The header the cartridge declares keeps the battery-backed save memory, chipset `0x02`, so an emulator that keeps save RAM only for a declared battery keeps the saves. A `SHA256SUMS` file beside the five folders lists the digest of every file written.
 
-[`build.py`](build.py) rebuilds the `snes-dungeon-master-nochip/asar:1.81` image on every run and refuses to stage the result over the dump it was given. [`assembled.py`](assembled.py) keeps the measurement image `asm/dm-sym.sfc` current for the commands that read it.
+[`build.py`](build.py) rebuilds the `snes-dungeon-master-nochip/asar:1.81` image on every run, stages the dump bare as [`cartridge.py`](cartridge.py) reads it, and refuses to stage the result over the dump it was given. [`assembled.py`](assembled.py) keeps the measurement image `asm/dm-sym.sfc` current for the commands that read it.
 
 [`similarity.py`](similarity.py) lists every byte the cartridge does not share with the dump and files each one under the region that claims it: the routines, the bank `$00` stubs, the bank `$04` stubs, the redirected sites, or the header fields the rewrite touches. It prints up to 8 bytes that no region claims, with their offset, address and both values.
 
@@ -419,6 +419,28 @@ Weighted by how often the cartridge sends each command, the routines spend 68,61
 
 Driving both cartridges along the steady route for 30,000 frames, eight minutes of walking and turning, 29,941 frames are drawn the same. The conversion reaches the title screen 56 frames later and after that never falls a frame behind. Timed directly over 139 dungeon redraws, both cartridges settle in 26 frames and the conversion was slower on none. [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) carries both measurements and what each cannot say.
 
+## Which file to use
+
+Every folder [`cartridge.py`](cartridge.py) writes holds the same 1,048,576 byte image, except `gamedoctor`. Copy the file from the folder named after your cartridge or emulator.
+
+| Folder | Use it on | File |
+|:--|:--|:--|
+| `emulator` | snes9x and other emulators | `dungeon-master-usa-nochip-v<version>.sfc`, 1,048,576 bytes |
+| `supereverdrive` | Super EverDrive | The same file |
+| `sd2snes` | SD2SNES and SD2SNES Pro | The same file |
+| `fxpak` | FXPAK Pro | The same file |
+| `gamedoctor` | Game Doctor SF7 | `dungeon-master-usa-nochip-v<version>.smc`, 1,049,088 bytes: the Game Doctor header, then the image |
+
+The header declares a plain LoROM cartridge with 32 KB of battery-backed save RAM, chipset `0x02`, and every device here maps the image from that header alone. The sd2snes firmware needs a copier header and a declared chipset only for 96 Mbit images, and `snes-rom-image-python` refuses to write that form for a 1 MB one, so the `sd2snes` and `fxpak` files are the image as built.
+
+## Tested hardware
+
+No device has run this cartridge yet. Every run behind the figures on this page is snes9x, driven through the harness in [`emu/`](emu/). A run on any of the devices above is listed here with the device, its firmware, the file used and how far the game got, once it is reported as described below.
+
+## Reporting a problem
+
+Open an [issue](https://github.com/gufranco/snes-dungeon-master-nochip/issues) with the whole output of `./run.sh doctor.py`. For a wrong screen, or a device that does not boot the file, say which folder and file you used, the device and its firmware, and attach a photo or capture of the screen. Never attach a ROM, the microcode, or anything built from either.
+
 ## The dump
 
 Named as No-Intro names it. Every digest is of the whole file with no copier header. SHA-256 decides; the others cross-check against databases that key on them.
@@ -457,7 +479,7 @@ The models start dirty: memory and registers hold reproducible scrambled values 
 |:--|:--|
 | [`asm/`](asm/) | The 65816 routines, the state block, the stubs, the replay and self-test cartridges |
 | [`emu/`](emu/) | The snes9x harness every emulator run goes through, built into the image from one pinned snes9x commit |
-| [`snes9x/`](snes9x/) | The mapping change the finished image needs, as a patch against that commit, built into the image as `/opt/snes9x/snes9x_libretro.so` |
+| [`snes9x/`](snes9x/) | The windowed mapping change for chip-free images larger than 6 MB, as a patch against that commit, built into the image as `/opt/snes9x/snes9x_libretro.so`. The 1 MB cartridge built here never reaches it: `dmemu` runs that cartridge on snes9x without the patch, and no command loads this core |
 | [`Dockerfile`](Dockerfile) | The one image every command runs in: asar, the emulator, the snes9x core, Python 3.12, and a gates stage with every lint and test tool |
 | [`run.sh`](run.sh), [`run.ps1`](run.ps1), [`run.cmd`](run.cmd) | The launchers that build the image and run a command in it |
 | [`tools/`](tools/) | The commands under [Asking the part](#asking-the-part) and [Measuring cost, play and placement](#measuring-cost-play-and-placement) |

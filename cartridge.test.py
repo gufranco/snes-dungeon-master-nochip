@@ -1,3 +1,4 @@
+import hashlib
 import importlib.util
 import tempfile
 import unittest
@@ -41,6 +42,44 @@ def blank(size: int = 0x100000) -> bytes:
     image[0x7FD6] = 0x05
     image[0x7FD7] = 0x0A
     return bytes(image)
+
+
+DECLARED = "blank-usa.sfc"
+
+COPIER = bytes(0x200)
+
+
+def declaring(dump: bytes) -> dict[str, Any]:
+    return {
+        "artifacts": [
+            {
+                "name": "Blank, USA",
+                "filename": DECLARED,
+                "accepted": [{"sha256": hashlib.sha256(dump).hexdigest()}],
+            }
+        ]
+    }
+
+
+def finished_run(
+    source: Path, into: Path, target: Path, said: list[str], manifest: Any
+) -> tuple[int, list[Any]]:
+    ran: list[Any] = []
+
+    def _assemble(argv: Any, **_kwargs: Any) -> int:
+        ran.append(argv)
+        target.write_bytes(blank())
+        cartridge.symbols_beside(target).write_text(SYMBOLS)
+        return 0
+
+    code = cartridge.main(
+        ["cartridge.py", str(source), str(into)],
+        said.append,
+        assemble=_assemble,
+        staged=target,
+        manifest=manifest,
+    )
+    return code, ran
 
 
 class SymbolNameTest(unittest.TestCase):
@@ -118,48 +157,111 @@ class CommandTest(unittest.TestCase):
         self.assertEqual((code, "no dump" in said[0]), (2, True))
 
     def test_a_build_that_fails_stops_there(self) -> None:
+        # Arrange
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "in.sfc"
             source.write_bytes(blank())
             said: list[str] = []
 
+            # Act
             code = cartridge.main(
                 ["cartridge.py", str(source), str(Path(tmp) / "out.sfc")],
                 said.append,
                 assemble=lambda *_a, **_k: 1,
+                manifest=declaring(blank()),
             )
 
+        # Assert
         self.assertEqual(code, 1)
 
     def test_a_finished_build_reports_where_it_put_the_cartridge(self) -> None:
+        # Arrange
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "in.sfc"
             source.write_bytes(blank())
-            target = Path(tmp) / "staged.sfc"
             into = Path(tmp) / "dist"
-
-            def _assemble(_argv: Any, **_kwargs: Any) -> int:
-                target.write_bytes(blank())
-                cartridge.symbols_beside(target).write_text(SYMBOLS)
-                return 0
-
             said: list[str] = []
 
-            code = cartridge.main(
-                ["cartridge.py", str(source), str(into)],
-                said.append,
-                assemble=_assemble,
-                staged=target,
-            )
-            written = (
-                into / cartridge.release_folder() / "emulator" / cartridge.output_name(source)
-            ).read_bytes()
+            # Act
+            code, _ = finished_run(source, into, Path(tmp) / "staged.sfc", said, declaring(blank()))
 
+            # Assert
+            name = cartridge.output_name(DECLARED)
+            written = (into / cartridge.release_folder() / "emulator" / name).read_bytes()
             self.assertEqual((code, written[0x7FD6]), (0, 0x02))
+            self.assertTrue(any(name in line for line in said))
 
-        self.assertTrue(any(cartridge.output_name(source) in line for line in said))
+    def test_a_dump_the_manifest_does_not_declare_is_refused_before_assembling(self) -> None:
+        # Arrange
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "in.sfc"
+            source.write_bytes(blank())
+            said: list[str] = []
+
+            # Act
+            code, ran = finished_run(
+                source, Path(tmp) / "dist", Path(tmp) / "staged.sfc", said, declaring(b"")
+            )
+
+            # Assert
+            self.assertEqual((code, ran), (2, []))
+            self.assertIn("tools/identify.py", "\n".join(said))
+
+    def test_the_output_takes_the_manifest_name_whatever_the_dump_is_called(self) -> None:
+        # Arrange
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "my copy (1).sfc"
+            source.write_bytes(blank())
+
+            # Act
+            _, ran = finished_run(
+                source, Path(tmp) / "dist", Path(tmp) / "staged.sfc", [], declaring(blank())
+            )
+
+            # Assert
+            self.assertEqual(ran[0][-1], f"blank-usa-nochip-v{cartridge.version.VERSION}.sfc")
+
+    def test_a_dump_behind_a_copier_header_is_identified_by_its_bare_bytes(self) -> None:
+        # Arrange
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "in.smc"
+            source.write_bytes(COPIER + blank())
+
+            # Act
+            code, _ = finished_run(
+                source, Path(tmp) / "dist", Path(tmp) / "staged.sfc", [], declaring(blank())
+            )
+
+        # Assert
+        self.assertEqual(code, 0)
+
+    def test_the_release_lists_every_file_it_wrote_with_its_digest(self) -> None:
+        # Arrange
+        with tempfile.TemporaryDirectory() as tmp:
+            into = Path(tmp) / "dist"
+            source = Path(tmp) / "in.sfc"
+            source.write_bytes(blank())
+
+            # Act
+            finished_run(source, into, Path(tmp) / "staged.sfc", [], declaring(blank()))
+
+            # Assert
+            release = into / cartridge.release_folder()
+            rows = (release / cartridge.SUMS).read_text().splitlines()
+            listed = {name: digest for digest, name in (row.split("  ") for row in rows)}
+            self.assertEqual(
+                sorted(name.split("/")[0] for name in listed), sorted(cartridge.DEVICES)
+            )
+            self.assertEqual(
+                listed,
+                {
+                    name: hashlib.sha256((release / name).read_bytes()).hexdigest()
+                    for name in listed
+                },
+            )
 
     def test_an_image_the_patch_did_not_finish_fails_the_build(self) -> None:
+        # Arrange
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "in.sfc"
             source.write_bytes(blank())
@@ -172,14 +274,17 @@ class CommandTest(unittest.TestCase):
 
             said: list[str] = []
 
+            # Act
             code = cartridge.main(
                 ["cartridge.py", str(source), str(target)],
                 said.append,
                 assemble=_assemble,
                 left=lambda _image: ["something still reaches the chip"],
                 staged=target,
+                manifest=declaring(blank()),
             )
 
+        # Assert
         self.assertEqual((code, "still reaches" in "\n".join(said)), (1, True))
 
 

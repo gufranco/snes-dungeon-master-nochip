@@ -9,7 +9,7 @@
 [![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen?style=flat-square)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/gufranco/snes-dungeon-master-nochip?style=flat-square&label=license)](LICENSE)
 
-一份不含 scale 的錄音中 **17,241,846** 個返回位元組由晶片微碼重現，錯誤 **0** 個；**6** 個指令中 6 個在選定輸入上與晶片一致；**1,005** 個測試；**100%** 語句及分支覆蓋率；只用標準函式庫
+一份不含 scale 的錄音中 **17,241,846** 個返回位元組由晶片微碼重現，錯誤 **0** 個；**6** 個指令中 6 個在選定輸入上與晶片一致；**1,013** 個測試；**100%** 語句及分支覆蓋率；只用標準函式庫
 
 ```python
 import patch
@@ -150,7 +150,7 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
 
 | 指令 | 參數 | 退出碼 |
 |:--|:--|:--|
-| `cartridge.py <dump> [<destination>]` | 零售版傾印檔，以及寫入的資料夾，預設為 `dist` | 0 已寫入。1 仍有存取到達晶片，或某個標頭鏡像仍宣告協處理器，此時不寫入任何檔案。2 用法錯誤，或 `<dump>` 處沒有檔案。其他代碼來自組譯器 |
+| `cartridge.py <dump> [<destination>]` | 零售版傾印檔，以及寫入的資料夾，預設為 `dist` | 0 已寫入。1 仍有存取到達晶片，或某個標頭鏡像仍宣告協處理器，此時不寫入任何檔案。2 用法錯誤、`<dump>` 處沒有檔案，或 [`artifacts.manifest.json`](artifacts.manifest.json) 沒有宣告的傾印檔。其他代碼來自組譯器 |
 | `build.py <patch.asm> <dump> <output-name>` | 一個組合語言檔案、傾印檔，以及結果的檔案名稱 | 0 已組譯。1 目前環境中沒有 asar。2 用法錯誤。其他退出碼來自 asar |
 | [`assembled.py`](assembled.py) | 無 | 0 `asm/dm-sym.sfc` 及其符號比所有 `asm/*.asm` 都新，或已重新建立。2 `external/roms/dungeon-master-usa.sfc` 沒有傾印檔 |
 | `similarity.py <dump> <cartridge>` | 零售版傾印檔及一個完成的卡帶 | 0 每個改動的位元組都位於已宣告的區域。1 至少一個不是。2 用法錯誤，或 `asm/dm-sym.sfc` 缺失或比其原始檔舊 |
@@ -159,11 +159,11 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
 ./run.sh cartridge.py external/roms/dungeon-master-usa.sfc
 ```
 
-[`cartridge.py`](cartridge.py) 把傾印檔複製到 `asm/<output-name>`，以映像中的 asar 1.81把 [`asm/nochip.asm`](asm/nochip.asm) 組譯到它上面，讀取 asar 在旁邊寫出的符號表，原地重新導向每個埠存取，並改寫標頭，使其不宣告任何協處理器。然後它計算剩下的東西：仍然前往晶片的存取，或仍然宣告協處理器的標頭鏡像。任何一項都會令它在寫入檔案前停止。一個已放入例程但未重新導向存取的映像檔同樣能開機和遊玩，因為模擬器讀取標頭並提供 DSP-2，所以只有這個計數能分辨兩者。
+[`cartridge.py`](cartridge.py) 以不帶標頭的形式讀取傾印檔：移除 512 位元組的拷貝機標頭，或合併一個編號分割檔的資料夾；如果它的 SHA-256 不在清單之中，就拒絕這個傾印檔。然後它把傾印檔複製到 `asm/<output-name>`，以映像中的 asar 1.81把 [`asm/nochip.asm`](asm/nochip.asm) 組譯到它上面，讀取 asar 在旁邊寫出的符號表，原地重新導向每個埠存取，並改寫標頭，使其不宣告任何協處理器。然後它計算剩下的東西：仍然前往晶片的存取，或仍然宣告協處理器的標頭鏡像。任何一項都會令它在寫入檔案前停止。一個已放入例程但未重新導向存取的映像檔同樣能開機和遊玩，因為模擬器讀取標頭並提供 DSP-2，所以只有這個計數能分辨兩者。
 
-它把完成的卡帶按裝置各寫一次，寫入 `<destination>/v<version>/`：`emulator`、`supereverdrive`、`sd2snes` 和 `fxpak` 中是原樣建構的映像檔，以傾印檔名稱及版本號命名；`gamedoctor` 中是前面帶 512 位元組 Game Doctor 標頭的 `.smc`，該標頭按 ucon64 的表映射 8 Mbit 映像檔及其 32 KB 存檔記憶體。該標頭來自 [snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python) 的 `copier` 模組。卡帶宣告的標頭保留帶電池的存檔記憶體，晶片組為 `0x02`，所以只為宣告了電池的卡帶保存存檔 RAM 的模擬器亦會保存存檔。
+它把完成的卡帶按裝置各寫一次，寫入 `<destination>/v<version>/`：`emulator`、`supereverdrive`、`sd2snes` 和 `fxpak` 中是原樣建構的映像檔，無論傾印檔叫甚麼名稱，都以傾印檔符合的清單項目及版本號命名，即 `dungeon-master-usa-nochip-v<version>.sfc`；`gamedoctor` 中是前面帶 512 位元組 Game Doctor 標頭的 `.smc`，該標頭按 ucon64 的表映射 8 Mbit 映像檔及其 32 KB 存檔記憶體。該標頭來自 [snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python) 的 `copier` 模組。卡帶宣告的標頭保留帶電池的存檔記憶體，晶片組為 `0x02`，所以只為宣告了電池的卡帶保存存檔 RAM 的模擬器亦會保存存檔。五個資料夾旁邊的 `SHA256SUMS` 檔案列出每個已寫入檔案的摘要。
 
-[`build.py`](build.py) 每次運行都重新建立 `snes-dungeon-master-nochip/asar:1.81` 映像，並拒絕把結果放到給它的傾印檔上。[`assembled.py`](assembled.py) 為讀取量度映像檔 `asm/dm-sym.sfc` 的指令保持該檔案為最新。
+[`build.py`](build.py) 每次運行都重新建立 `snes-dungeon-master-nochip/asar:1.81` 映像，像 [`cartridge.py`](cartridge.py) 一樣以不帶標頭的形式放置傾印檔，並拒絕把結果放到給它的傾印檔上。[`assembled.py`](assembled.py) 為讀取量度映像檔 `asm/dm-sym.sfc` 的指令保持該檔案為最新。
 
 [`similarity.py`](similarity.py) 列出卡帶與傾印檔不相同的每個位元組，並把每一個歸入認領它的區域：例程、bank `$00` 樁程式、bank `$04` 樁程式、重新導向的位置，或改寫觸及的標頭欄位。它最多列印 8 個沒有區域認領的位元組，附上偏移、位址及兩邊的數值。
 
@@ -423,6 +423,28 @@ Dungeon Master 是唯一載有 DSP-2 的 SNES 卡帶。該晶片有六個指令�
 
 在固定路線上驅動兩個卡帶 30,000 幀，即八分鐘的行走和轉身，有 29,941 幀畫得相同。轉換版到達標題畫面遲 56 幀，此後再沒有落後一幀。直接計時 139 次地下城重繪，兩個卡帶都在 26 幀內穩定下來，而轉換版沒有一次較慢。[OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) 載有這兩項量度，以及各自無法說明的地方。
 
+## 應使用哪個檔案
+
+[`cartridge.py`](cartridge.py) 寫入的每個資料夾都存放同一個 1,048,576 位元組的映像檔，`gamedoctor` 除外。請從以你的卡帶或模擬器命名的資料夾複製檔案。
+
+| 資料夾 | 用於 | 檔案 |
+|:--|:--|:--|
+| `emulator` | snes9x 及其他模擬器 | `dungeon-master-usa-nochip-v<version>.sfc`，1,048,576 位元組 |
+| `supereverdrive` | Super EverDrive | 同一個檔案 |
+| `sd2snes` | SD2SNES 及 SD2SNES Pro | 同一個檔案 |
+| `fxpak` | FXPAK Pro | 同一個檔案 |
+| `gamedoctor` | Game Doctor SF7 | `dungeon-master-usa-nochip-v<version>.smc`，1,049,088 位元組：先是 Game Doctor 標頭，然後是映像檔 |
+
+標頭宣告一個帶 32 KB 電池存檔 RAM 的普通 LoROM 卡帶，晶片組為 `0x02`，這裏列出的每部裝置都只憑這個標頭映射映像檔。sd2snes 韌體只有在 96 Mbit 映像檔上才需要拷貝機標頭和宣告的晶片組，而 `snes-rom-image-python` 拒絕為 1 MB 映像檔寫出那種形式，所以 `sd2snes` 和 `fxpak` 中的檔案就是原樣建構的映像檔。
+
+## 已測試的硬件
+
+還沒有任何裝置運行過這個卡帶。本頁數字背後的每次運行都是 snes9x，經由 [`emu/`](emu/) 中的測試框架驅動。在上述任何一部裝置上的運行，一經按下文的方式報告，就會連同裝置、韌體、所用檔案及遊戲進行到哪裏一併列在這裏。
+
+## 報告問題
+
+開一個 [issue](https://github.com/gufranco/snes-dungeon-master-nochip/issues)，附上 `./run.sh doctor.py` 的完整輸出。畫面錯誤，或裝置無法啟動檔案時，請說明所用的資料夾和檔案、裝置及其韌體，並附上螢幕的相片或擷圖。切勿附上 ROM、微碼，或由其中任何一個建構的東西。
+
 <a id="the-dump"></a>
 
 ## 傾印檔
@@ -463,7 +485,7 @@ Dungeon Master 是唯一載有 DSP-2 的 SNES 卡帶。該晶片有六個指令�
 |:--|:--|
 | [`asm/`](asm/) | 65816 例程、狀態區塊、樁程式、重播及自我測試卡帶 |
 | [`emu/`](emu/) | 每次模擬器運行都經過的 snes9x 測試工具，從一個已固定的 snes9x commit 建構進映像 |
-| [`snes9x/`](snes9x/) | 完成的映像檔所需的映射改動，以針對該 commit 的修補檔形式提供，並作為 `/opt/snes9x/snes9x_libretro.so` 建構進映像 |
+| [`snes9x/`](snes9x/) | 針對大於 6 MB 的無晶片映像檔的窗口映射改動，以針對該 commit 的修補檔形式提供，並作為 `/opt/snes9x/snes9x_libretro.so` 建構進映像。這裏建構的 1 MB 卡帶從不用到它：`dmemu` 在不帶該修補檔的 snes9x 上運行這個卡帶，亦沒有任何指令載入這個核心 |
 | [`Dockerfile`](Dockerfile) | 每個指令執行所在的唯一映像：asar、模擬器、snes9x 核心、Python 3.12，以及包含所有檢查和測試工具的 gates 階段 |
 | [`run.sh`](run.sh)、[`run.ps1`](run.ps1)、[`run.cmd`](run.cmd) | 建構映像並在其中執行指令的啟動腳本 |
 | [`tools/`](tools/) | [詢問晶片](#asking-the-part)及[量度成本、遊玩及放置](#measuring-cost-play-and-placement)下的指令 |

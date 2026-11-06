@@ -36,6 +36,16 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: device
+    attributes:
+      label: Which device and which file
+      description: |
+        For a problem running the cartridge: the device or emulator with its
+        firmware or version, and the folder and file name from dist/. Leave it
+        empty for a problem building it.
+      placeholder: "FXPAK Pro firmware 1.11.0, fxpak/dungeon-master-usa-nochip-v4.0.0.sfc"
+
   - type: textarea
     id: expected
     attributes:

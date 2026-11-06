@@ -1,3 +1,5 @@
+import hashlib
+import importlib.util
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -10,11 +12,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build
 import hardware
 import patch
+import toolchain
 import version
 
-romimage = hardware.load("romimage")
+ROOT = Path(__file__).resolve().parent
 
-DIST = Path(__file__).resolve().parent / "dist"
+
+def _load_tool(name: str) -> Any:
+    spec = importlib.util.spec_from_file_location(name, ROOT / "tools" / f"{name}.py")
+    assert spec is not None and spec.loader is not None, "no loader for that path"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+romimage = hardware.load("romimage")
+identify = _load_tool("identify")
+
+DIST = ROOT / "dist"
+SUMS = "SHA256SUMS"
 HEADED_SUFFIX = ".smc"
 EMULATOR = "emulator"
 SUPER_EVERDRIVE = "supereverdrive"
@@ -69,6 +85,11 @@ def release_folder(release: str | None = None) -> str:
     return found.removesuffix(version.EXTENSION).lstrip("-")
 
 
+def declared_as(dump: bytes, manifest: Any) -> str | None:
+    found = identify.accepted_digests(manifest).get(identify.digests(dump).sha256)
+    return None if found is None else str(found["filename"])
+
+
 def forms_of(name: str, final: bytes) -> list[tuple[str, bytes]]:
     headed = Path(name).with_suffix(HEADED_SUFFIX).name
     return [
@@ -80,12 +101,40 @@ def forms_of(name: str, final: bytes) -> list[tuple[str, bytes]]:
     ]
 
 
+def sums_line(relative: str, written: bytes) -> str:
+    return f"{hashlib.sha256(written).hexdigest()}  {relative}"
+
+
+def write_forms(destination: Path, name: str, final: bytes, say: Callable[[str], None]) -> None:
+    forms = forms_of(name, final)
+    for relative, written in forms:
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(written)
+        say(f"[done] {target} ({len(written):,} bytes)")
+    (destination / SUMS).write_text("".join(f"{sums_line(*form)}\n" for form in forms))
+    say(f"[done] {destination / SUMS} ({len(forms)} images)")
+
+
+def named_or_refused(source: Path, manifest: Any, say: Callable[[str], None]) -> str | None:
+    if not source.exists():
+        say(f"  no dump at {source}")
+        return None
+    declared = declared_as(romimage.dump.read(source), manifest)
+    if declared is None:
+        say(f"  {source} is not a dump {identify.MANIFEST_PATH.name} declares")
+        say(f"  {toolchain.launched('tools/identify.py')} says what it is")
+        return None
+    return output_name(declared)
+
+
 def main(
     argv: list[str],
     say: Callable[[str], None] = print,
     assemble: Any = assemble,
     left: Any = unfinished,
     staged: Path | str | None = None,
+    manifest: Any = None,
 ) -> int:
     if len(argv) < 2:
         say("usage: cartridge.py <source-rom> [<destination>]")
@@ -93,11 +142,10 @@ def main(
 
     source = Path(argv[1])
     destination = (Path(argv[2]) if len(argv) > 2 else DIST) / release_folder()
-    if not source.exists():
-        say(f"  no dump at {source}")
+    name = named_or_refused(source, identify.read_manifest() if manifest is None else manifest, say)
+    if name is None:
         return 2
 
-    name = output_name(source)
     code = int(assemble(["build.py", str(ASSEMBLY), str(source), name], say=say))
     if code:
         say("  the assembler did not finish, so nothing was patched")
@@ -112,11 +160,7 @@ def main(
             say(f"  {line}")
         return 1
 
-    for relative, written in forms_of(name, final):
-        target = destination / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(written)
-        say(f"[done] {target} ({len(written):,} bytes)")
+    write_forms(destination, name, final, say)
     return 0
 
 

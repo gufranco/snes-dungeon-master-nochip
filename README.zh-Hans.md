@@ -9,7 +9,7 @@
 [![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen?style=flat-square)](https://github.com/gufranco/snes-dungeon-master-nochip/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/gufranco/snes-dungeon-master-nochip?style=flat-square&label=license)](LICENSE)
 
-一份不含 scale 的录制中的 **17,241,846** 个返回字节由芯片的微码重现，**0** 个错误；**6** 条命令中的 6 条在选定输入上与芯片一致；**1,005** 个测试；**100%** 语句与分支覆盖率；仅使用标准库
+一份不含 scale 的录制中的 **17,241,846** 个返回字节由芯片的微码重现，**0** 个错误；**6** 条命令中的 6 条在选定输入上与芯片一致；**1,013** 个测试；**100%** 语句与分支覆盖率；仅使用标准库
 
 ```python
 import patch
@@ -150,7 +150,7 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
 
 | 命令 | 参数 | 退出码 |
 |:--|:--|:--|
-| `cartridge.py <dump> [<destination>]` | 零售版转储，以及写入的文件夹，默认为 `dist` | 0 已写出。1 仍有访问到达芯片，或某个头部镜像仍声明协处理器，此时不写出任何文件。2 用法错误，或 `<dump>` 处没有文件。其他代码来自汇编器 |
+| `cartridge.py <dump> [<destination>]` | 零售版转储，以及写入的文件夹，默认为 `dist` | 0 已写出。1 仍有访问到达芯片，或某个头部镜像仍声明协处理器，此时不写出任何文件。2 用法错误、`<dump>` 处没有文件，或 [`artifacts.manifest.json`](artifacts.manifest.json) 未声明的转储。其他代码来自汇编器 |
 | `build.py <patch.asm> <dump> <output-name>` | 一个汇编文件、转储，以及结果的文件名 | 0 已汇编。1 当前环境中没有 asar。2 用法错误。其他任何退出码来自 asar |
 | [`assembled.py`](assembled.py) | 无 | 0 `asm/dm-sym.sfc` 及其符号比所有 `asm/*.asm` 都新，或已重新构建。2 `external/roms/dungeon-master-usa.sfc` 处没有转储 |
 | `similarity.py <dump> <cartridge>` | 零售版转储和一个成品卡带 | 0 每个改动的字节都位于已声明的区域内。1 至少有一个不在。2 用法错误，或 `asm/dm-sym.sfc` 缺失或比其源文件旧 |
@@ -159,11 +159,11 @@ feed   $00:8500  54 3f 7e  ->  20 10 ff
 ./run.sh cartridge.py external/roms/dungeon-master-usa.sfc
 ```
 
-[`cartridge.py`](cartridge.py) 将转储复制到 `asm/<output-name>`，用镜像中的 asar 1.81把 [`asm/nochip.asm`](asm/nochip.asm) 汇编到其上，读取 asar 在旁边写出的符号表，就地重定向每处端口访问，并重写头部使其不声明任何协处理器。随后它统计剩余的问题：仍然通往芯片的访问，或仍然声明协处理器的头部镜像。任意一种都会让它在写出文件之前停止。一个放置了例程但未重定向访问的镜像也能启动并游玩，因为模拟器读取头部并提供一个 DSP-2，所以这项统计是区分两者的唯一手段。
+[`cartridge.py`](cartridge.py) 以不带头部的形式读取转储：去掉 512 字节的拷贝机头部，或拼接一个编号分卷的文件夹；若其 SHA-256 不在清单中，则拒绝该转储。随后它将转储复制到 `asm/<output-name>`，用镜像中的 asar 1.81把 [`asm/nochip.asm`](asm/nochip.asm) 汇编到其上，读取 asar 在旁边写出的符号表，就地重定向每处端口访问，并重写头部使其不声明任何协处理器。随后它统计剩余的问题：仍然通往芯片的访问，或仍然声明协处理器的头部镜像。任意一种都会让它在写出文件之前停止。一个放置了例程但未重定向访问的镜像也能启动并游玩，因为模拟器读取头部并提供一个 DSP-2，所以这项统计是区分两者的唯一手段。
 
-它把成品卡带按设备各写一次，写入 `<destination>/v<version>/`：`emulator`、`supereverdrive`、`sd2snes` 和 `fxpak` 中是原样构建的镜像，以转储名和版本号命名；`gamedoctor` 中是前面带 512 字节 Game Doctor 头部的 `.smc`，该头部按 ucon64 的表映射 8 Mbit 镜像及其 32 KB 存档内存。该头部来自 [snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python) 的 `copier` 模块。卡带声明的头部保留带电池的存档内存，芯片组为 `0x02`，所以只为声明了电池的卡带保存存档 RAM 的模拟器也会保存存档。
+它把成品卡带按设备各写一次，写入 `<destination>/v<version>/`：`emulator`、`supereverdrive`、`sd2snes` 和 `fxpak` 中是原样构建的镜像，无论转储文件叫什么，都以转储匹配的清单条目和版本号命名，即 `dungeon-master-usa-nochip-v<version>.sfc`；`gamedoctor` 中是前面带 512 字节 Game Doctor 头部的 `.smc`，该头部按 ucon64 的表映射 8 Mbit 镜像及其 32 KB 存档内存。该头部来自 [snes-rom-image-python](https://github.com/gufranco/snes-rom-image-python) 的 `copier` 模块。卡带声明的头部保留带电池的存档内存，芯片组为 `0x02`，所以只为声明了电池的卡带保存存档 RAM 的模拟器也会保存存档。五个文件夹旁边的 `SHA256SUMS` 文件列出每个已写出文件的摘要。
 
-[`build.py`](build.py) 每次运行都会重新构建 `snes-dungeon-master-nochip/asar:1.81` 镜像，并拒绝把结果放到它所接收的转储之上。[`assembled.py`](assembled.py) 为读取测量镜像 `asm/dm-sym.sfc` 的命令保持该镜像为最新。
+[`build.py`](build.py) 每次运行都会重新构建 `snes-dungeon-master-nochip/asar:1.81` 镜像，像 [`cartridge.py`](cartridge.py) 一样以不带头部的形式放置转储，并拒绝把结果放到它所接收的转储之上。[`assembled.py`](assembled.py) 为读取测量镜像 `asm/dm-sym.sfc` 的命令保持该镜像为最新。
 
 [`similarity.py`](similarity.py) 列出卡带与转储不同的每个字节，并把每个字节归入认领它的区域：例程、bank `$00` 的桩、bank `$04` 的桩、被重定向的位置，或重写所触及的头部字段。它最多打印 8 个没有区域认领的字节，附带其偏移、地址和两边的值。
 
@@ -423,6 +423,28 @@ Dungeon Master 是唯一带有 DSP-2 的 SNES 卡带。该芯片有六条命令�
 
 沿固定路线驱动两个卡带运行 30,000 帧，即八分钟的行走和转向，有 29,941 帧绘制相同。转换版晚 56 帧到达标题画面，此后再未落后一帧。直接对 139 次地牢重绘计时，两个卡带都在 26 帧内稳定下来，转换版没有一次更慢。[OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) 记载了这两项测量以及各自无法说明的内容。
 
+## 使用哪个文件
+
+[`cartridge.py`](cartridge.py) 写出的每个文件夹都存放同一个 1,048,576 字节的镜像，`gamedoctor` 除外。请从以你的卡带或模拟器命名的文件夹中复制文件。
+
+| 文件夹 | 用于 | 文件 |
+|:--|:--|:--|
+| `emulator` | snes9x 及其他模拟器 | `dungeon-master-usa-nochip-v<version>.sfc`，1,048,576 字节 |
+| `supereverdrive` | Super EverDrive | 同一个文件 |
+| `sd2snes` | SD2SNES 和 SD2SNES Pro | 同一个文件 |
+| `fxpak` | FXPAK Pro | 同一个文件 |
+| `gamedoctor` | Game Doctor SF7 | `dungeon-master-usa-nochip-v<version>.smc`，1,049,088 字节：先是 Game Doctor 头部，然后是镜像 |
+
+头部声明一个带 32 KB 电池存档 RAM 的普通 LoROM 卡带，芯片组为 `0x02`，这里列出的每个设备都只凭这个头部映射镜像。sd2snes 固件只有在 96 Mbit 镜像上才需要拷贝机头部和声明的芯片组，而 `snes-rom-image-python` 拒绝为 1 MB 镜像写出那种形式，所以 `sd2snes` 和 `fxpak` 中的文件就是原样构建的镜像。
+
+## 已测试的硬件
+
+还没有任何设备运行过这个卡带。本页数字背后的每次运行都是 snes9x，通过 [`emu/`](emu/) 中的测试框架驱动。在上述任一设备上的运行，一经按下文方式报告，就会连同设备、固件、所用文件以及游戏进行到哪里一起列在这里。
+
+## 报告问题
+
+开一个 [issue](https://github.com/gufranco/snes-dungeon-master-nochip/issues)，附上 `./run.sh doctor.py` 的完整输出。画面错误，或设备无法启动文件时，请说明所用的文件夹和文件、设备及其固件，并附上屏幕的照片或截图。切勿附上 ROM、微码，或由其中任何一个构建的东西。
+
 <a id="the-dump"></a>
 
 ## 转储
@@ -463,7 +485,7 @@ Dungeon Master 是唯一带有 DSP-2 的 SNES 卡带。该芯片有六条命令�
 |:--|:--|
 | [`asm/`](asm/) | 65816 例程、状态块、桩、重放和自测卡带 |
 | [`emu/`](emu/) | 每次模拟器运行都要经过的 snes9x 测试框架，从一个固定的 snes9x 提交构建进镜像 |
-| [`snes9x/`](snes9x/) | 成品镜像所需的映射改动，以针对该提交的补丁形式提供，并作为 `/opt/snes9x/snes9x_libretro.so` 构建进镜像 |
+| [`snes9x/`](snes9x/) | 针对大于 6 MB 的无芯片镜像的窗口映射改动，以针对该提交的补丁形式提供，并作为 `/opt/snes9x/snes9x_libretro.so` 构建进镜像。这里构建的 1 MB 卡带从不用到它：`dmemu` 在不带该补丁的 snes9x 上运行这个卡带，也没有任何命令加载这个核心 |
 | [`Dockerfile`](Dockerfile) | 每条命令运行所在的唯一镜像：asar、模拟器、snes9x 核心、Python 3.12，以及包含所有检查和测试工具的 gates 阶段 |
 | [`run.sh`](run.sh)、[`run.ps1`](run.ps1)、[`run.cmd`](run.cmd) | 构建镜像并在其中运行命令的启动脚本 |
 | [`tools/`](tools/) | [询问芯片](#asking-the-part)和[测量开销、游玩和放置](#measuring-cost-play-and-placement)下的命令 |
