@@ -17,7 +17,7 @@ import sites  # noqa: E402
 
 hardware.install()
 
-from romimage import rewrite  # noqa: E402
+from romimage import dump, rewrite  # noqa: E402
 
 FILLER = (
     ("routines", "ROUTINES", "routines_end"),
@@ -154,7 +154,7 @@ def main(argv: list[str], say: Callable[[str], None] = print) -> int:
         say(f"  {reason}")
         return 2
 
-    retail = Path(argv[1]).read_bytes()
+    retail = dump.read(argv[1])
     final = Path(argv[2]).read_bytes()
     report = account(
         retail,

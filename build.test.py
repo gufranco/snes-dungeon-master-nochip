@@ -1,6 +1,7 @@
 import contextlib
 import importlib.util
 import io
+import random
 import tempfile
 import unittest
 from collections.abc import Callable
@@ -21,6 +22,11 @@ def load_module() -> Any:
 
 
 bd = load_module()
+
+SEED = 20261106
+COPIER = 0x200
+HALF_BANK = 0x8000
+TWO_HALF_BANKS = 2 * HALF_BANK
 
 
 def _recording(seen: list[Any]) -> Callable[[list[str]], int]:
@@ -215,6 +221,56 @@ class RunTest(unittest.TestCase):
 
     def test_and_what_it_returned_comes_back(self) -> None:
         self.assertEqual(bd.run(["x"], execute=lambda _args: 3, say=lambda _line: None), 3)
+
+
+class CopierFormTest(unittest.TestCase):
+    def test_a_dump_behind_a_copier_header_is_staged_bare(self) -> None:
+        # Arrange
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            bare = random.Random(SEED).randbytes(TWO_HALF_BANKS)
+            (work / "headed.smc").write_bytes(bytes(COPIER) + bare)
+
+            # Act
+            out = bd.stage_rom(work / "headed.smc", work, "out.sfc")
+
+            # Assert
+            self.assertEqual(out.read_bytes(), bare)
+
+    def test_a_dump_split_into_numbered_parts_is_staged_joined(self) -> None:
+        # Arrange
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            parts = work / "parts"
+            parts.mkdir()
+            first, second = (random.Random(SEED + n).randbytes(HALF_BANK) for n in (1, 2))
+            (parts / "dm.1").write_bytes(bytes(COPIER) + first)
+            (parts / "dm.2").write_bytes(second)
+
+            # Act
+            out = bd.stage_rom(parts, work, "out.sfc")
+
+            # Assert
+            self.assertEqual(out.read_bytes(), first + second)
+
+    def test_the_run_says_which_form_the_dump_was_read_as(self) -> None:
+        # Arrange
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            (where / "patch.asm").write_text("; nothing")
+            (where / "in.smc").write_bytes(bytes(COPIER) + bytes(TWO_HALF_BANKS))
+            said: list[str] = []
+
+            # Act
+            bd.main(
+                ["bd.py", str(where / "patch.asm"), str(where / "in.smc"), "out.sfc"],
+                execute=lambda _args: 0,
+                say=said.append,
+                look=_present,
+            )
+
+            # Assert
+            self.assertIn("read as copier header", said[0])
 
 
 class StagingTest(unittest.TestCase):

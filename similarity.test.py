@@ -308,5 +308,20 @@ class MainTest(unittest.TestCase):
 
         self.assertEqual(code, 1)
 
+    def test_a_dump_behind_a_copier_header_is_compared_by_its_bare_bytes(self) -> None:
+        # Arrange
+        final = bytearray(a_cartridge(0x100000))
+        final[0x0E61BF] = 0xAB
+
+        with tempfile.TemporaryDirectory() as tmp:
+            argv = self.staged(tmp, bytes(final))
+            Path(argv[1]).write_bytes(bytes(0x200) + a_cartridge(0x100000))
+
+            # Act
+            code = similarity.main(argv, lambda _line: None)
+
+        # Assert
+        self.assertEqual(code, 0)
+
 
 script.entry(__name__, unittest.main)

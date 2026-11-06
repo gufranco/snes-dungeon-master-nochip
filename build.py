@@ -10,7 +10,10 @@ ROOT = Path(__file__).resolve().parent
 ASM_DIR = ROOT / "asm"
 sys.path.insert(0, str(ROOT))
 
+import hardware  # noqa: E402
 import toolchain  # noqa: E402
+
+romimage = hardware.load("romimage")
 
 
 class ToolchainMissing(Exception): ...
@@ -38,7 +41,7 @@ def stage_rom(source: Path | str, work_dir: Path | str, output_name: str) -> Pat
     target = Path(work_dir) / output_name
     if target.resolve() == Path(source).resolve():
         raise ValueError("refusing to patch the source ROM in place")
-    shutil.copy2(source, target)
+    target.write_bytes(romimage.dump.read(source))
     return target
 
 
@@ -84,7 +87,7 @@ def main(
     work = Path(patch).resolve().parent
 
     staged = stage_rom(source, work, output)
-    say(f"  staged {source} -> {staged}")
+    say(f"  staged {source}, read as {romimage.dump.form(source)} -> {staged}")
 
     code = run(patch_command(work, Path(patch).name, output), execute, say)
     if code == 0:
